@@ -1,4 +1,4 @@
-import { PrismaClient } from "../app/generated/prisma/client";
+import { PrismaClient } from '../app/generated/prisma/client'
 
 declare global {
     namespace NodeJS {
@@ -16,4 +16,4 @@ const prisma = global.prisma || new PrismaClient()
 
 if (process.env.NODE_ENV === "development") global.prisma = prisma
 
-export default prisma
+export const db = prisma;
