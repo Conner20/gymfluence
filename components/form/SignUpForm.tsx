@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import Link from "next/link";
 import GoogleSignInButton from "../GoogleSignInButton";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner"
 
 
 
@@ -51,9 +52,11 @@ const SignUpForm = () => {
         });
 
         if(response.ok) {
-            router.push('/log-in');
+            router.push('/user-onboarding');
         } else {
-            console.error('Registration failed');
+            toast("Error", {
+                description: "Oops! Something went wrong",
+            })
         }
     };
 

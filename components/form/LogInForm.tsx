@@ -8,7 +8,10 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import GoogleSignInButton from "../GoogleSignInButton";
-
+import { signIn } from 'next-auth/react'
+import { ChevronsUp } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner"
 
 
 const FormSchema = z.object({
@@ -17,12 +20,25 @@ const FormSchema = z.object({
 })
 
 const LogInForm = () => {
+    const router = useRouter();
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
     });
 
-    const onSubmit = (values: z.infer<typeof FormSchema>) => {
-        console.log(values);
+    const onSubmit = async (values: z.infer<typeof FormSchema>) => {
+        const logInData = await signIn('credentials', {
+            email: values.email,
+            password: values.password,
+            redirect: false,
+        });
+        if(logInData?.error) {
+            toast("Error", {
+                description: "Oops! Something went wrong",
+            })
+        } else {
+            router.refresh();
+            router.push('/admin')
+        }
     }
 
     return (
