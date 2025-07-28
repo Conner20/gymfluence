@@ -10,7 +10,6 @@ import Link from "next/link";
 import GoogleSignInButton from "../GoogleSignInButton";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"
-import { signIn } from "next-auth/react";
 
 
 
@@ -25,7 +24,7 @@ const FormSchema = z.object({
     message: 'Passwords do not match'
 })
 
-const SignUpForm = () => {
+const GymCreateProfile = () => {
     const router = useRouter();
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
@@ -52,13 +51,8 @@ const SignUpForm = () => {
             }),
         });
 
-        if(response.ok) {
-            await signIn("credentials", {
-                redirect: false,
-                email: values.email,
-                password: values.password
-            });
-            router.push(`/user-onboarding?username=${encodeURIComponent(values.username)}`);
+        if (response.ok) {
+            router.push('/user-onboarding');
         } else {
             toast("Error", {
                 description: "Oops! Something went wrong",
@@ -155,4 +149,4 @@ const SignUpForm = () => {
     );
 };
 
-export default SignUpForm;
+export default GymCreateProfile;

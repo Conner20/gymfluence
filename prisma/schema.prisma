@@ -31,7 +31,6 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
  
   @@unique([provider, providerAccountId])
-  @@map("accounts")
 }
  
 model Session {
@@ -41,7 +40,6 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
  
-  @@map("sessions")
 }
  
 model User {
@@ -53,10 +51,45 @@ model User {
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
   image         String?
+  role          Role?
+
   accounts      Account[]
   sessions      Session[]
+  traineeProfile TraineeProfile?
+  trainerProfile TrainerProfile?
+  gymProfile GymProfile?
  
-  @@map("users")
+}
+
+enum Role {
+  TRAINEE
+  TRAINER
+  GYM
+}
+
+model TraineeProfile {
+  id     String   @id @default(cuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String   @unique
+  goals  String[] // Array of selected goals
+}
+
+model TrainerProfile {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String   @unique
+  services String[] // Array of offered services
+}
+
+model GymProfile {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String   @unique
+  name       String
+  address    String
+  phone      String
+  website    String
+  fee        String
 }
  
 model VerificationToken {
@@ -65,7 +98,6 @@ model VerificationToken {
   expires    DateTime
  
   @@unique([identifier, token])
-  @@map("verification_tokens")
 }
 
 // model User {

@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { useSearchParams } from 'next/navigation';
 
 const OPTIONS = [
     "weight loss", "build strength", "improve endurance",
@@ -52,8 +55,8 @@ const roleOptions = [
 
 export default function UserOnboarding() {
     const router = useRouter();
-    const { data: session } = useSession();
-    const userName = session?.user?.username || 'there';
+    const searchParams = useSearchParams();
+    const userName = searchParams.get('username') || 'there';
 
     const [step, setStep] = useState(1);
     const [role, setRole] = useState<string | null>(null);
@@ -82,8 +85,26 @@ export default function UserOnboarding() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Post to your API
-        router.push('/log-in');
+
+        try {
+            const res = await fetch("/api/user/update-role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    role: role?.toUpperCase(), // "TRAINEE", "TRAINER", or "GYM"
+                    selections,
+                    gymForm,
+                }),
+            });
+
+            if (!res.ok) throw new Error("Failed to update role");
+
+            const data = await res.json();
+            console.log("User updated:", data);
+            router.push("/log-in");
+        } catch (err) {
+            console.error("Update failed:", err);
+        }
     };
 
     return (
@@ -124,25 +145,74 @@ export default function UserOnboarding() {
             )}
 
             {step === 2 && (role === 'Trainee' || role === 'Trainer') && (
-                <form onSubmit={handleSubmit} className="max-w-lg w-full bg-white rounded-2xl p-8 shadow-lg mt-0">
-                    <h2 className="text-xl font-semibold mb-4 text-center">
+                <div className="flex flex-col items-center gap-8">
+                    <h2 className="text-3xl font-bold text-center">
                         {role === 'Trainee' ? 'What are your goals?' : 'What services do you offer?'}
                     </h2>
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {OPTIONS.map(option => (
-                            <button
-                                key={option}
-                                type="button"
-                                className={`px-4 py-2 rounded-full border 
-                                ${selections.includes(option) ? 'bg-green-500 text-white' : 'bg-white'}`}
-                                onClick={() => toggleSelection(option)}
-                            >
-                                {option}
-                            </button>
-                        ))}
+                    <div className="grid grid-cols-3 gap-6">
+                        {OPTIONS.map((option) => {
+                            const isSelected = selections.includes(option);
+
+                            // Get unique background color
+                            const bgColorMap: Record<string, string> = {
+                                "weight loss": "bg-green-100",
+                                "build strength": "bg-red-100",
+                                "improve endurance": "bg-blue-100",
+                                "flexibility & mobility": "bg-yellow-200",
+                                "sport performance": "bg-purple-200",
+                                "injury recovery": "bg-yellow-100",
+                            };
+
+                            // Get unique SVG icon (you can expand this map to return JSX elements later)
+                            const iconMap: Record<string, JSX.Element> = {
+                                "weight loss": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M12 2c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4zM8 14a4 4 0 0 1 8 0v5H8v-5z" /></svg>,
+                                "build strength": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M17 8a4 4 0 0 0-4-4M3 12c0-3.314 2.686-6 6-6m-2 6v4a2 2 0 0 0 2 2h3v3" /></svg>,
+                                "improve endurance": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M18 8l4 4-4 4M3 12h19" /></svg>,
+                                "flexibility & mobility": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M12 6v12M6 12h12" /></svg>,
+                                "sport performance": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M2 12h2m16 0h2" /></svg>,
+                                "injury recovery": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M12 4v4M12 16v4M8 12h8" /></svg>,
+                            };
+
+                            return (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => toggleSelection(option)}
+                                    className={`w-40 h-40 flex flex-col items-center justify-center rounded-xl p-4 transition 
+                            ${bgColorMap[option]} 
+                            ${isSelected ? 'border-4 border-blue-500' : 'border border-transparent'}`}
+                                >
+                                    <div className="mb-2">{iconMap[option]}</div>
+                                    <p className="text-center font-semibold lowercase text-black">{option}</p>
+                                </button>
+                            );
+                        })}
                     </div>
-                    <button className="btn w-full mt-2" type="submit" disabled={selections.length === 0}>Finish</button>
-                </form>
+
+                    {/* Navigation Arrows */}
+                    <div className="flex gap-6">
+                        <button
+                            onClick={() => setStep(1)}
+                            className="w-12 h-12 border-2 border-black rounded-full flex items-center justify-center hover:bg-black hover:text-white transition"
+                            aria-label="Back"
+                        >
+                            ←
+                        </button>
+                        <button
+                            type="button"
+                            disabled={selections.length === 0}
+                            onClick={handleSubmit}
+                            className={`w-12 h-12 border-2 rounded-full flex items-center justify-center transition 
+                    ${selections.length > 0
+                                    ? 'border-black hover:bg-black hover:text-white'
+                                    : 'border-gray-300 text-gray-300 cursor-not-allowed'}`}
+                            aria-label="Next"
+                        >
+                            →
+                        </button>
+                    </div>
+                </div>
+
             )}
 
             {step === 2 && role === 'Gym' && (
