@@ -7,11 +7,25 @@ import { useSession } from 'next-auth/react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { useSearchParams } from 'next/navigation';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "../../../components/ui/form";
+import { Input } from '../../../components/ui/input';
+import { Button } from "../../../components/ui/button";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const OPTIONS = [
     "weight loss", "build strength", "improve endurance",
     "flexibility & mobility", "sport performance", "injury recovery"
 ];
+
+const GymFormSchema = z.object({
+    name: z.string().min(1, "Organization Name is required"),
+    address: z.string().min(1, "Address is required"),
+    phone: z.string().min(1, "Phone Number is required"),
+    website: z.string().min(1, "Website URL is required"),
+    fee: z.string().min(1, "Base Membership Fee is required"),
+});
 
 const roleOptions = [
     {
@@ -53,6 +67,10 @@ const roleOptions = [
     },
 ];
 
+
+
+
+
 export default function UserOnboarding() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -62,6 +80,17 @@ export default function UserOnboarding() {
     const [role, setRole] = useState<string | null>(null);
     const [selections, setSelections] = useState<string[]>([]);
     const [gymForm, setGymForm] = useState({ name: '', address: '', phone: '', website: '', fee: '' });
+
+    const gymFormHook = useForm({
+        resolver: zodResolver(GymFormSchema),
+        defaultValues: {
+            name: "",
+            address: "",
+            phone: "",
+            website: "",
+            fee: "",
+        }
+    });
 
     const handleRoleCardSelect = (r: string) => {
         setRole(r);
@@ -82,6 +111,28 @@ export default function UserOnboarding() {
     const handleGymInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         setGymForm({ ...gymForm, [e.target.name]: e.target.value });
     };
+
+    const handleGymProfileSubmit = gymFormHook.handleSubmit(async (values) => {
+        try {
+            const res = await fetch("/api/user/update-role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    role: "GYM",
+                    gymForm: values,
+                    selections: [], // just in case API expects it
+                }),
+            });
+
+            if (!res.ok) throw new Error("Failed to update role");
+
+            const data = await res.json();
+            console.log("User updated:", data);
+            router.push("/log-in");
+        } catch (err) {
+            console.error("Update failed:", err);
+        }
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,7 +159,7 @@ export default function UserOnboarding() {
     };
 
     return (
-        <div className={`w-full min-h-screen flex flex-col items-center justify-center bg-white`}>
+        <div className={`w-full min-h-screen flex flex-col items-center justify-center`}>
             {step === 1 && (
                 <div className="flex flex-col items-center">
                     <div className="text-center mb-10">
@@ -134,7 +185,7 @@ export default function UserOnboarding() {
                     </div>
                     <button
                         className={`mt-2 w-16 h-16 flex items-center justify-center rounded-full border-2 border-black transition
-                        ${role ? "bg-white hover:bg-black hover:text-white" : "opacity-50 cursor-not-allowed"}`}
+                        ${role ? "hover:bg-black hover:text-white" : "opacity-50 cursor-not-allowed"}`}
                         disabled={!role}
                         onClick={handleRoleNext}
                         aria-label="Next"
@@ -216,15 +267,83 @@ export default function UserOnboarding() {
             )}
 
             {step === 2 && role === 'Gym' && (
-                <form onSubmit={handleSubmit} className="max-w-lg w-full bg-white rounded-2xl p-8 shadow-lg mt-0">
-                    <h2 className="text-xl font-semibold mb-4 text-center">Create Gym Profile</h2>
-                    <input name="name" placeholder="Organization Name" className="input" value={gymForm.name} onChange={handleGymInput} required />
-                    <input name="address" placeholder="Address" className="input" value={gymForm.address} onChange={handleGymInput} required />
-                    <input name="phone" placeholder="Phone Number" className="input" value={gymForm.phone} onChange={handleGymInput} required />
-                    <input name="website" placeholder="Website URL" className="input" value={gymForm.website} onChange={handleGymInput} required />
-                    <input name="fee" placeholder="Base Membership Fee" className="input" value={gymForm.fee} onChange={handleGymInput} required />
-                    <button className="btn w-full mt-2" type="submit">Finish</button>
-                </form>
+                <div className='bg-slate-200 p-10 rounded-md w-full max-w-md'>
+                <Form {...gymFormHook}>
+                    <h2 className="text-3xl text-center mb-4">Create Gym Profile</h2>
+                    <form onSubmit={handleGymProfileSubmit} className="w-full">
+                        <div className="space-y-4">
+                            <FormField
+                                control={gymFormHook.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-2">Organization Name</FormLabel>
+                                        <FormControl className="bg-white">
+                                            <Input placeholder="Organization Name" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="address"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-2">Address</FormLabel>
+                                        <FormControl className="bg-white">
+                                            <Input placeholder="Address" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-2">Phone Number</FormLabel>
+                                        <FormControl className="bg-white">
+                                            <Input placeholder="Phone Number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="website"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-2">Website URL</FormLabel>
+                                        <FormControl className="bg-white">
+                                            <Input placeholder="Website URL" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="fee"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-2">Base Membership Fee</FormLabel>
+                                        <FormControl className="bg-white">
+                                            <Input placeholder="Base Membership Fee" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <Button className="w-full mt-6" type="submit">
+                            Finish
+                        </Button>
+                    </form>
+                </Form>
+                </div>
             )}
         </div>
     );
