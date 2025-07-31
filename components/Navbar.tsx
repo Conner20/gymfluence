@@ -66,7 +66,7 @@ export default function Sidebar() {
     const [showModal, setShowModal] = useState(false);
 
     return (
-        <nav className="fixed top-0 right-0 h-screen w-20 bg-white border-l flex flex-col items-center py-8 gap-8 z-50">
+        <nav className="fixed top-25 right-0 h-screen w-20 bg-white flex flex-col items-center py-8 gap-8 z-50">
             {navItems.map((item, idx) => {
                 const isActive = pathname === item.href;
                 if (item.type === "modal") {
