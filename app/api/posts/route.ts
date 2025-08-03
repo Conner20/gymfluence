@@ -5,24 +5,30 @@ import { authOptions } from "@/lib/auth";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
+    console.log("Session:", session);
+
     if (!session?.user?.email) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { title, content } = await req.json();
+    console.log("Received title:", title, "content:", content);
 
     if (!title || !content) {
         return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
     }
 
-    // Get the user's ID from email
     const user = await db.user.findUnique({
         where: { email: session.user.email }
     });
 
+    console.log("User found:", user);
+
     if (!user) {
         return NextResponse.json({ message: "User not found." }, { status: 404 });
     }
+
+    console.log("DB Models:", Object.keys(db));
 
     try {
         const newPost = await db.post.create({
@@ -33,9 +39,38 @@ export async function POST(req: Request) {
             },
         });
 
+        console.log("Post created:", newPost);
+
         return NextResponse.json({ post: newPost, message: "Post created!" }, { status: 201 });
     } catch (error) {
         console.error("POST /api/posts error:", error);
         return NextResponse.json({ message: "Failed to create post." }, { status: 500 });
+    }
+}
+
+export async function GET() {
+    try {
+        const posts = await db.post.findMany({
+            orderBy: { createdAt: "desc" },
+            include: { author: true }, // Include user info if you want to show username
+        });
+        return NextResponse.json(posts);
+    } catch (error) {
+        return NextResponse.json({ message: "Failed to fetch posts." }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    const { id } = await req.json();
+    if (!id) {
+        return NextResponse.json({ message: "Post ID required." }, { status: 400 });
+    }
+    try {
+        await db.post.delete({
+            where: { id },
+        });
+        return NextResponse.json({ message: "Post deleted!" }, { status: 200 });
+    } catch (error) {
+        return NextResponse.json({ message: "Failed to delete post." }, { status: 500 });
     }
 }
