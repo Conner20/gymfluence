@@ -11,9 +11,6 @@ export default async function Home() {
                     <span>gymfluence</span>
                 </h1>
             </header>
-            <main className="flex flex-col items-center mt-10">
-                <h1 className="text-4xl">Home</h1>
-            </main>
         </div>
     );
 }

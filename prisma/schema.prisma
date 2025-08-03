@@ -39,7 +39,6 @@ model Session {
   userId       String   @map("user_id")
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
 }
  
 model User {
@@ -102,9 +101,10 @@ model VerificationToken {
 }
 
 model Post {
-  id          Int           @id @default(autoincrement())
-  content     String?
-  createdAt   DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
 }

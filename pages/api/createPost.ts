@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "@/node_modules/next/types";
-import prisma from "@/prisma/client";
+import db from "@/prisma/client";
 
 type postProps = {
     title: string,
@@ -17,7 +17,7 @@ export default async function handler(
                 return res.status(500).json({ message: "Please include title" })
             }
             try {
-                const data = await prisma.post.create({
+                const data = await db.post.create({
                     data: {
                         title: post.title,
                         userId: post.userId
