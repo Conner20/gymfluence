@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 type Post = {
     id: string;
@@ -15,6 +16,9 @@ export default function HomePosts() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const { data: session } = useSession();
+    const username = session?.user?.username;
 
     // Fetch posts
     const fetchPosts = async () => {
@@ -66,13 +70,16 @@ export default function HomePosts() {
                         key={post.id}
                         className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
                     >
-                        <button
-                            onClick={() => handleDelete(post.id)}
-                            className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition"
-                            title="Delete post"
-                        >
-                            <Trash2 size={20} />
-                        </button>
+                        {/* Only show delete button if the current user is the author */}
+                        {post.author?.username === username && (
+                            <button
+                                onClick={() => handleDelete(post.id)}
+                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition"
+                                title="Delete post"
+                            >
+                                <Trash2 size={20} />
+                            </button>
+                        )}
                         <div className="flex flex-col gap-1 mb-1">
                             <span className="font-bold text-lg text-gray-800">{post.title}</span>
                             <div className="flex items-center gap-2">

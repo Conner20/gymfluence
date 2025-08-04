@@ -61,16 +61,29 @@ export async function GET() {
 }
 
 export async function DELETE(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await req.json();
-    if (!id) {
-        return NextResponse.json({ message: "Post ID required." }, { status: 400 });
+
+    // Find the post first
+    const post = await db.post.findUnique({
+        where: { id },
+        include: { author: true },
+    });
+
+    if (!post) {
+        return NextResponse.json({ message: "Post not found." }, { status: 404 });
     }
-    try {
-        await db.post.delete({
-            where: { id },
-        });
-        return NextResponse.json({ message: "Post deleted!" }, { status: 200 });
-    } catch (error) {
-        return NextResponse.json({ message: "Failed to delete post." }, { status: 500 });
+
+    // Only allow deleting if the post belongs to the current user
+    if (post.author?.email !== session.user.email) {
+        return NextResponse.json({ message: "Forbidden: You can only delete your own posts." }, { status: 403 });
     }
+
+    await db.post.delete({ where: { id } });
+
+    return NextResponse.json({ message: "Post deleted." }, { status: 200 });
 }
