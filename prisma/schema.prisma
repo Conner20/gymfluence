@@ -55,6 +55,7 @@ model User {
   post          Post[]
   accounts      Account[]
   sessions      Session[]
+  likes Like[]
   traineeProfile TraineeProfile?
   trainerProfile TrainerProfile?
   gymProfile GymProfile?
@@ -107,4 +108,16 @@ model Post {
   createdAt DateTime @default(now())
   author    User     @relation(fields: [authorId], references: [id])
   authorId  String
+
+  likes Like[]
+}
+
+model Like {
+  id     String @id @default(cuid())
+  post   Post   @relation(fields: [postId], references: [id])
+  postId String
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  @@unique([postId, userId])
 }

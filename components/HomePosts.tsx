@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Heart } from "lucide-react";
 import { useSession } from "next-auth/react";
+import clsx from "clsx";
 
 type Post = {
     id: string;
     title: string;
     content: string;
     createdAt: string;
-    author: { username: string | null } | null;
+    author: { username: string | null, email: string | null } | null;
+    likeCount: number;
+    didLike: boolean;
 };
 
 export default function HomePosts() {
@@ -19,12 +22,14 @@ export default function HomePosts() {
 
     const { data: session } = useSession();
     const username = session?.user?.username;
+    const userEmail = session?.user?.email;
 
-    // Fetch posts
+    // Fetch posts from API (now includes like count and didLike)
     const fetchPosts = async () => {
         setError(null);
         try {
             const res = await fetch("/api/posts");
+            if (!res.ok) throw new Error();
             const data = await res.json();
             setPosts(data);
         } catch (e) {
@@ -37,8 +42,7 @@ export default function HomePosts() {
     useEffect(() => {
         setLoading(true);
         fetchPosts();
-        // Poll for real-time updates every 3 seconds
-        const interval = setInterval(fetchPosts, 3000);
+        const interval = setInterval(fetchPosts, 3000); // auto-refresh
         return () => clearInterval(interval);
     }, []);
 
@@ -58,6 +62,18 @@ export default function HomePosts() {
         }
     };
 
+    // Like/unlike post
+    const handleLike = async (id: string) => {
+        try {
+            const res = await fetch(`/api/posts/${id}/like`, { method: "POST" });
+            if (!res.ok) throw new Error();
+            // Refetch posts to update like count and state
+            fetchPosts();
+        } catch (e) {
+            alert("Failed to like/unlike post.");
+        }
+    };
+
     if (loading) return <div className="text-gray-500 p-8">Loading posts...</div>;
     if (error) return <div className="text-red-500 p-8">{error}</div>;
 
@@ -66,11 +82,8 @@ export default function HomePosts() {
             <h2 className="text-2xl font-semibold mb-4">Latest Posts</h2>
             <div className="space-y-6">
                 {posts.map(post => (
-                    <div
-                        key={post.id}
-                        className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
-                    >
-                        {/* Only show delete button if the current user is the author */}
+                    <div key={post.id} className="relative bg-white rounded-2xl shadow-lg px-6 py-5">
+                        {/* Only show delete if current user is the author */}
                         {post.author?.username === username && (
                             <button
                                 onClick={() => handleDelete(post.id)}
@@ -86,7 +99,28 @@ export default function HomePosts() {
                                 <span className="text-xs text-gray-500">
                                     by <span className="font-semibold">{post.author?.username || "Unknown"}</span>
                                 </span>
-                                <span className="text-xs text-gray-400">· {new Date(post.createdAt).toLocaleString()}</span>
+                                <span className="text-xs text-gray-400">
+                                    · {new Date(post.createdAt).toLocaleString()}
+                                </span>
+                                {/* Like button */}
+                                <button
+                                    className={clsx(
+                                        "flex items-center ml-3 gap-1 text-xs transition",
+                                        post.didLike
+                                            ? "text-red-500 font-bold"
+                                            : "text-gray-400 hover:text-red-400"
+                                    )}
+                                    onClick={() => handleLike(post.id)}
+                                    disabled={!session}
+                                    title={session ? (post.didLike ? "Unlike" : "Like") : "Sign in to like"}
+                                >
+                                    <Heart
+                                        size={18}
+                                        fill={post.didLike ? "currentColor" : "none"}
+                                        strokeWidth={2}
+                                    />
+                                    {post.likeCount}
+                                </button>
                             </div>
                         </div>
                         <div className="text-gray-700 mt-2">{post.content}</div>

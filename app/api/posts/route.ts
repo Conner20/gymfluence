@@ -48,13 +48,44 @@ export async function POST(req: Request) {
     }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+    // Get current user session for personalized info (did the user like this post?)
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email ?? null;
+    let currentUserId: string | null = null;
+
+    if (userEmail) {
+        const user = await db.user.findUnique({ where: { email: userEmail } });
+        currentUserId = user?.id ?? null;
+    }
+
     try {
+        // Include likes in the response
         const posts = await db.post.findMany({
             orderBy: { createdAt: "desc" },
-            include: { author: true }, // Include user info if you want to show username
+            include: {
+                author: true,
+                likes: true,
+            },
         });
-        return NextResponse.json(posts);
+
+        // Format posts: add like count and didLike (for this user)
+        const formatted = posts.map(post => ({
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            createdAt: post.createdAt,
+            author: {
+                username: post.author?.username ?? null,
+                email: post.author?.email ?? null,
+            },
+            likeCount: post.likes.length,
+            didLike: currentUserId
+                ? post.likes.some(like => like.userId === currentUserId)
+                : false,
+        }));
+
+        return NextResponse.json(formatted);
     } catch (error) {
         return NextResponse.json({ message: "Failed to fetch posts." }, { status: 500 });
     }
