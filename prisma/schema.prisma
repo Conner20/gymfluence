@@ -55,7 +55,8 @@ model User {
   post          Post[]
   accounts      Account[]
   sessions      Session[]
-  likes Like[]
+  likes         Like[]
+  comments      Comment[]
   traineeProfile TraineeProfile?
   trainerProfile TrainerProfile?
   gymProfile GymProfile?
@@ -110,6 +111,7 @@ model Post {
   authorId  String
 
   likes Like[]
+  comments Comment[]
 }
 
 model Like {
@@ -120,4 +122,19 @@ model Like {
   userId String
 
   @@unique([postId, userId])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  content   String
+  createdAt DateTime  @default(now())
+  post      Post      @relation(fields: [postId], references: [id])
+  postId    String
+  author    User      @relation(fields: [authorId], references: [id])
+  authorId  String
+
+  // Replies
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  parentId  String?
+  replies   Comment[]  @relation("CommentReplies") // Children/replies
 }
