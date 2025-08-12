@@ -1,18 +1,18 @@
-'use client'
+// app/components/SignUpForm.tsx
+
+'use client';
 
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "../ui/form";
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import GoogleSignInButton from "../GoogleSignInButton";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { signIn } from "next-auth/react";
-
-
 
 const FormSchema = z.object({
     username: z.string().min(1, "Username is required").max(20),
@@ -23,7 +23,7 @@ const FormSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
     path: ['confirmPassword'],
     message: 'Passwords do not match'
-})
+});
 
 const SignUpForm = () => {
     const router = useRouter();
@@ -39,11 +39,10 @@ const SignUpForm = () => {
     });
 
     const onSubmit = async (values: z.infer<typeof FormSchema>) => {
-        const response = await fetch('http://localhost:3000/api/user', {
+        // Step 1: Sign up
+        const response = await fetch('/api/user', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 username: values.username,
                 email: values.email,
@@ -52,17 +51,26 @@ const SignUpForm = () => {
             }),
         });
 
-        if(response.ok) {
-            await signIn("credentials", {
+        if (response.ok) {
+            // Step 2: Immediately sign the user in (so onboarding has a session)
+            const signInRes = await signIn("credentials", {
                 redirect: false,
                 email: values.email,
-                password: values.password
+                password: values.password,
             });
-            router.push(`/user-onboarding?username=${encodeURIComponent(values.username)}`);
+
+            if (signInRes && !signInRes.error) {
+                // Step 3: Redirect to onboarding page (with username in query param)
+                router.push(`/user-onboarding?username=${encodeURIComponent(values.username)}`);
+            } else {
+                toast("Error", {
+                    description: "Sign in failed after registration.",
+                });
+            }
         } else {
             toast("Error", {
-                description: "Oops! Something went wrong",
-            })
+                description: "Oops! Something went wrong.",
+            });
         }
     };
 
@@ -71,6 +79,7 @@ const SignUpForm = () => {
             <h1 className="text-3xl text-center mb-4">Sign Up</h1>
             <form onSubmit={form.handleSubmit(onSubmit)} className='w-full'>
                 <div className="space-y-4">
+                    {/* Username */}
                     <FormField
                         control={form.control}
                         name="username"
@@ -84,6 +93,7 @@ const SignUpForm = () => {
                             </FormItem>
                         )}
                     />
+                    {/* Email */}
                     <FormField
                         control={form.control}
                         name="email"
@@ -97,6 +107,7 @@ const SignUpForm = () => {
                             </FormItem>
                         )}
                     />
+                    {/* Password */}
                     <FormField
                         control={form.control}
                         name="password"
@@ -110,6 +121,7 @@ const SignUpForm = () => {
                             </FormItem>
                         )}
                     />
+                    {/* Confirm Password */}
                     <FormField
                         control={form.control}
                         name="confirmPassword"
@@ -123,6 +135,7 @@ const SignUpForm = () => {
                             </FormItem>
                         )}
                     />
+                    {/* City Location */}
                     <FormField
                         control={form.control}
                         name="location"
@@ -137,7 +150,6 @@ const SignUpForm = () => {
                         )}
                     />
                 </div>
-
                 <Button className='w-full mt-6' type="submit">Sign Up</Button>
             </form>
             <div className="mx-auto my-4 flex w-full items-center justify-evenly before:mr-4 before:block
@@ -151,7 +163,6 @@ const SignUpForm = () => {
                 <Link className='text-green-500 hover:underline' href='/log-in'>Log In</Link>
             </p>
         </Form>
-
     );
 };
 

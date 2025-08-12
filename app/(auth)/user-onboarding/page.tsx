@@ -19,13 +19,17 @@ const OPTIONS = [
     "flexibility & mobility", "sport performance", "injury recovery"
 ];
 
+// TOP: update GymFormSchema so fee is a number (coerced from input)
+// in user-onboarding/page.tsx
 const GymFormSchema = z.object({
-    name: z.string().min(1, "Organization Name is required"),
-    address: z.string().min(1, "Address is required"),
-    phone: z.string().min(1, "Phone Number is required"),
-    website: z.string().min(1, "Website URL is required"),
-    fee: z.string().min(1, "Base Membership Fee is required"),
+    name: z.string().min(1),
+    address: z.string().min(1),
+    phone: z.string().min(1),
+    website: z.string().min(1),
+    fee: z.coerce.number().positive("Fee must be a positive number"),
 });
+
+
 
 const roleOptions = [
     {
@@ -119,40 +123,50 @@ export default function UserOnboarding() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     role: "GYM",
-                    gymForm: values,
-                    selections: [], // just in case API expects it
+                    gymForm: values,   // fee is already a number
+                    selections: [],
                 }),
             });
 
-            if (!res.ok) throw new Error("Failed to update role");
+            if (!res.ok) {
+                const errJson = await res.json().catch(() => ({}));
+                console.error("Update role failed:", errJson);
+                throw new Error(errJson?.message || "Failed to update role");
+            }
 
             const data = await res.json();
             console.log("User updated:", data);
             router.push("/log-in");
+            // route wherever you want after onboarding
         } catch (err) {
-            console.error("Update failed:", err);
+            console.error(err);
         }
     });
 
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         try {
             const res = await fetch("/api/user/update-role", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({
-                    role: role?.toUpperCase(), // "TRAINEE", "TRAINER", or "GYM"
+                    role: role?.toUpperCase(),
                     selections,
-                    gymForm,
+                    // No gymForm here
                 }),
             });
 
-            if (!res.ok) throw new Error("Failed to update role");
+            if (!res.ok) {
+                const errJson = await res.json().catch(() => ({}));
+                console.error("Update role failed:", errJson);
+                throw new Error(errJson?.message || "Failed to update role");
+            }
 
             const data = await res.json();
             console.log("User updated:", data);
-            router.push("/log-in");
+            router.push("/profile");
         } catch (err) {
             console.error("Update failed:", err);
         }

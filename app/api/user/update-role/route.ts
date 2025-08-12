@@ -1,4 +1,5 @@
-import { NextResponse } from "@/node_modules/next/server"
+// app/api/user/update-role/route.ts
+import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,45 +10,97 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    let { role, selections, gymForm } = body;
-
-    // Make sure the role is a valid Role enum value
-    if (typeof role === "string") {
-        role = role.toUpperCase();
-    }
-    if (!["TRAINEE", "TRAINER", "GYM"].includes(role)) {
-        return NextResponse.json({ message: "Invalid role" }, { status: 400 });
-    }
-
     try {
-        const user = await db.user.update({
+        const body = await req.json();
+        let { role, selections = [], gymForm } = body;
+
+        // normalize and validate role
+        if (typeof role === "string") role = role.toUpperCase();
+        if (!["TRAINEE", "TRAINER", "GYM"].includes(role)) {
+            return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+        }
+
+        // find current user (by email from session)
+        const current = await db.user.findUnique({
             where: { email: session.user.email },
-            data: {
-                role, // directly, as long as role is "TRAINEE", "TRAINER", or "GYM"
-                ...(role === "TRAINEE" && {
-                    traineeProfile: { create: { goals: selections } },
-                }),
-                ...(role === "TRAINER" && {
-                    trainerProfile: { create: { services: selections } },
-                }),
-                ...(role === "GYM" && {
-                    gymProfile: {
-                        create: {
-                            name: gymForm.name,
-                            address: gymForm.address,
-                            phone: gymForm.phone,
-                            website: gymForm.website,
-                            fee: gymForm.fee,
-                        },
+            select: { id: true },
+        });
+        if (!current) {
+            return NextResponse.json({ message: "User not found" }, { status: 404 });
+        }
+
+        const data: any = { role };
+
+        if (role === "TRAINEE") {
+            if (!Array.isArray(selections)) selections = [];
+            data.traineeProfile = {
+                upsert: {
+                    update: { goals: selections },
+                    // ❌ do NOT include userId in nested create
+                    create: { goals: selections },
+                },
+            };
+        }
+
+        if (role === "TRAINER") {
+            if (!Array.isArray(selections)) selections = [];
+            data.trainerProfile = {
+                upsert: {
+                    update: { services: selections },
+                    // ❌ do NOT include userId in nested create
+                    create: { services: selections },
+                },
+            };
+        }
+
+        if (role === "GYM") {
+            if (!gymForm) {
+                return NextResponse.json({ message: "Missing gym form" }, { status: 400 });
+            }
+
+            // Ensure fee is a number (schema uses Float)
+            const feeNum = Number(gymForm.fee);
+            if (Number.isNaN(feeNum)) {
+                return NextResponse.json({ message: "Fee must be a number" }, { status: 400 });
+            }
+
+            data.gymProfile = {
+                upsert: {
+                    update: {
+                        name: gymForm.name,
+                        address: gymForm.address,
+                        phone: gymForm.phone,
+                        website: gymForm.website,
+                        fee: feeNum,
                     },
-                }),
+                    create: {
+                        name: gymForm.name,
+                        address: gymForm.address,
+                        phone: gymForm.phone,
+                        website: gymForm.website,
+                        fee: feeNum,
+                    },
+                },
+            };
+        }
+
+        const user = await db.user.update({
+            where: { id: current.id },
+            data,
+            include: {
+                traineeProfile: true,
+                trainerProfile: true,
+                gymProfile: true,
             },
         });
 
         return NextResponse.json({ user, message: "User updated" });
-    } catch (error) {
-        console.error(error);
-        return NextResponse.json({ message: "Update failed" }, { status: 500 });
+    } catch (err: any) {
+        console.error("update-role error:", err);
+        // surface a useful message if possible
+        return NextResponse.json(
+            { message: err?.message || "Update failed" },
+            { status: 500 }
+        );
     }
 }
