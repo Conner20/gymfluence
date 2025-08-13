@@ -1,13 +1,39 @@
 // app/profile/TraineeProfile.tsx
-
 'use client';
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserPlus, UserMinus, MessageSquare, Share2 } from "lucide-react";
 
 export function TraineeProfile({ user, posts }) {
     const router = useRouter();
     const trainee = user.traineeProfile;
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [shareHint, setShareHint] = useState<string | null>(null);
+
+    const handleToggleFollow = async () => {
+        try {
+            setIsFollowing(v => !v);
+            // await fetch("/api/follow", { method:"POST", body: JSON.stringify({ targetUserId: user.id }) })
+        } catch {
+            setIsFollowing(v => !v);
+        }
+    };
+
+    const handleMessage = () => {
+        router.push(`/messages?to=${encodeURIComponent(user.id)}`);
+    };
+
+    const handleShare = async () => {
+        const url = `${window.location.origin}/u/${user.username || user.id}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setShareHint("Profile link copied!");
+        } catch {
+            setShareHint(url);
+        }
+        setTimeout(() => setShareHint(null), 2000);
+    };
 
     return (
         <div className="flex min-h-screen">
@@ -30,12 +56,38 @@ export function TraineeProfile({ user, posts }) {
                     )}
                 </div>
                 <h2 className="font-bold text-xl">{user.name}</h2>
-                <div className="text-gray-500 text-sm mb-2">{user.role.toLowerCase()}</div>
+                <div className="text-gray-500 text-sm mb-3">{user.role.toLowerCase()}</div>
+
+                {/* Action row */}
+                <div className="flex items-center gap-3 mb-4">
+                    <button
+                        onClick={handleToggleFollow}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                        title={isFollowing ? "Unfollow" : "Follow"}
+                    >
+                        {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
+                    </button>
+                    <button
+                        onClick={handleMessage}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                        title="Message"
+                    >
+                        <MessageSquare size={20} />
+                    </button>
+                    <button
+                        onClick={handleShare}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                        title="Share profile"
+                    >
+                        <Share2 size={20} />
+                    </button>
+                </div>
+                {shareHint && <div className="text-xs text-gray-500 mb-2">{shareHint}</div>}
+
                 {/* Tagline / bio */}
                 <div className="text-center my-4">{trainee?.bio || "this is my bio"}</div>
                 <div className="text-center text-sm text-gray-600 mb-2">{user.location}</div>
                 <div className="flex flex-col gap-2 my-4 w-full px-6">
-                    {/* Follower counts – placeholder (customize if needed) */}
                     <ProfileStat label="followers" value={trainee?.followers ?? "0"} />
                     <ProfileStat label="following" value={trainee?.following ?? "0"} />
                     <ProfileStat label="posts" value={posts.length} />
@@ -53,7 +105,6 @@ export function TraineeProfile({ user, posts }) {
                 >
                     Edit Profile
                 </button>
-                
             </aside>
 
             {/* Main Content */}
@@ -83,11 +134,7 @@ function MediaGrid({ posts }) {
                     title={post.title}
                 >
                     {post.imageUrl ? (
-                        <img
-                            src={post.imageUrl}
-                            alt={post.title}
-                            className="object-cover w-full h-full"
-                        />
+                        <img src={post.imageUrl} alt={post.title} className="object-cover w-full h-full" />
                     ) : (
                         <span className="text-gray-600 font-semibold text-lg text-center px-4">
                             {post.title}

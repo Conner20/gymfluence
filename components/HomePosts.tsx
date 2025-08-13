@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Trash2, Heart, MessageCircle, CornerDownRight } from "lucide-react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
+import Link from "next/link";
 
 // Types for comments and posts
 type Comment = {
@@ -136,7 +137,27 @@ export default function HomePosts() {
             {comments.map(comment => (
                 <div key={comment.id} className="mb-2">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-700">{comment.author?.username || "Unknown"}</span>
+                        {comment.author?.username ? (
+                            comment.author.username === username ? (
+                                <Link
+                                    href="/profile"
+                                    className="text-sm font-semibold text-gray-700 hover:underline"
+                                    title="View your profile"
+                                >
+                                    {comment.author.username}
+                                </Link>
+                            ) : (
+                                <Link
+                                    href={`/u/${encodeURIComponent(comment.author.username)}`}
+                                    className="text-sm font-semibold text-gray-700 hover:underline"
+                                    title={`View ${comment.author.username}'s profile`}
+                                >
+                                    {comment.author.username}
+                                </Link>
+                            )
+                        ) : (
+                            <span className="text-sm font-semibold text-gray-700">Unknown</span>
+                        )}
                         <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString()}</span>
                     </div>
                     <div className="text-gray-800 ml-1">{comment.content}</div>
@@ -197,7 +218,28 @@ export default function HomePosts() {
                             <span className="font-bold text-lg text-gray-800">{post.title}</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500">
-                                    by <span className="font-semibold">{post.author?.username || "Unknown"}</span>
+                                    by{" "}
+                                    {post.author?.username ? (
+                                        post.author.username === username ? (
+                                            <Link
+                                                href="/profile"
+                                                className="font-semibold hover:underline"
+                                                title="View your profile"
+                                            >
+                                                {post.author.username}
+                                            </Link>
+                                        ) : (
+                                            <Link
+                                                href={`/u/${encodeURIComponent(post.author.username)}`}
+                                                className="font-semibold hover:underline"
+                                                title={`View ${post.author.username}'s profile`}
+                                            >
+                                                {post.author.username}
+                                            </Link>
+                                        )
+                                    ) : (
+                                        <span className="font-semibold">Unknown</span>
+                                    )}
                                 </span>
                                 <span className="text-xs text-gray-400">
                                     · {new Date(post.createdAt).toLocaleString()}
