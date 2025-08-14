@@ -58,15 +58,4 @@ export default async function UserProfilePage({ params }: { params: { handle: st
         default:
             return <div className="p-8 text-red-500">Unknown role</div>;
     }
-
-    switch (user.role) {
-        case "TRAINEE":
-            return <TraineeProfile user={user} posts={posts} />;
-        case "TRAINER":
-            return <TrainerProfile user={user} posts={posts} />;
-        case "GYM":
-            return <GymProfile user={user} posts={posts} />;
-        default:
-            return notFound();
-    }
 }

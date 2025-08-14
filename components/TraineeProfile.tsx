@@ -1,20 +1,25 @@
-// app/profile/TraineeProfile.tsx
 'use client';
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { UserPlus, UserMinus, MessageSquare, Share2 } from "lucide-react";
 
 export function TraineeProfile({ user, posts }) {
     const router = useRouter();
+    const pathname = usePathname();
+    const { data: session } = useSession();
+
     const trainee = user.traineeProfile;
+    const isOwnProfile = pathname === "/profile" || session?.user?.id === user.id;
+
     const [isFollowing, setIsFollowing] = useState(false);
     const [shareHint, setShareHint] = useState<string | null>(null);
 
     const handleToggleFollow = async () => {
         try {
             setIsFollowing(v => !v);
-            // await fetch("/api/follow", { method:"POST", body: JSON.stringify({ targetUserId: user.id }) })
+            // optional: await fetch('/api/follow', {method:'POST', body: JSON.stringify({ targetUserId: user.id })})
         } catch {
             setIsFollowing(v => !v);
         }
@@ -39,7 +44,7 @@ export function TraineeProfile({ user, posts }) {
         <div className="flex min-h-screen">
             {/* Sidebar */}
             <aside className="w-72 bg-white flex flex-col items-center pt-8">
-                {/* Avatar with fallback: */}
+                {/* Avatar */}
                 <div className="flex justify-center items-center mb-3">
                     {user.image ? (
                         <img
@@ -48,63 +53,75 @@ export function TraineeProfile({ user, posts }) {
                             className="w-24 h-24 rounded-full object-cover border-4 border-white"
                         />
                     ) : (
-                        <div className="w-24 h-24 rounded-full bg-white border-1 border-gray flex items-center justify-center">
+                        <div className="w-24 h-24 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                             <span className="text-green-700 font-bold text-xl select-none text-center px-2 break-words">
                                 {user.username || user.name || "User"}
                             </span>
                         </div>
                     )}
                 </div>
+
                 <h2 className="font-bold text-xl">{user.name}</h2>
-                <div className="text-gray-500 text-sm mb-3">{user.role.toLowerCase()}</div>
+                <div className="text-gray-500 text-sm mb-3">{user.role?.toLowerCase()}</div>
 
-                {/* Action row */}
-                <div className="flex items-center gap-3 mb-4">
-                    <button
-                        onClick={handleToggleFollow}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                        title={isFollowing ? "Unfollow" : "Follow"}
-                    >
-                        {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
-                    </button>
-                    <button
-                        onClick={handleMessage}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                        title="Message"
-                    >
-                        <MessageSquare size={20} />
-                    </button>
-                    <button
-                        onClick={handleShare}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                        title="Share profile"
-                    >
-                        <Share2 size={20} />
-                    </button>
-                </div>
-                {shareHint && <div className="text-xs text-gray-500 mb-2">{shareHint}</div>}
+                {/* FOLLOW / MESSAGE / SHARE — stays here; hidden on own profile */}
+                {!isOwnProfile && (
+                    <>
+                        <div className="flex items-center gap-3 mb-4">
+                            <button
+                                onClick={handleToggleFollow}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                                title={isFollowing ? "Unfollow" : "Follow"}
+                            >
+                                {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
+                            </button>
+                            <button
+                                onClick={handleMessage}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                                title="Message"
+                            >
+                                <MessageSquare size={20} />
+                            </button>
+                            <button
+                                onClick={handleShare}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                                title="Share profile"
+                            >
+                                <Share2 size={20} />
+                            </button>
+                        </div>
+                        {shareHint && <div className="text-xs text-gray-500 mb-2">{shareHint}</div>}
+                    </>
+                )}
 
-                {/* Tagline / bio */}
+                {/* Bio & location */}
                 <div className="text-center my-4">{trainee?.bio || "this is my bio"}</div>
                 <div className="text-center text-sm text-gray-600 mb-2">{user.location}</div>
+
+                {/* Stats */}
                 <div className="flex flex-col gap-2 my-4 w-full px-6">
                     <ProfileStat label="followers" value={trainee?.followers ?? "0"} />
                     <ProfileStat label="following" value={trainee?.following ?? "0"} />
                     <ProfileStat label="posts" value={posts.length} />
                 </div>
-                {/* Actions */}
-                <button
-                    className="w-44 mb-2 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-                    onClick={() => router.push("/profile")}
-                >
-                    View Notifications
-                </button>
-                <button
-                    className="w-44 mb-2 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-                    onClick={() => router.push("/settings")}
-                >
-                    Edit Profile
-                </button>
+
+                {/* OWN-PROFILE ACTIONS — now at the bottom under stats */}
+                {isOwnProfile && (
+                    <div className="flex flex-col gap-2 mb-6">
+                        <button
+                            className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
+                            onClick={() => router.push("/profile")}
+                        >
+                            View Notifications
+                        </button>
+                        <button
+                            className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
+                            onClick={() => router.push("/settings")}
+                        >
+                            Edit Profile
+                        </button>
+                    </div>
+                )}
             </aside>
 
             {/* Main Content */}
