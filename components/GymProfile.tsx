@@ -1,37 +1,123 @@
+// app/profile/GymProfile.tsx
 'use client';
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { UserPlus, UserMinus, MessageSquare, Share2 } from "lucide-react";
+import { useFollow } from "@/app/hooks/useFollow";
+import FollowListModal from "@/components/FollowListModal";
 
-export function GymProfile({ user, posts }) {
+type Post = {
+    id: string;
+    title: string;
+    imageUrl?: string | null;
+};
+
+export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
     const router = useRouter();
     const pathname = usePathname();
     const { data: session } = useSession();
 
-    const gym = user.gymProfile;
     const isOwnProfile = pathname === "/profile" || session?.user?.id === user.id;
+    const gym = user.gymProfile;
 
-    const [isFollowing, setIsFollowing] = useState(false);
+    // Follow hook (server-backed)
+    const {
+        loading,
+        isFollowing,
+        followers,
+        following,
+        follow,
+        unfollow,
+        refreshCounts,
+    } = useFollow(user.id);
+
+    // Share feedback hint
     const [shareHint, setShareHint] = useState<string | null>(null);
 
-    const handleToggleFollow = async () => {
-        try { setIsFollowing(v => !v); } catch { setIsFollowing(v => !v); }
+    // Fallback: ensure posts show even if not preloaded by the page
+    const [localPosts, setLocalPosts] = useState<Post[]>(posts ?? []);
+    useEffect(() => {
+        let ignore = false;
+        async function load() {
+            if (posts && posts.length) return;
+            try {
+                const res = await fetch(`/api/user/${encodeURIComponent(user.id)}/posts`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!ignore) setLocalPosts(Array.isArray(data) ? data : []);
+            } catch {
+                // ignore
+            }
+        }
+        load();
+        return () => {
+            ignore = true;
+        };
+    }, [user.id, posts]);
+
+    // Followers / Following modals
+    const [showFollowers, setShowFollowers] = useState(false);
+    const [showFollowing, setShowFollowing] = useState(false);
+    const [list, setList] = useState<any[]>([]);
+
+    const openFollowers = async () => {
+        setList([]);               // clear old list to avoid stale flash
+        setShowFollowers(true);    // open first for snappier feel
+        try {
+            const res = await fetch(`/api/user/${user.id}/followers`);
+            setList(res.ok ? await res.json() : []);
+        } catch {
+            setList([]);
+        }
     };
 
-    const handleMessage = () => router.push(`/messages?to=${encodeURIComponent(user.id)}`);
+    const openFollowing = async () => {
+        setList([]);
+        setShowFollowing(true);
+        try {
+            const res = await fetch(`/api/user/${user.id}/following`);
+            setList(res.ok ? await res.json() : []);
+        } catch {
+            setList([]);
+        }
+    };
+
+    const handleToggleFollow = async () => {
+        if (loading) return;
+        try {
+            if (isFollowing) {
+                await unfollow();
+            } else {
+                await follow();
+            }
+        } finally {
+            // keep numbers fresh after any follow/unfollow
+            refreshCounts();
+        }
+    };
+
+    const handleMessage = () => {
+        router.push(`/messages?to=${encodeURIComponent(user.id)}`);
+    };
 
     const handleShare = async () => {
         const url = `${window.location.origin}/u/${user.username || user.id}`;
-        try { await navigator.clipboard.writeText(url); setShareHint("Profile link copied!"); }
-        catch { setShareHint(url); }
+        try {
+            await navigator.clipboard.writeText(url);
+            setShareHint("Profile link copied!");
+        } catch {
+            setShareHint(url);
+        }
         setTimeout(() => setShareHint(null), 2000);
     };
 
     return (
         <div className="flex min-h-screen">
+            {/* Sidebar */}
             <aside className="w-72 bg-white flex flex-col items-center pt-8">
+                {/* Avatar with fallback */}
                 <div className="flex justify-center items-center mb-3">
                     {user.image ? (
                         <img
@@ -51,13 +137,14 @@ export function GymProfile({ user, posts }) {
                 <h2 className="font-bold text-xl">{user.name}</h2>
                 <div className="text-gray-500 text-sm mb-3">{user.role?.toLowerCase()}</div>
 
-                {/* Follow row stays here; hidden on own profile */}
+                {/* Follow / Message / Share — stays here; hidden on own profile */}
                 {!isOwnProfile && (
                     <>
                         <div className="flex items-center gap-3 mb-4">
                             <button
                                 onClick={handleToggleFollow}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
+                                disabled={loading}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 title={isFollowing ? "Unfollow" : "Follow"}
                             >
                                 {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
@@ -85,16 +172,30 @@ export function GymProfile({ user, posts }) {
                 <div className="text-center my-4">{gym?.bio || "this is my bio"}</div>
                 <div className="text-center text-sm text-gray-600 mb-2">{user.location}</div>
 
-                {/* Stats */}
+                {/* Stats (Followers / Following are clickable) */}
                 <div className="flex flex-col gap-2 my-4 w-full px-6">
                     <ProfileStat label="rating" value={gym?.rating?.toFixed(1) ?? "N/A"} />
-                    <ProfileStat label="followers" value={gym?.followers ?? "—"} />
-                    <ProfileStat label="following" value={gym?.following ?? "—"} />
-                    <ProfileStat label="posts" value={posts.length} />
+                    <button
+                        onClick={openFollowers}
+                        className="flex justify-between hover:underline"
+                        title="View followers"
+                    >
+                        <span className="font-semibold">{followers}</span>
+                        <span className="text-gray-500">followers</span>
+                    </button>
+                    <button
+                        onClick={openFollowing}
+                        className="flex justify-between hover:underline"
+                        title="View following"
+                    >
+                        <span className="font-semibold">{following}</span>
+                        <span className="text-gray-500">following</span>
+                    </button>
+                    <ProfileStat label="posts" value={localPosts.length} />
                     <ProfileStat label="membership fee" value={gym?.fee ? `$${gym.fee}/mo` : "N/A"} />
                 </div>
 
-                {/* Own-profile buttons at bottom */}
+                {/* Own-profile controls at the very bottom (below stats) */}
                 {isOwnProfile && (
                     <div className="flex flex-col gap-2 mb-6">
                         <button
@@ -113,14 +214,31 @@ export function GymProfile({ user, posts }) {
                 )}
             </aside>
 
+            {/* Main Content */}
             <main className="flex-1 p-8">
-                <MediaGrid posts={posts} />
+                <MediaGrid posts={localPosts} />
             </main>
+
+            {/* Modals */}
+            <FollowListModal
+                open={showFollowers}
+                title="Followers"
+                items={list}
+                onClose={() => setShowFollowers(false)}
+                currentUserId={session?.user?.id}
+            />
+            <FollowListModal
+                open={showFollowing}
+                title="Following"
+                items={list}
+                onClose={() => setShowFollowing(false)}
+                currentUserId={session?.user?.id}
+            />
         </div>
     );
 }
 
-function ProfileStat({ label, value }) {
+function ProfileStat({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div className="flex justify-between">
             <span className="font-semibold">{value}</span>
@@ -129,10 +247,10 @@ function ProfileStat({ label, value }) {
     );
 }
 
-function MediaGrid({ posts }) {
+function MediaGrid({ posts }: { posts: Post[] }) {
     return (
         <div className="grid grid-cols-3 gap-2">
-            {posts.map(post => (
+            {posts.map((post) => (
                 <div
                     key={post.id}
                     className="bg-white rounded-lg flex items-center justify-center w-full h-56 overflow-hidden relative border"

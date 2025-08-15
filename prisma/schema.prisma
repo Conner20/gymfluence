@@ -55,7 +55,8 @@ model User {
   traineeProfile TraineeProfile?
   trainerProfile TrainerProfile?
   gymProfile GymProfile?
- 
+  following Follow[] @relation("UserFollows")
+  followers Follow[]  @relation("UserFollowedBy")
 }
 
 enum Role {
@@ -155,4 +156,15 @@ model Comment {
   parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   parentId  String?
   replies   Comment[]  @relation("CommentReplies") // Children/replies
+}
+
+model Follow {
+  id           String   @id @default(cuid())
+  follower     User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId   String
+  following    User     @relation("UserFollowedBy", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId  String
+  createdAt    DateTime @default(now())
+
+  @@unique([followerId, followingId]) // a user can follow another once
 }
