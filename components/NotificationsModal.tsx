@@ -29,18 +29,21 @@ export default function NotificationsModal({
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<Notification[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [actingId, setActingId] = useState<string | null>(null);
 
     const load = async () => {
         if (!open) return;
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/notifications", { cache: "no-store" });
+            // 🔁 your notifications index route
+            const res = await fetch("/api/user/notifications", { cache: "no-store" });
             if (!res.ok) throw new Error("Failed to load notifications");
             const data = await res.json();
             setItems(Array.isArray(data) ? data : []);
         } catch (e: any) {
-            setError(e?.message || "Failed to fetch");
+            setError(e?.message || "Failed to fetch notifications");
+            setItems([]);
         } finally {
             setLoading(false);
         }
@@ -53,17 +56,28 @@ export default function NotificationsModal({
 
     const respond = async (notificationId: string, action: "accept" | "decline") => {
         try {
-            const res = await fetch("/api/notifications/respond", {
+            setActingId(notificationId);
+            setError(null);
+
+            // ✅ hit your dynamic respond route: /api/user/notifications/[id]/respond
+            const res = await fetch(`/api/user/notifications/${notificationId}/respond`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ notificationId, action }),
+                body: JSON.stringify({ action }),
             });
-            if (!res.ok) throw new Error("Failed to respond");
-            // remove from local list
+
+            if (!res.ok) {
+                const txt = await res.text().catch(() => "");
+                throw new Error(txt || "Failed to respond");
+            }
+
+            // Optimistic remove from the list
             setItems((prev) => prev.filter((n) => n.id !== notificationId));
-            onAnyChange?.();
-        } catch (e) {
-            // noop for now
+            onAnyChange?.(); // let parent refresh any counters/state if needed
+        } catch (e: any) {
+            setError(e?.message || "Failed to respond to request");
+        } finally {
+            setActingId(null);
         }
     };
 
@@ -83,6 +97,7 @@ export default function NotificationsModal({
                     <button
                         onClick={load}
                         className="px-3 py-1.5 rounded border bg-white hover:bg-gray-50 text-sm"
+                        disabled={loading}
                     >
                         Refresh
                     </button>
@@ -98,6 +113,8 @@ export default function NotificationsModal({
                         {items.map((n) => {
                             const actorName = n.actor?.username || n.actor?.name || "User";
                             const isFollowRequest = n.type === "FOLLOW_REQUEST";
+                            const disabled = actingId === n.id;
+
                             return (
                                 <li key={n.id} className="py-3 flex items-center gap-3">
                                     {n.actor?.image ? (
@@ -115,18 +132,16 @@ export default function NotificationsModal({
                                     <div className="flex-1 min-w-0">
                                         {isFollowRequest ? (
                                             <div className="text-sm">
-                                                <span className="font-medium">{actorName}</span>{" "}
-                                                requested to follow you.
+                                                <span className="font-medium">{actorName}</span> requested to follow you.
                                             </div>
                                         ) : n.type === "FOLLOWED_YOU" ? (
                                             <div className="text-sm">
-                                                <span className="font-medium">{actorName}</span>{" "}
-                                                followed you.
+                                                <span className="font-medium">{actorName}</span> followed you.
                                             </div>
                                         ) : (
                                             <div className="text-sm">
-                                                Your follow request to{" "}
-                                                <span className="font-medium">{actorName}</span> was accepted.
+                                                Your follow request to <span className="font-medium">{actorName}</span> was
+                                                accepted.
                                             </div>
                                         )}
                                         <div className="text-xs text-gray-500">
@@ -138,15 +153,17 @@ export default function NotificationsModal({
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={() => respond(n.id, "accept")}
-                                                className="px-2.5 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700"
+                                                className="px-2.5 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 disabled:opacity-50"
+                                                disabled={disabled}
                                             >
-                                                Accept
+                                                {disabled ? "…" : "Accept"}
                                             </button>
                                             <button
                                                 onClick={() => respond(n.id, "decline")}
-                                                className="px-2.5 py-1 rounded-md bg-gray-200 text-xs hover:bg-gray-300"
+                                                className="px-2.5 py-1 rounded-md bg-gray-200 text-xs hover:bg-gray-300 disabled:opacity-50"
+                                                disabled={disabled}
                                             >
-                                                Decline
+                                                {disabled ? "…" : "Decline"}
                                             </button>
                                         </div>
                                     ) : null}

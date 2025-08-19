@@ -4,21 +4,13 @@ import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(
-    _req: Request,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id: targetUserId } = await params;
-
-    // Who is viewing?
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+    const { id: targetUserId } = await ctx.params;
     const session = await getServerSession(authOptions);
 
     let viewerId: string | null = null;
     if (session?.user?.email) {
-        const viewer = await db.user.findUnique({
-            where: { email: session.user.email },
-            select: { id: true },
-        });
+        const viewer = await db.user.findUnique({ where: { email: session.user.email } });
         viewerId = viewer?.id ?? null;
     }
 
@@ -32,13 +24,7 @@ export async function GET(
 
     if (viewerId && viewerId !== targetUserId) {
         const rel = await db.follow.findUnique({
-            where: {
-                followerId_followingId: {
-                    followerId: viewerId,
-                    followingId: targetUserId,
-                },
-            },
-            select: { status: true },
+            where: { followerId_followingId: { followerId: viewerId, followingId: targetUserId } },
         });
         if (rel?.status === "ACCEPTED") isFollowing = true;
         else if (rel?.status === "PENDING") requested = true;

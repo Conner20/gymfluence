@@ -1,79 +1,72 @@
-// app/api/notifications/[id]/respond/route.ts
+// app/api/user/notifications/[id]/respond/route.ts
 import { NextResponse } from "next/server";
-import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { db } from "@/prisma/client";
 
 export async function POST(
     req: Request,
     { params }: { params: { id: string } }
 ) {
-    const notifId = params.id;
-    const { action } = await req.json().catch(() => ({ action: undefined }));
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    if (action !== "accept" && action !== "decline") {
+    const me = await db.user.findUnique({
+        where: { email: session.user.email },
+    });
+    if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+    const notificationId = params.id;
+    const { action } = await req.json();
+
+    if (!["accept", "decline"].includes(action)) {
         return NextResponse.json({ message: "Invalid action" }, { status: 400 });
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email)
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-
-    const me = await db.user.findUnique({ where: { email: session.user.email } });
-    if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
-
-    const notif = await db.notification.findUnique({
-        where: { id: notifId },
-        include: { follow: true },
+    const notif = await db.notification.findFirst({
+        where: { id: notificationId, userId: me.id },
     });
-    if (!notif || notif.userId !== me.id || notif.type !== "FOLLOW_REQUEST") {
-        return NextResponse.json({ message: "Not found or not actionable" }, { status: 404 });
+    if (!notif) return NextResponse.json({ message: "Notification not found" }, { status: 404 });
+
+    if (notif.type !== "FOLLOW_REQUEST" || !notif.followId) {
+        await db.notification.delete({ where: { id: notif.id } });
+        return NextResponse.json({ ok: true });
     }
 
-    // Find follow record (fallback by user pair if needed)
-    let follow = notif.follow;
-    if (!follow) {
-        // fallback: actor requested to follow me
-        follow = await db.follow.findUnique({
-            where: { followerId_followingId: { followerId: notif.actorId, followingId: me.id } },
-        });
-    }
-    if (!follow) {
-        await db.notification.update({ where: { id: notif.id }, data: { isRead: true } });
-        return NextResponse.json({ message: "Follow relationship missing; marked read" });
+    const follow = await db.follow.findUnique({ where: { id: notif.followId } });
+    if (!follow || follow.followingId !== me.id) {
+        await db.notification.delete({ where: { id: notif.id } });
+        return NextResponse.json({ ok: true });
     }
 
     if (action === "accept") {
-        // Accept request
-        await db.follow.update({ where: { id: follow.id }, data: { status: "ACCEPTED" } });
+        await db.$transaction(async (tx) => {
+            await tx.follow.update({
+                where: { id: follow.id },
+                data: { status: "ACCEPTED" },
+            });
 
-        // Notify requester that request was accepted
-        await db.notification.create({
-            data: {
-                type: "REQUEST_ACCEPTED",
-                userId: follow.followerId, // requester receives this
-                actorId: me.id,            // me (the private user) accepted
-                followId: follow.id,
-            },
+            await tx.notification.create({
+                data: {
+                    type: "REQUEST_ACCEPTED",
+                    userId: follow.followerId,
+                    actorId: me.id,
+                    followId: follow.id,
+                },
+            });
+
+            await tx.notification.delete({ where: { id: notif.id } });
         });
 
-        // Mark request notification as read
-        await db.notification.update({
-            where: { id: notif.id },
-            data: { isRead: true },
+        return NextResponse.json({ ok: true, status: "accepted" });
+    } else {
+        await db.$transaction(async (tx) => {
+            await tx.follow.delete({ where: { id: follow.id } });
+            await tx.notification.delete({ where: { id: notif.id } });
         });
 
-        return NextResponse.json({ ok: true, accepted: true });
+        return NextResponse.json({ ok: true, status: "declined" });
     }
-
-    // decline => delete the pending follow and mark notif read
-    if (follow.status === "PENDING") {
-        await db.follow.delete({ where: { id: follow.id } });
-    }
-    await db.notification.update({
-        where: { id: notif.id },
-        data: { isRead: true },
-    });
-
-    return NextResponse.json({ ok: true, accepted: false });
 }
