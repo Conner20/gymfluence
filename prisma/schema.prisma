@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
   output   = "../app/generated/prisma/client"
@@ -10,24 +9,24 @@ datasource db {
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String  @map("user_id")
-  type               String
-  provider           String
-  providerAccountId  String  @map("provider_account_id")
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
- 
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@unique([provider, providerAccountId])
 }
- 
+
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique @map("session_token")
@@ -35,7 +34,24 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
- 
+
+enum Role {
+  TRAINEE
+  TRAINER
+  GYM
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum NotificationType {
+  FOLLOW_REQUEST
+  FOLLOWED_YOU
+  REQUEST_ACCEPTED
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String?   @unique
@@ -46,23 +62,26 @@ model User {
   emailVerified DateTime? @map("email_verified")
   image         String?
   role          Role?
+  isPrivate     Boolean   @default(false)
 
-  post          Post[]
-  accounts      Account[]
-  sessions      Session[]
-  likes         Like[]
-  comments      Comment[]
+  post           Post[]
+  accounts       Account[]
+  sessions       Session[]
+  likes          Like[]
+  comments       Comment[]
   traineeProfile TraineeProfile?
   trainerProfile TrainerProfile?
-  gymProfile GymProfile?
-  following Follow[] @relation("UserFollows")
-  followers Follow[]  @relation("UserFollowedBy")
-}
+  gymProfile     GymProfile?
 
-enum Role {
-  TRAINEE
-  TRAINER
-  GYM
+  // Follows
+  following Follow[] @relation("UserFollows") // users I follow
+  followers Follow[] @relation("UserFollowedBy") // users who follow me
+
+  // Notifications:
+  // - As recipient (someone notified me)
+  notifications      Notification[] @relation("UserNotifications")
+  // - As actor (I triggered a notification for someone else)
+  actorNotifications Notification[] @relation("UserActorNotifications")
 }
 
 model TraineeProfile {
@@ -71,11 +90,11 @@ model TraineeProfile {
   userId String   @unique
   goals  String[] // Array of selected goals
 
-  city String?
-  state String?
+  city    String?
+  state   String?
   country String?
-  lat Float?
-  lng Float?
+  lat     Float?
+  lng     Float?
 }
 
 model TrainerProfile {
@@ -84,39 +103,39 @@ model TrainerProfile {
   userId   String   @unique
   services String[] // Array of offered services
 
-  city String?
-  state String?
-  country String?
-  lat Float?
-  lng Float?
+  city       String?
+  state      String?
+  country    String?
+  lat        Float?
+  lng        Float?
   hourlyRate Float?
-  rating Float?
-  clients Int?
+  rating     Float?
+  clients    Int?
 }
 
 model GymProfile {
-  id         String   @id @default(cuid())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String   @unique
-  name       String
-  address    String
-  phone      String
-  website    String
-  fee        Float
+  id      String @id @default(cuid())
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String @unique
+  name    String
+  address String
+  phone   String
+  website String
+  fee     Float
 
-  city String?
-  state String?
-  country String?
-  lat Float?
-  lng Float?
+  city      String?
+  state     String?
+  country   String?
+  lat       Float?
+  lng       Float?
   amenities String[]
 }
- 
+
 model VerificationToken {
   identifier String
   token      String
   expires    DateTime
- 
+
   @@unique([identifier, token])
 }
 
@@ -128,7 +147,7 @@ model Post {
   author    User     @relation(fields: [authorId], references: [id])
   authorId  String
 
-  likes Like[]
+  likes    Like[]
   comments Comment[]
   imageUrl String?
 }
@@ -144,27 +163,51 @@ model Like {
 }
 
 model Comment {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   content   String
-  createdAt DateTime  @default(now())
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId    String
-  author    User      @relation(fields: [authorId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
   authorId  String
 
   // Replies
-  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  parentId  String?
-  replies   Comment[]  @relation("CommentReplies") // Children/replies
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId String?
+  replies  Comment[] @relation("CommentReplies")
 }
 
 model Follow {
-  id           String   @id @default(cuid())
-  follower     User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
-  followerId   String
-  following    User     @relation("UserFollowedBy", fields: [followingId], references: [id], onDelete: Cascade)
-  followingId  String
-  createdAt    DateTime @default(now())
+  id          String       @id @default(cuid())
+  follower    User         @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+  following   User         @relation("UserFollowedBy", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+  status      FollowStatus @default(ACCEPTED)
+  createdAt   DateTime     @default(now())
+
+  // Opposite side of Notification.follow
+  notifications Notification[] @relation("FollowNotifications")
 
   @@unique([followerId, followingId]) // a user can follow another once
+}
+
+model Notification {
+  id   String           @id @default(cuid())
+  type NotificationType
+
+  // Recipient (the user who receives the notification)
+  user   User   @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  // Actor (the user who triggered the notification)
+  actor   User   @relation("UserActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+  actorId String
+
+  // Optional link to a follow row (for follow requests, followed you, request accepted)
+  follow   Follow? @relation("FollowNotifications", fields: [followId], references: [id], onDelete: Cascade)
+  followId String?
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

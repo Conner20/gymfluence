@@ -1,4 +1,4 @@
-// app/api/user/[id]/following/route.ts
+// app/api/user/[id]/posts/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
@@ -22,22 +22,25 @@ export async function GET(
     const isOwner = viewerId === userId;
 
     if (target.isPrivate && !isOwner) {
-        const accepted = await db.follow.findUnique({
-            where: { followerId_followingId: { followerId: viewerId ?? "", followingId: userId } },
+        const rel = await db.follow.findUnique({
+            where: {
+                followerId_followingId: {
+                    followerId: viewerId ?? "",
+                    followingId: userId,
+                },
+            },
             select: { status: true },
         });
-        if (accepted?.status !== "ACCEPTED") {
+        if (rel?.status !== "ACCEPTED") {
             return NextResponse.json({ message: "Private account" }, { status: 403 });
         }
     }
 
-    const rows = await db.follow.findMany({
-        where: { followerId: userId, status: "ACCEPTED" },
-        include: {
-            following: { select: { id: true, username: true, name: true, image: true } },
-        },
+    const posts = await db.post.findMany({
+        where: { authorId: userId },
         orderBy: { createdAt: "desc" },
+        select: { id: true, title: true, imageUrl: true },
     });
 
-    return NextResponse.json(rows.map((r) => r.following));
+    return NextResponse.json(posts);
 }

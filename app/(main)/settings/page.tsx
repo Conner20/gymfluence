@@ -1,3 +1,4 @@
+import PrivacyToggle from "./privacy-toggle";
 
 export default async function Settings() {
     return <div className="min-h-screen bg-[#f8f8f8]">
@@ -6,5 +7,11 @@ export default async function Settings() {
                 <span>settings</span>
             </h1>
         </header>
+
+        <div className="p-6 max-w-2xl mx-auto">
+            <h1 className="text-2xl font-semibold mb-4">Settings</h1>
+            <PrivacyToggle />
+        </div>
+        
     </div>
 }

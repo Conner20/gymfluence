@@ -1,87 +1,117 @@
-'use client';
+// app/hooks/useFollow.ts
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type FollowState = {
     followers: number;
     following: number;
     isFollowing: boolean;
+    requested: boolean; // pending
 };
 
-export function useFollow(targetUserId: string | undefined) {
+export function useFollow(targetUserId: string) {
     const [loading, setLoading] = useState(false);
-    const [state, setState] = useState<FollowState>({
-        followers: 0,
-        following: 0,
-        isFollowing: false,
-    });
+    const [followers, setFollowers] = useState(0);
+    const [following, setFollowing] = useState(0);
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [isPending, setIsPending] = useState(false);
 
-    const load = useCallback(async () => {
-        if (!targetUserId) return;
+    const mounted = useRef(true);
+
+    const apply = (s: Partial<FollowState>) => {
+        if (!mounted.current) return;
+        if (s.followers !== undefined) setFollowers(s.followers);
+        if (s.following !== undefined) setFollowing(s.following);
+        if (s.isFollowing !== undefined) setIsFollowing(s.isFollowing);
+        if (s.requested !== undefined) setIsPending(s.requested);
+    };
+
+    const fetchState = useCallback(async () => {
         try {
-            const res = await fetch(`/api/user/${encodeURIComponent(targetUserId)}/follow-state`, { cache: 'no-store' });
+            const res = await fetch(`/api/user/${encodeURIComponent(targetUserId)}/follow-state`, { cache: "no-store" });
             if (!res.ok) return;
             const data = await res.json();
-            setState({
-                followers: Number(data.followers || 0),
-                following: Number(data.following || 0),
+            apply({
+                followers: data.followers ?? 0,
+                following: data.following ?? 0,
                 isFollowing: !!data.isFollowing,
+                requested: !!data.requested,
             });
-        } catch {/* noop */ }
+        } catch {
+            // ignore
+        }
     }, [targetUserId]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        mounted.current = true;
+        fetchState();
+        return () => {
+            mounted.current = false;
+        };
+    }, [fetchState]);
 
-    const follow = useCallback(async () => {
-        if (!targetUserId) return;
+    const refreshCounts = useCallback(() => fetchState(), [fetchState]);
+
+    const postFollow = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/user/${encodeURIComponent(targetUserId)}/follow`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'follow' }),
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
             });
-            if (!res.ok) return;
-            const data = await res.json();
-            // IMPORTANT: trust the server's answer for accuracy
-            setState({
-                followers: Number(data.followers || 0),
-                following: Number(data.following || 0),
+            const data = await res.json().catch(() => ({}));
+            apply({
+                followers: data.followers ?? followers,
+                following: data.following ?? following,
                 isFollowing: !!data.isFollowing,
+                requested: !!data.requested,
             });
         } finally {
             setLoading(false);
         }
-    }, [targetUserId]);
+    }, [targetUserId, followers, following]);
 
-    const unfollow = useCallback(async () => {
-        if (!targetUserId) return;
+    const delFollow = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/user/${encodeURIComponent(targetUserId)}/follow`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'unfollow' }),
+                method: "DELETE",
             });
-            if (!res.ok) return;
-            const data = await res.json();
-            setState({
-                followers: Number(data.followers || 0),
-                following: Number(data.following || 0),
+            const data = await res.json().catch(() => ({}));
+            apply({
+                followers: data.followers ?? followers,
+                following: data.following ?? following,
                 isFollowing: !!data.isFollowing,
+                requested: !!data.requested,
             });
         } finally {
             setLoading(false);
         }
-    }, [targetUserId]);
+    }, [targetUserId, followers, following]);
+
+    // Public follow (or private when not pending yet)
+    const follow = useCallback(() => postFollow(), [postFollow]);
+
+    // Unfollow (ACCEPTED -> none)
+    const unfollow = useCallback(() => delFollow(), [delFollow]);
+
+    // Private: send follow request (PENDING)
+    const requestFollow = useCallback(() => postFollow(), [postFollow]);
+
+    // Private: cancel follow request (PENDING -> none)
+    const cancelRequest = useCallback(() => delFollow(), [delFollow]);
 
     return {
         loading,
-        isFollowing: state.isFollowing,
-        followers: state.followers,
-        following: state.following,
-        reload: load,
+        followers,
+        following,
+        isFollowing,
+        isPending,
         follow,
         unfollow,
+        requestFollow,
+        cancelRequest,
+        refreshCounts,
     };
 }

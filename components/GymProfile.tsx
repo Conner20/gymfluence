@@ -1,12 +1,12 @@
-// app/profile/GymProfile.tsx
-'use client';
+"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { UserPlus, UserMinus, MessageSquare, Share2 } from "lucide-react";
+import { UserPlus, UserMinus, MessageSquare, Share2, Lock } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
+import NotificationsModal from "@/components/NotificationsModal";
 
 type Post = {
     id: string;
@@ -22,51 +22,61 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
     const isOwnProfile = pathname === "/profile" || session?.user?.id === user.id;
     const gym = user.gymProfile;
 
-    // Follow hook (server-backed)
     const {
         loading,
         isFollowing,
+        isPending,
         followers,
         following,
         follow,
         unfollow,
+        requestFollow,
+        cancelRequest,
         refreshCounts,
     } = useFollow(user.id);
 
-    // Share feedback hint
+    const [optimisticRequested, setOptimisticRequested] = useState(false);
+    useEffect(() => {
+        if (!isPending) setOptimisticRequested(false);
+    }, [isPending]);
+
+    const canViewPrivate = useMemo(
+        () => isOwnProfile || isFollowing || !user.isPrivate,
+        [isOwnProfile, isFollowing, user.isPrivate]
+    );
+
     const [shareHint, setShareHint] = useState<string | null>(null);
 
-    // Fallback: ensure posts show even if not preloaded by the page
     const [localPosts, setLocalPosts] = useState<Post[]>(posts ?? []);
     useEffect(() => {
         let ignore = false;
         async function load() {
             if (posts && posts.length) return;
             try {
-                const res = await fetch(`/api/user/${encodeURIComponent(user.id)}/posts`);
+                const res = await fetch(`/api/user/${encodeURIComponent(user.id)}/posts`, {
+                    cache: "no-store",
+                });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (!ignore) setLocalPosts(Array.isArray(data) ? data : []);
-            } catch {
-                // ignore
-            }
+            } catch { }
         }
-        load();
+        if (canViewPrivate) load();
         return () => {
             ignore = true;
         };
-    }, [user.id, posts]);
+    }, [user.id, posts, canViewPrivate]);
 
-    // Followers / Following modals
     const [showFollowers, setShowFollowers] = useState(false);
     const [showFollowing, setShowFollowing] = useState(false);
     const [list, setList] = useState<any[]>([]);
 
     const openFollowers = async () => {
-        setList([]);               // clear old list to avoid stale flash
-        setShowFollowers(true);    // open first for snappier feel
+        if (!canViewPrivate) return;
+        setList([]);
+        setShowFollowers(true);
         try {
-            const res = await fetch(`/api/user/${user.id}/followers`);
+            const res = await fetch(`/api/user/${user.id}/followers`, { cache: "no-store" });
             setList(res.ok ? await res.json() : []);
         } catch {
             setList([]);
@@ -74,26 +84,35 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
     };
 
     const openFollowing = async () => {
+        if (!canViewPrivate) return;
         setList([]);
         setShowFollowing(true);
         try {
-            const res = await fetch(`/api/user/${user.id}/following`);
+            const res = await fetch(`/api/user/${user.id}/following`, { cache: "no-store" });
             setList(res.ok ? await res.json() : []);
         } catch {
             setList([]);
         }
     };
 
-    const handleToggleFollow = async () => {
+    const handleFollowButton = async () => {
         if (loading) return;
         try {
-            if (isFollowing) {
-                await unfollow();
+            if (user.isPrivate) {
+                if (isFollowing) {
+                    await unfollow();
+                } else if (isPending || optimisticRequested) {
+                    setOptimisticRequested(false);
+                    await (cancelRequest?.() ?? unfollow());
+                } else {
+                    setOptimisticRequested(true);
+                    await (requestFollow?.() ?? follow());
+                }
             } else {
-                await follow();
+                if (isFollowing) await unfollow();
+                else await follow();
             }
         } finally {
-            // keep numbers fresh after any follow/unfollow
             refreshCounts();
         }
     };
@@ -112,6 +131,9 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
         }
         setTimeout(() => setShareHint(null), 2000);
     };
+
+    const [showNotifications, setShowNotifications] = useState(false);
+    const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
     return (
         <div className="flex min-h-screen">
@@ -137,18 +159,54 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
                 <h2 className="font-bold text-xl">{user.name}</h2>
                 <div className="text-gray-500 text-sm mb-3">{user.role?.toLowerCase()}</div>
 
-                {/* Follow / Message / Share — stays here; hidden on own profile */}
+                {/* Follow / Message / Share — hidden on own profile */}
                 {!isOwnProfile && (
                     <>
                         <div className="flex items-center gap-3 mb-4">
                             <button
-                                onClick={handleToggleFollow}
+                                onClick={handleFollowButton}
                                 disabled={loading}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={isFollowing ? "Unfollow" : "Follow"}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={
+                                    user.isPrivate
+                                        ? isFollowing
+                                            ? "Unfollow"
+                                            : requested
+                                                ? "Requested"
+                                                : "Request Follow"
+                                        : isFollowing
+                                            ? "Unfollow"
+                                            : "Follow"
+                                }
+                                aria-label="Follow toggle"
                             >
-                                {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
+                                {user.isPrivate ? (
+                                    isFollowing ? (
+                                        <>
+                                            <UserMinus size={18} />
+                                            <span>Unfollow</span>
+                                        </>
+                                    ) : requested ? (
+                                        <span className="text-xs font-medium">Requested</span>
+                                    ) : (
+                                        <>
+                                            <UserPlus size={18} />
+                                            <span>Follow</span>
+                                        </>
+                                    )
+                                ) : isFollowing ? (
+                                    <>
+                                        <UserMinus size={18} />
+                                        <span>Unfollow</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus size={18} />
+                                        <span>Follow</span>
+                                    </>
+                                )}
                             </button>
+
                             <button
                                 onClick={handleMessage}
                                 className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
@@ -156,6 +214,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
                             >
                                 <MessageSquare size={20} />
                             </button>
+
                             <button
                                 onClick={handleShare}
                                 className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
@@ -177,21 +236,25 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
                     <ProfileStat label="rating" value={gym?.rating?.toFixed(1) ?? "N/A"} />
                     <button
                         onClick={openFollowers}
-                        className="flex justify-between hover:underline"
-                        title="View followers"
+                        disabled={!canViewPrivate}
+                        className={`flex justify-between ${canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
+                            }`}
+                        title={canViewPrivate ? "View followers" : "Private"}
                     >
                         <span className="font-semibold">{followers}</span>
                         <span className="text-gray-500">followers</span>
                     </button>
                     <button
                         onClick={openFollowing}
-                        className="flex justify-between hover:underline"
-                        title="View following"
+                        disabled={!canViewPrivate}
+                        className={`flex justify-between ${canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
+                            }`}
+                        title={canViewPrivate ? "View following" : "Private"}
                     >
                         <span className="font-semibold">{following}</span>
                         <span className="text-gray-500">following</span>
                     </button>
-                    <ProfileStat label="posts" value={localPosts.length} />
+                    <ProfileStat label="posts" value={canViewPrivate ? localPosts.length : "—"} />
                     <ProfileStat label="membership fee" value={gym?.fee ? `$${gym.fee}/mo` : "N/A"} />
                 </div>
 
@@ -200,7 +263,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
                     <div className="flex flex-col gap-2 mb-6">
                         <button
                             className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-                            onClick={() => router.push("/profile")}
+                            onClick={() => setShowNotifications(true)}
                         >
                             View Notifications
                         </button>
@@ -216,7 +279,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
 
             {/* Main Content */}
             <main className="flex-1 p-8">
-                <MediaGrid posts={localPosts} />
+                {canViewPrivate ? <MediaGrid posts={localPosts} /> : <PrivatePlaceholder />}
             </main>
 
             {/* Modals */}
@@ -233,6 +296,11 @@ export function GymProfile({ user, posts }: { user: any; posts?: Post[] }) {
                 items={list}
                 onClose={() => setShowFollowing(false)}
                 currentUserId={session?.user?.id}
+            />
+            <NotificationsModal
+                open={showNotifications}
+                onClose={() => setShowNotifications(false)}
+                onAnyChange={refreshCounts}
             />
         </div>
     );
@@ -265,6 +333,17 @@ function MediaGrid({ posts }: { posts: Post[] }) {
                     )}
                 </div>
             ))}
+        </div>
+    );
+}
+
+function PrivatePlaceholder() {
+    return (
+        <div className="w-full h-[60vh] flex items-center justify-center">
+            <div className="flex items-center gap-3 text-gray-500">
+                <Lock size={20} />
+                <span>This account is private. Follow to see their posts.</span>
+            </div>
         </div>
     );
 }
