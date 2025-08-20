@@ -1,72 +1,122 @@
-// app/api/user/notifications/[id]/respond/route.ts
 import { NextResponse } from "next/server";
+import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { db } from "@/prisma/client";
 
+/**
+ * Path: /api/user/notifications/[id]/respond
+ * Body: { action: "accept" | "decline" }
+ */
 export async function POST(
     req: Request,
-    { params }: { params: { id: string } }
+    ctx: { params: Promise<{ id: string }> } // IMPORTANT: must await in App Router
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    try {
+        const { id: notificationId } = await ctx.params;
 
-    const me = await db.user.findUnique({
-        where: { email: session.user.email },
-    });
-    if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.email) {
+            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        }
 
-    const notificationId = params.id;
-    const { action } = await req.json();
+        const me = await db.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true },
+        });
+        if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    if (!["accept", "decline"].includes(action)) {
-        return NextResponse.json({ message: "Invalid action" }, { status: 400 });
-    }
+        const { action } = (await req.json().catch(() => ({}))) as {
+            action?: "accept" | "decline";
+        };
+        if (action !== "accept" && action !== "decline") {
+            return NextResponse.json({ message: "Invalid action" }, { status: 400 });
+        }
 
-    const notif = await db.notification.findFirst({
-        where: { id: notificationId, userId: me.id },
-    });
-    if (!notif) return NextResponse.json({ message: "Notification not found" }, { status: 404 });
-
-    if (notif.type !== "FOLLOW_REQUEST" || !notif.followId) {
-        await db.notification.delete({ where: { id: notif.id } });
-        return NextResponse.json({ ok: true });
-    }
-
-    const follow = await db.follow.findUnique({ where: { id: notif.followId } });
-    if (!follow || follow.followingId !== me.id) {
-        await db.notification.delete({ where: { id: notif.id } });
-        return NextResponse.json({ ok: true });
-    }
-
-    if (action === "accept") {
-        await db.$transaction(async (tx) => {
-            await tx.follow.update({
-                where: { id: follow.id },
-                data: { status: "ACCEPTED" },
-            });
-
-            await tx.notification.create({
-                data: {
-                    type: "REQUEST_ACCEPTED",
-                    userId: follow.followerId,
-                    actorId: me.id,
-                    followId: follow.id,
-                },
-            });
-
-            await tx.notification.delete({ where: { id: notif.id } });
+        // Load actionable notification and ensure it belongs to me.
+        const notification = await db.notification.findUnique({
+            where: { id: notificationId },
+            select: {
+                id: true,
+                type: true,
+                userId: true,     // recipient (me)
+                actorId: true,    // requester
+                followId: true,   // pending follow row (if any)
+            },
         });
 
-        return NextResponse.json({ ok: true, status: "accepted" });
-    } else {
+        // If it doesn't exist or isn't mine, treat as handled (idempotent).
+        if (!notification || notification.userId !== me.id) {
+            return NextResponse.json({ ok: true });
+        }
+
+        // Only follow requests are actionable; anything else -> mark as read and exit.
+        if (notification.type !== "FOLLOW_REQUEST") {
+            await db.notification.update({
+                where: { id: notification.id },
+                data: { isRead: true },
+            });
+            return NextResponse.json({ ok: true });
+        }
+
+        // Ensure the follow row still exists and actually targets me.
+        const follow = notification.followId
+            ? await db.follow.findUnique({
+                where: { id: notification.followId },
+                select: { id: true, followerId: true, followingId: true, status: true },
+            })
+            : null;
+
+        if (action === "accept") {
+            if (follow && follow.followingId === me.id) {
+                await db.$transaction(async (tx) => {
+                    // Accept the follow
+                    await tx.follow.update({
+                        where: { id: follow.id },
+                        data: { status: "ACCEPTED" },
+                    });
+
+                    // Notify requester that their request was accepted
+                    await tx.notification.create({
+                        data: {
+                            type: "REQUEST_ACCEPTED",
+                            userId: follow.followerId, // recipient = requester
+                            actorId: me.id,            // actor = me (the private user)
+                            followId: follow.id,
+                        },
+                    });
+
+                    // Clean up the original request notification (idempotent)
+                    await tx.notification.deleteMany({
+                        where: { id: notification.id, userId: me.id },
+                    });
+                });
+            } else {
+                // Nothing to accept; just mark/delete the original notification safely
+                await db.notification.deleteMany({
+                    where: { id: notification.id, userId: me.id },
+                });
+            }
+
+            return NextResponse.json({ ok: true, status: "ACCEPTED" });
+        }
+
+        // action === "decline"
         await db.$transaction(async (tx) => {
-            await tx.follow.delete({ where: { id: follow.id } });
-            await tx.notification.delete({ where: { id: notif.id } });
+            // If the pending follow still exists and targets me, remove it
+            if (follow && follow.followingId === me.id) {
+                await tx.follow.deleteMany({ where: { id: follow.id } }); // idempotent-safe
+            }
+
+            // Remove the original notification (use deleteMany to avoid P2025)
+            await tx.notification.deleteMany({
+                where: { id: notification.id, userId: me.id },
+            });
         });
 
-        return NextResponse.json({ ok: true, status: "declined" });
+        // You could create an optional "REQUEST_DECLINED" notification to the requester here.
+        return NextResponse.json({ ok: true, status: "DECLINED" });
+    } catch (err) {
+        console.error("notifications respond error", err);
+        return NextResponse.json({ message: "Server error" }, { status: 500 });
     }
 }
