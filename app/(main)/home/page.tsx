@@ -1,13 +1,64 @@
-// import { authOptions } from "@/lib/auth";
-// import { getServerSession } from "next-auth";
+// app/(main)/home/page.tsx
+import { authOptions } from "@/lib/auth";
+import { getServerSession } from "next-auth";
 import { db } from "@/prisma/client";
 import HomePosts from "@/components/HomePosts";
 
+export const revalidate = 0; // always fresh server render
+
 export default async function Home() {
-    // const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions);
+
+    // Resolve the viewer's user id (if signed in)
+    const viewerId = session?.user?.email
+        ? (
+            await db.user.findUnique({
+                where: { email: session.user.email },
+                select: { id: true },
+            })
+        )?.id ?? null
+        : null;
+
+    // Visibility rules:
+    // - Public authors (isPrivate=false): always visible
+    // - Private authors (isPrivate=true): visible only if viewer follows them with status=ACCEPTED
     const posts = await db.post.findMany({
+        where: viewerId
+            ? {
+                OR: [
+                    { author: { isPrivate: false } },
+                    {
+                        author: {
+                            isPrivate: true,
+                            // viewer must be an accepted follower
+                            followers: {
+                                some: {
+                                    followerId: viewerId,
+                                    status: "ACCEPTED",
+                                },
+                            },
+                        },
+                    },
+                ],
+            }
+            : {
+                // not signed in → only public authors' posts
+                author: { isPrivate: false },
+            },
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    image: true,
+                    role: true,
+                    isPrivate: true,
+                },
+            },
+        },
         orderBy: { createdAt: "desc" },
-        include: { author: true },
+        take: 60, // tweak if needed
     });
 
     return (
@@ -17,8 +68,10 @@ export default async function Home() {
                     <span>gymfluence</span>
                 </h1>
             </header>
+
             <main className="flex-1 w-full flex justify-center">
-                <HomePosts />
+                {/* Pass the filtered posts down; component can use or ignore this prop */}
+                <HomePosts initialPosts={posts} />
             </main>
         </div>
     );
