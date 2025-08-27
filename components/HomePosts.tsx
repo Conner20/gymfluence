@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import Link from "next/link";
 
-// Types for comments and posts
 type Comment = {
     id: string;
     content: string;
@@ -19,6 +18,7 @@ type Post = {
     id: string;
     title: string;
     content: string;
+    imageUrl?: string | null; // <— NEW
     createdAt: string;
     author: { username: string | null, email: string | null } | null;
     likeCount: number;
@@ -39,15 +39,14 @@ export default function HomePosts() {
     const { data: session } = useSession();
     const username = session?.user?.username;
 
-    // Fetch posts from API (now includes like count, didLike, comments)
     const fetchPosts = async () => {
         setError(null);
         try {
-            const res = await fetch("/api/posts");
+            const res = await fetch("/api/posts", { cache: "no-store" });
             if (!res.ok) throw new Error();
             const data = await res.json();
             setPosts(data);
-        } catch (e) {
+        } catch {
             setError("Failed to fetch posts.");
         } finally {
             setLoading(false);
@@ -57,11 +56,10 @@ export default function HomePosts() {
     useEffect(() => {
         setLoading(true);
         fetchPosts();
-        const interval = setInterval(fetchPosts, 3000); // auto-refresh
+        const interval = setInterval(fetchPosts, 3000);
         return () => clearInterval(interval);
     }, []);
 
-    // Delete post
     const handleDelete = async (id: string) => {
         if (!window.confirm("Delete this post?")) return;
         try {
@@ -71,32 +69,26 @@ export default function HomePosts() {
                 body: JSON.stringify({ id }),
             });
             if (!res.ok) throw new Error();
-            setPosts(posts => posts.filter(post => post.id !== id));
-        } catch (e) {
+            setPosts(p => p.filter(post => post.id !== id));
+        } catch {
             alert("Failed to delete post.");
         }
     };
 
-    // Like/unlike post
     const handleLike = async (id: string) => {
         try {
             const res = await fetch(`/api/posts/${id}/like`, { method: "POST" });
             if (!res.ok) throw new Error();
             fetchPosts();
-        } catch (e) {
+        } catch {
             alert("Failed to like/unlike post.");
         }
     };
 
-    // Toggle comment section
     const toggleComments = (postId: string) => {
-        setOpenComments(prev => ({
-            ...prev,
-            [postId]: !prev[postId]
-        }));
+        setOpenComments(prev => ({ ...prev, [postId]: !prev[postId] }));
     };
 
-    // Add new comment to a post
     const handleAddComment = async (postId: string) => {
         if (!newComment[postId]?.trim()) return;
         try {
@@ -108,12 +100,11 @@ export default function HomePosts() {
             if (!res.ok) throw new Error();
             setNewComment(prev => ({ ...prev, [postId]: "" }));
             fetchPosts();
-        } catch (e) {
+        } catch {
             alert("Failed to add comment.");
         }
     };
 
-    // Add reply to a comment
     const handleAddReply = async (postId: string, commentId: string) => {
         if (!replyContent[commentId]?.trim()) return;
         try {
@@ -126,12 +117,11 @@ export default function HomePosts() {
             setReplyContent(prev => ({ ...prev, [commentId]: "" }));
             setReplying(prev => ({ ...prev, [commentId]: false }));
             fetchPosts();
-        } catch (e) {
+        } catch {
             alert("Failed to reply.");
         }
     };
 
-    // Render comments and replies
     const renderComments = (comments: Comment[], postId: string, depth = 0) => (
         <div className={depth === 0 ? "mt-4" : "ml-6 mt-3"}>
             {comments.map(comment => (
@@ -139,11 +129,7 @@ export default function HomePosts() {
                     <div className="flex items-center gap-2">
                         {comment.author?.username ? (
                             comment.author.username === username ? (
-                                <Link
-                                    href="/profile"
-                                    className="text-sm font-semibold text-gray-700 hover:underline"
-                                    title="View your profile"
-                                >
+                                <Link href="/profile" className="text-sm font-semibold text-gray-700 hover:underline" title="View your profile">
                                     {comment.author.username}
                                 </Link>
                             ) : (
@@ -170,26 +156,18 @@ export default function HomePosts() {
                             Reply
                         </button>
                         {replying[comment.id] && (
-                            <form
-                                onSubmit={e => { e.preventDefault(); handleAddReply(postId, comment.id); }}
-                                className="flex gap-1 mt-1"
-                            >
+                            <form onSubmit={e => { e.preventDefault(); handleAddReply(postId, comment.id); }} className="flex gap-1 mt-1">
                                 <input
                                     className="border rounded px-2 py-1 text-xs"
                                     placeholder="Write a reply..."
                                     value={replyContent[comment.id] || ""}
                                     onChange={e => setReplyContent(r => ({ ...r, [comment.id]: e.target.value }))}
                                 />
-                                <button
-                                    className="bg-green-600 text-white px-2 py-1 rounded text-xs"
-                                    type="submit"
-                                >Send</button>
+                                <button className="bg-green-600 text-white px-2 py-1 rounded text-xs" type="submit">Send</button>
                             </form>
                         )}
                     </div>
-                    {/* Render replies recursively */}
-                    {comment.replies && comment.replies.length > 0 &&
-                        renderComments(comment.replies, postId, depth + 1)}
+                    {comment.replies && comment.replies.length > 0 && renderComments(comment.replies, postId, depth + 1)}
                 </div>
             ))}
         </div>
@@ -199,12 +177,10 @@ export default function HomePosts() {
     if (error) return <div className="text-red-500 p-8">{error}</div>;
 
     return (
-        <div className="w-full max-w-xl mx-auto mt-8">
-            <h2 className="text-2xl font-semibold mb-4">Latest Posts</h2>
+        <div className="w-full max-w-xl mx-auto mt-6">
             <div className="space-y-6">
                 {posts.map(post => (
                     <div key={post.id} className="relative bg-white rounded-2xl shadow-lg px-6 py-5">
-                        {/* Only show delete if current user is the author */}
                         {post.author?.username === username && (
                             <button
                                 onClick={() => handleDelete(post.id)}
@@ -214,18 +190,15 @@ export default function HomePosts() {
                                 <Trash2 size={20} />
                             </button>
                         )}
-                        <div className="flex flex-col gap-1 mb-1">
+
+                        <div className="flex flex-col gap-1 mb-2">
                             <span className="font-bold text-lg text-gray-800">{post.title}</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500">
                                     by{" "}
                                     {post.author?.username ? (
                                         post.author.username === username ? (
-                                            <Link
-                                                href="/profile"
-                                                className="font-semibold hover:underline"
-                                                title="View your profile"
-                                            >
+                                            <Link href="/profile" className="font-semibold hover:underline" title="View your profile">
                                                 {post.author.username}
                                             </Link>
                                         ) : (
@@ -241,35 +214,25 @@ export default function HomePosts() {
                                         <span className="font-semibold">Unknown</span>
                                     )}
                                 </span>
-                                <span className="text-xs text-gray-400">
-                                    · {new Date(post.createdAt).toLocaleString()}
-                                </span>
-                                {/* Like button */}
+                                <span className="text-xs text-gray-400">· {new Date(post.createdAt).toLocaleString()}</span>
+
                                 <button
                                     className={clsx(
                                         "flex items-center ml-3 gap-1 text-xs transition",
-                                        post.didLike
-                                            ? "text-red-500 font-bold"
-                                            : "text-gray-400 hover:text-red-400"
+                                        post.didLike ? "text-red-500 font-bold" : "text-gray-400 hover:text-red-400"
                                     )}
                                     onClick={() => handleLike(post.id)}
                                     disabled={!session}
                                     title={session ? (post.didLike ? "Unlike" : "Like") : "Sign in to like"}
                                 >
-                                    <Heart
-                                        size={18}
-                                        fill={post.didLike ? "currentColor" : "none"}
-                                        strokeWidth={2}
-                                    />
+                                    <Heart size={18} fill={post.didLike ? "currentColor" : "none"} strokeWidth={2} />
                                     {post.likeCount}
                                 </button>
-                                {/* Comment button & count */}
+
                                 <button
                                     className={clsx(
                                         "flex items-center gap-1 text-xs ml-2 transition",
-                                        openComments[post.id]
-                                            ? "text-green-600 font-semibold"
-                                            : "text-gray-400 hover:text-green-600"
+                                        openComments[post.id] ? "text-green-600 font-semibold" : "text-gray-400 hover:text-green-600"
                                     )}
                                     onClick={() => toggleComments(post.id)}
                                     title="Show comments"
@@ -279,14 +242,25 @@ export default function HomePosts() {
                                 </button>
                             </div>
                         </div>
-                        <div className="text-gray-700 mt-2">{post.content}</div>
-                        {/* Comments section */}
+
+                        {/* Text content */}
+                        {post.content && <div className="text-gray-700 mt-2 whitespace-pre-wrap">{post.content}</div>}
+
+                        {/* Image (optional) */}
+                        {post.imageUrl && (
+                            <div className="mt-3">
+                                <img
+                                    src={post.imageUrl}
+                                    alt={post.title}
+                                    className="w-full max-h-[540px] object-contain rounded-xl border"
+                                />
+                            </div>
+                        )}
+
+                        {/* Comments */}
                         {openComments[post.id] && (
                             <div className="bg-white rounded-xl mt-4 p-4">
-                                <form
-                                    onSubmit={e => { e.preventDefault(); handleAddComment(post.id); }}
-                                    className="flex gap-2 mb-3"
-                                >
+                                <form onSubmit={e => { e.preventDefault(); handleAddComment(post.id); }} className="flex gap-2 mb-3">
                                     <input
                                         className="flex-1 border rounded px-2 py-1 text-sm"
                                         placeholder="Write a comment..."
@@ -294,17 +268,16 @@ export default function HomePosts() {
                                         onChange={e => setNewComment(c => ({ ...c, [post.id]: e.target.value }))}
                                         disabled={!session}
                                     />
-                                    <button
-                                        className="bg-green-600 text-white px-3 py-1 rounded text-sm"
-                                        type="submit"
-                                        disabled={!session}
-                                    >Comment</button>
+                                    <button className="bg-green-600 text-white px-3 py-1 rounded text-sm" type="submit" disabled={!session}>
+                                        Comment
+                                    </button>
                                 </form>
                                 {renderComments(post.comments, post.id)}
                             </div>
                         )}
                     </div>
                 ))}
+
                 {posts.length === 0 && (
                     <div className="text-gray-400 text-center py-12">No posts yet!</div>
                 )}

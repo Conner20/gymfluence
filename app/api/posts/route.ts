@@ -2,35 +2,99 @@ import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import fs from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
 
-// Create a new post
+// Helpers
+async function ensureUploadsDir() {
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    try {
+        await fs.mkdir(uploadsDir, { recursive: true });
+    } catch { }
+    return uploadsDir;
+}
+
+function safeExt(mime: string, fallback = "bin") {
+    // Very small allowlist; extend as you like
+    if (mime === "image/png") return "png";
+    if (mime === "image/jpeg") return "jpg";
+    if (mime === "image/webp") return "webp";
+    if (mime === "image/gif") return "gif";
+    return fallback;
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, content } = await req.json();
-    if (!title || !content) {
-        return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
-    }
-
     const user = await db.user.findUnique({
-        where: { email: session.user.email }
+        where: { email: session.user.email },
+        select: { id: true },
     });
-
     if (!user) {
         return NextResponse.json({ message: "User not found." }, { status: 404 });
     }
 
+    const contentType = req.headers.get("content-type") || "";
+
     try {
+        let title = "";
+        let content = "";
+        let imageUrl: string | null = null;
+
+        if (contentType.includes("multipart/form-data")) {
+            // Handle form-data with optional file
+            const form = await req.formData();
+            title = String(form.get("title") || "").trim();
+            content = String(form.get("content") || "").trim();
+
+            const file = form.get("image");
+            if (file && file instanceof File && file.size > 0) {
+                const maxBytes = 8 * 1024 * 1024; // 8MB
+                if (file.size > maxBytes) {
+                    return NextResponse.json({ message: "Image too large (max 8MB)." }, { status: 400 });
+                }
+                const mime = file.type || "application/octet-stream";
+                if (!mime.startsWith("image/")) {
+                    return NextResponse.json({ message: "Only image uploads are allowed." }, { status: 400 });
+                }
+
+                const buf = Buffer.from(await file.arrayBuffer());
+                const ext = safeExt(mime);
+                const hash = crypto.randomBytes(8).toString("hex");
+                const base = `post-${user.id}-${Date.now()}-${hash}.${ext}`;
+
+                const uploadsDir = await ensureUploadsDir();
+                const outPath = path.join(uploadsDir, base);
+                await fs.writeFile(outPath, buf);
+
+                // Public URL under /public
+                imageUrl = `/uploads/${base}`;
+            }
+        } else {
+            // Back-compat: JSON body (no file)
+            const body = await req.json();
+            title = String(body.title || "").trim();
+            content = String(body.content || "").trim();
+            imageUrl = body.imageUrl ? String(body.imageUrl) : null; // in case you pre-upload elsewhere (S3/Cloudinary)
+        }
+
+        if (!title || !content) {
+            return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
+        }
+
         const newPost = await db.post.create({
             data: {
                 title,
                 content,
+                imageUrl,
                 authorId: user.id,
             },
         });
+
         return NextResponse.json({ post: newPost, message: "Post created!" }, { status: 201 });
     } catch (error) {
         console.error("POST /api/posts error:", error);
@@ -38,10 +102,10 @@ export async function POST(req: Request) {
     }
 }
 
-// Fetch posts with privacy rules:
-// - Public authors: visible to everyone
-// - Private authors: visible only to their followers
-// - The signed-in user always sees their own posts (regardless of privacy)
+// Fetch posts with privacy rules (unchanged logic you already have):
+// - Public authors visible to everyone
+// - Private authors visible to followers
+// - Viewer always sees their own posts
 export async function GET(_req: Request) {
     const session = await getServerSession(authOptions);
     const userEmail = session?.user?.email ?? null;
@@ -56,7 +120,6 @@ export async function GET(_req: Request) {
     }
 
     try {
-        // If we have a viewer, collect the list of authors they follow (ACCEPTED).
         let followedIds: string[] = [];
         if (currentUserId) {
             const following = await db.follow.findMany({
@@ -66,10 +129,6 @@ export async function GET(_req: Request) {
             followedIds = following.map(f => f.followingId);
         }
 
-        // Build the privacy filter:
-        // - public authors
-        // - authors the viewer follows (if signed in)
-        // - the viewer themselves (so they always see their own posts)
         const whereFilter = {
             OR: [
                 { author: { isPrivate: false } },
@@ -102,6 +161,7 @@ export async function GET(_req: Request) {
             id: post.id,
             title: post.title,
             content: post.content,
+            imageUrl: post.imageUrl ?? null,
             createdAt: post.createdAt,
             author: {
                 id: post.author?.id ?? "",
@@ -144,7 +204,6 @@ export async function GET(_req: Request) {
     }
 }
 
-// Delete a post
 export async function DELETE(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
