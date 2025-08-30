@@ -1,0 +1,588 @@
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import clsx from 'clsx';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+
+type LiteUser = {
+    id: string;
+    username: string | null;
+    name: string | null;
+    image?: string | null;
+};
+
+type ConversationRow = {
+    id: string;
+    updatedAt: string;
+    other: LiteUser | null;
+    lastMessage: { id: string; content: string; createdAt: string; isMine: boolean } | null;
+};
+
+type ThreadMessage = {
+    id: string;
+    content: string;
+    createdAt: string;
+    isMine: boolean;
+    readAt: string | null;
+};
+
+export default function Messenger() {
+    const { data: session } = useSession();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    // Left: conversations
+    const [convos, setConvos] = useState<ConversationRow[]>([]);
+    const [convosLoading, setConvosLoading] = useState(true);
+    const [convosError, setConvosError] = useState<string | null>(null);
+
+    // Right: active thread
+    const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
+    const [activeOther, setActiveOther] = useState<LiteUser | null>(null);
+    const [messages, setMessages] = useState<ThreadMessage[]>([]);
+    const [threadLoading, setThreadLoading] = useState(false);
+    const [threadError, setThreadError] = useState<string | null>(null);
+
+    // Compose
+    const [draft, setDraft] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Search
+    const [search, setSearch] = useState('');
+    const [searchFollowers, setSearchFollowers] = useState<LiteUser[]>([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+
+    // request guards
+    const threadAbortRef = useRef<AbortController | null>(null);
+    const threadReqIdRef = useRef(0);
+
+    // derived
+    const otherKey = useMemo(() => activeOther?.username || activeOther?.id || null, [activeOther]);
+    const lastTimestamp = useMemo(
+        () => (messages.length ? messages[messages.length - 1].createdAt : null),
+        [messages]
+    );
+
+    // Helper: formatted timestamp under each bubble
+    const formatTimestamp = useCallback((iso: string) => {
+        const d = new Date(iso);
+        const now = new Date();
+        const sameDay = d.toDateString() === now.toDateString();
+        const opts: Intl.DateTimeFormatOptions = sameDay
+            ? { hour: 'numeric', minute: '2-digit' }
+            : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+        return d.toLocaleString(undefined, opts);
+    }, []);
+
+    // Filter current conversations locally by search
+    const filteredConvos = useMemo(() => {
+        if (!search.trim()) return convos;
+        const q = search.toLowerCase();
+        return convos.filter((c) => {
+            const name = (c.other?.username || c.other?.name || 'user').toLowerCase();
+            const preview = (c.lastMessage?.content || '').toLowerCase();
+            return name.includes(q) || preview.includes(q);
+        });
+    }, [convos, search]);
+
+    // ---------------------- helpers ----------------------
+
+    const normalizeConvos = (rows: ConversationRow[]) => {
+        const map = new Map<string, ConversationRow>(); // key: other.id
+        for (const c of rows) {
+            const k = c.other?.id;
+            if (!k) continue;
+            const existing = map.get(k);
+            if (!existing) {
+                map.set(k, c);
+            } else {
+                const ta = new Date(existing.lastMessage?.createdAt || existing.updatedAt).getTime();
+                const tb = new Date(c.lastMessage?.createdAt || c.updatedAt).getTime();
+                if (tb > ta) map.set(k, c);
+            }
+        }
+        const list = Array.from(map.values());
+        list.sort((a, b) => {
+            const ta = new Date(a.lastMessage?.createdAt || a.updatedAt).getTime();
+            const tb = new Date(b.lastMessage?.createdAt || b.updatedAt).getTime();
+            return tb - ta;
+        });
+        return list;
+    };
+
+    const fetchConversations = useCallback(async () => {
+        try {
+            setConvosError(null);
+            const res = await fetch('/api/messages/conversations', { cache: 'no-store' });
+            if (!res.ok) throw new Error();
+            const data: ConversationRow[] = await res.json();
+            setConvos(normalizeConvos(data));
+        } catch {
+            setConvosError('Failed to load conversations.');
+        } finally {
+            setConvosLoading(false);
+        }
+    }, []);
+
+    // Debounced search against followers the user follows (server)
+    useEffect(() => {
+        const q = search.trim();
+        if (q.length < 2) {
+            setSearchFollowers([]);
+            setSearchLoading(false);
+            return;
+        }
+        let alive = true;
+        setSearchLoading(true);
+        const t = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+                if (!res.ok) throw new Error();
+                const data: { followers: LiteUser[] } = await res.json();
+                if (!alive) return;
+                setSearchFollowers(data.followers);
+            } catch {
+                if (alive) setSearchFollowers([]);
+            } finally {
+                if (alive) setSearchLoading(false);
+            }
+        }, 250);
+        return () => {
+            alive = false;
+            clearTimeout(t);
+        };
+    }, [search]);
+
+    /**
+     * Load a thread by key (username or id). Optionally supply a fallback username.
+     * Guards against races using AbortController + request id.
+     */
+    const loadThread = useCallback(
+        async (primaryKey: string, fallbackUsername?: string) => {
+            threadAbortRef.current?.abort();
+
+            const reqId = ++threadReqIdRef.current;
+            const abort = new AbortController();
+            threadAbortRef.current = abort;
+
+            const showSpinner = messages.length === 0;
+            setThreadError(null);
+            if (showSpinner) setThreadLoading(true);
+
+            try {
+                let res = await fetch(`/api/messages?to=${encodeURIComponent(primaryKey)}`, {
+                    cache: 'no-store',
+                    signal: abort.signal,
+                });
+
+                if (!res.ok && fallbackUsername) {
+                    const viaId = convos.find((c) => c.other?.username === fallbackUsername)?.other?.id;
+                    if (viaId) {
+                        res = await fetch(`/api/messages?to=${encodeURIComponent(viaId)}`, {
+                            cache: 'no-store',
+                            signal: abort.signal,
+                        });
+                    }
+                }
+
+                if (!res.ok) throw new Error(await res.text());
+
+                const data: {
+                    conversationId: string;
+                    other: LiteUser;
+                    messages: ThreadMessage[];
+                } = await res.json();
+
+                if (reqId !== threadReqIdRef.current) return;
+
+                setActiveConvoId(data.conversationId);
+                setActiveOther(data.other);
+                setMessages(data.messages);
+
+                setConvos((prev) => {
+                    const newest = data.messages.at(-1) || null;
+                    const updated: ConversationRow = {
+                        id: data.conversationId,
+                        updatedAt: newest?.createdAt || new Date().toISOString(),
+                        other: data.other,
+                        lastMessage: newest,
+                    };
+                    const byOther = new Map(prev.map((c) => [c.other?.id, c]));
+                    byOther.set(data.other.id, updated);
+                    return normalizeConvos(Array.from(byOther.values()));
+                });
+            } catch (err: any) {
+                if (err?.name !== 'AbortError') setThreadError('Failed to load messages.');
+            } finally {
+                if (showSpinner) setThreadLoading(false);
+                inputRef.current?.focus();
+            }
+        },
+        [convos, messages.length]
+    );
+
+    // poll only for new messages (does not replace existing)
+    const pollThreadSince = useCallback(async () => {
+        if (!otherKey) return;
+
+        const reqId = threadReqIdRef.current; // snapshot
+        try {
+            const url = lastTimestamp
+                ? `/api/messages?to=${encodeURIComponent(otherKey)}&cursor=${encodeURIComponent(lastTimestamp)}`
+                : `/api/messages?to=${encodeURIComponent(otherKey)}`;
+
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) return;
+
+            const data: {
+                conversationId: string;
+                other: LiteUser;
+                messages: ThreadMessage[];
+            } = await res.json();
+
+            if (reqId !== threadReqIdRef.current) return;
+            if (data.other?.id !== activeOther?.id) return;
+
+            if (data.messages?.length) {
+                setMessages((prev) => {
+                    const merged = [...prev];
+                    for (const m of data.messages) {
+                        if (!prev.some((p) => p.id === m.id)) merged.push(m);
+                    }
+                    return merged;
+                });
+
+                const newest = data.messages[data.messages.length - 1];
+                setConvos((list) =>
+                    normalizeConvos(
+                        list.map((c) =>
+                            c.id === data.conversationId
+                                ? { ...c, lastMessage: newest, updatedAt: newest.createdAt }
+                                : c
+                        )
+                    )
+                );
+            }
+        } catch {
+            /* swallow polling errors */
+        }
+    }, [otherKey, lastTimestamp, activeOther?.id]);
+
+    const send = useCallback(async () => {
+        if (!draft.trim() || !activeOther) return;
+        const text = draft.trim();
+        setDraft('');
+
+        const tempId = `temp-${Date.now()}`;
+        const optimistic: ThreadMessage = {
+            id: tempId,
+            content: text,
+            createdAt: new Date().toISOString(),
+            isMine: true,
+            readAt: null,
+        };
+        setMessages((m) => [...m, optimistic]);
+
+        if (activeConvoId) {
+            setConvos((list) =>
+                normalizeConvos(
+                    list.map((c) =>
+                        c.id === activeConvoId
+                            ? {
+                                ...c,
+                                lastMessage: {
+                                    id: tempId,
+                                    content: text,
+                                    createdAt: optimistic.createdAt,
+                                    isMine: true,
+                                },
+                                updatedAt: optimistic.createdAt,
+                            }
+                            : c
+                    )
+                )
+            );
+        }
+
+        try {
+            const toField = activeOther.username || activeOther.id;
+            const res = await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to: toField, content: text }),
+            });
+            if (!res.ok) throw new Error();
+
+            const data: { id: string; createdAt: string; conversationId: string } = await res.json();
+            setActiveConvoId((prev) => prev ?? data.conversationId);
+            setMessages((prev) =>
+                prev.map((m) => (m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m))
+            );
+
+            fetchConversations();
+        } catch {
+            setMessages((m) => m.filter((msg) => msg.id !== tempId));
+        } finally {
+            inputRef.current?.focus();
+        }
+    }, [draft, activeOther, activeConvoId, fetchConversations]);
+
+    // ---------------------- effects ----------------------
+
+    useEffect(() => {
+        setConvosLoading(true);
+        fetchConversations();
+        const t = setInterval(fetchConversations, 5000);
+        return () => clearInterval(t);
+    }, [fetchConversations]);
+
+    // Deep link: respond only to URL changes (not convos refresh)
+    useEffect(() => {
+        const toParam = searchParams.get('to');
+        if (!toParam) return;
+
+        if (activeOther && (activeOther.username === toParam || activeOther.id === toParam)) {
+            return;
+        }
+
+        const guess = convos.find(
+            (c) => c.other?.username === toParam || c.other?.id === toParam
+        )?.other;
+        if (guess) {
+            setActiveOther(guess);
+            setActiveConvoId(null);
+        }
+
+        loadThread(toParam, toParam);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    // Poll the active thread every 2s
+    useEffect(() => {
+        if (!otherKey) return;
+        const t = setInterval(pollThreadSince, 2000);
+        return () => clearInterval(t);
+    }, [otherKey, pollThreadSince]);
+
+    // ---------------------- actions ----------------------
+
+    const onPick = (row: ConversationRow) => {
+        if (!row.other) return;
+
+        setActiveConvoId(row.id);
+        setActiveOther(row.other);
+        setThreadError(null);
+
+        const pretty = row.other.username || row.other.id;
+        router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
+
+        loadThread(row.other.id, row.other.username || undefined);
+    };
+
+    const startChatWithUser = (user: LiteUser) => {
+        setActiveConvoId(null);
+        setActiveOther(user);
+        setThreadError(null);
+
+        const pretty = user.username || user.id;
+        router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
+
+        loadThread(user.id, user.username || undefined);
+        setSearch('');
+        setSearchFollowers([]);
+    };
+
+    // ---------------------- render ----------------------
+
+    return (
+        <div className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex flex-row">
+            {/* Left column: conversations + search */}
+            <aside className="border-r min-h-[70vh] w-[320px] flex-shrink-0">
+                <div className="px-4 py-3 font-semibold">Messages</div>
+
+                {/* Search input */}
+                <div className="px-3 pb-3">
+                    <input
+                        className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                        placeholder="Search followers or conversations…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+
+                {/* Search results (followers to start new chat) */}
+                {search.trim().length >= 2 && (
+                    <div className="px-3 pb-2">
+                        <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                            Start a new chat {searchLoading ? '(searching…)' : ''}
+                        </div>
+                        {searchFollowers.length === 0 && !searchLoading ? (
+                            <div className="text-xs text-gray-400 mb-2">No matching followed users.</div>
+                        ) : (
+                            <ul className="mb-2">
+                                {searchFollowers.map((u) => (
+                                    <li
+                                        key={u.id}
+                                        className="px-3 py-2 rounded cursor-pointer hover:bg-gray-50 flex items-center gap-3"
+                                        onClick={() => startChatWithUser(u)}
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                            {(u.username || u.name || 'U').slice(0, 2)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium truncate">{u.username || u.name || 'User'}</div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <div className="h-px bg-gray-100 my-2" />
+                    </div>
+                )}
+
+                {/* Conversations (filtered locally) */}
+                <div className="px-0">
+                    <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">
+                        Conversations
+                    </div>
+                    {convosLoading ? (
+                        <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
+                    ) : convosError ? (
+                        <div className="px-4 py-2 text-sm text-red-500">{convosError}</div>
+                    ) : filteredConvos.length === 0 ? (
+                        <div className="px-4 py-6 text-sm text-gray-400">No conversations found.</div>
+                    ) : (
+                        <ul>
+                            {filteredConvos.map((c) => {
+                                const other = c.other;
+                                if (!other) return null;
+                                const name = other.username || other.name || 'User';
+                                const preview = c.lastMessage?.content || 'No messages yet';
+                                const active = c.id === activeConvoId || other.id === activeOther?.id;
+                                return (
+                                    <li
+                                        key={other.id}
+                                        className={clsx(
+                                            'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b',
+                                            active && 'bg-gray-100'
+                                        )}
+                                        onClick={() => onPick(c)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                                {(other.username || other.name || 'U').slice(0, 2)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium truncate">{name}</div>
+                                                <div className="text-xs text-gray-500 truncate">{preview}</div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
+            </aside>
+
+            {/* Right column: thread */}
+            <section className="flex flex-col min-h-[70vh] flex-1">
+                {/* Header */}
+                <div className="h-14 border-b flex items-center gap-3 px-4">
+                    {activeOther ? (
+                        <>
+                            <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                {(activeOther.username || activeOther.name || 'U').slice(0, 2)}
+                            </div>
+                            <div className="font-medium">
+                                {activeOther.username || activeOther.name || 'User'}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-sm text-gray-500">Select a conversation</div>
+                    )}
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                    {!activeOther ? (
+                        <div className="text-center text-sm text-gray-400 mt-20">No conversation selected.</div>
+                    ) : threadLoading && messages.length === 0 ? (
+                        <div className="text-center text-sm text-gray-400 mt-20">Loading…</div>
+                    ) : messages.length === 0 ? (
+                        <div className="text-center text-sm text-gray-300 mt-20">No messages yet.</div>
+                    ) : (
+                        <div className="space-y-3">
+                            {messages.map((m) => {
+                                const ts = formatTimestamp(m.createdAt);
+                                return (
+                                    <div
+                                        key={m.id}
+                                        className={clsx(
+                                            'w-full flex flex-col',
+                                            m.isMine ? 'items-end' : 'items-start'
+                                        )}
+                                    >
+                                        <div
+                                            className={clsx(
+                                                'rounded-2xl px-3 py-2 text-sm break-words max-w-[70%] inline-block',
+                                                m.isMine ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-800'
+                                            )}
+                                            title={new Date(m.createdAt).toLocaleString()}
+                                        >
+                                            {m.content}
+                                        </div>
+                                        <div
+                                            className={clsx(
+                                                'mt-1 text-[10px] leading-none text-gray-400',
+                                                m.isMine ? 'text-right pr-1' : 'text-left pl-1'
+                                            )}
+                                        >
+                                            {ts}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {activeOther && threadError && (
+                        <div className="mt-3 text-center text-xs text-red-500">{threadError}</div>
+                    )}
+                </div>
+
+                {/* Composer */}
+                <div className="h-16 border-t flex items-center gap-2 px-4">
+                    <input
+                        key={otherKey || 'no-thread'}
+                        ref={inputRef}
+                        className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40"
+                        placeholder="Type a message..."
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        disabled={!activeOther || !session}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                send();
+                            }
+                        }}
+                    />
+                    <button
+                        onClick={send}
+                        disabled={!activeOther || !session || !draft.trim()}
+                        className={clsx(
+                            'px-4 py-2 rounded-full text-sm font-medium',
+                            !activeOther || !session || !draft.trim()
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-gray-900 text-white hover:bg-black'
+                        )}
+                    >
+                        Send
+                    </button>
+                </div>
+            </section>
+        </div>
+    );
+}
