@@ -16,12 +16,13 @@ type ConversationRow = {
     id: string;
     updatedAt: string;
     other: LiteUser | null;
-    lastMessage: { id: string; content: string; createdAt: string; isMine: boolean } | null;
+    lastMessage: { id: string; content: string; createdAt: string; isMine: boolean; imageUrls?: string[] } | null;
 };
 
 type ThreadMessage = {
     id: string;
     content: string;
+    imageUrls?: string[];
     createdAt: string;
     isMine: boolean;
     readAt: string | null;
@@ -49,23 +50,26 @@ export default function Messenger() {
     const [draft, setDraft] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Search
+    // images
+    const [files, setFiles] = useState<File[]>([]);
+    const [previews, setPreviews] = useState<string[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // search
     const [search, setSearch] = useState('');
     const [searchFollowers, setSearchFollowers] = useState<LiteUser[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
 
-    // request guards
+    // guards
     const threadAbortRef = useRef<AbortController | null>(null);
     const threadReqIdRef = useRef(0);
 
-    // derived
     const otherKey = useMemo(() => activeOther?.username || activeOther?.id || null, [activeOther]);
     const lastTimestamp = useMemo(
         () => (messages.length ? messages[messages.length - 1].createdAt : null),
         [messages]
     );
 
-    // Helper: formatted timestamp under each bubble
     const formatTimestamp = useCallback((iso: string) => {
         const d = new Date(iso);
         const now = new Date();
@@ -76,18 +80,18 @@ export default function Messenger() {
         return d.toLocaleString(undefined, opts);
     }, []);
 
-    // Filter current conversations locally by search
     const filteredConvos = useMemo(() => {
         if (!search.trim()) return convos;
         const q = search.toLowerCase();
         return convos.filter((c) => {
             const name = (c.other?.username || c.other?.name || 'user').toLowerCase();
-            const preview = (c.lastMessage?.content || '').toLowerCase();
-            return name.includes(q) || preview.includes(q);
+            const text = (c.lastMessage?.content || '').toLowerCase();
+            const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
+            return name.includes(q) || text.includes(q) || (hasPhoto && 'photo'.includes(q));
         });
     }, [convos, search]);
 
-    // ---------------------- helpers ----------------------
+    // -------- helpers --------
 
     const normalizeConvos = (rows: ConversationRow[]) => {
         const map = new Map<string, ConversationRow>(); // key: other.id
@@ -126,7 +130,7 @@ export default function Messenger() {
         }
     }, []);
 
-    // Debounced search against followers the user follows (server)
+    // followers search (server)
     useEffect(() => {
         const q = search.trim();
         if (q.length < 2) {
@@ -155,10 +159,26 @@ export default function Messenger() {
         };
     }, [search]);
 
-    /**
-     * Load a thread by key (username or id). Optionally supply a fallback username.
-     * Guards against races using AbortController + request id.
-     */
+    // preview URLs
+    useEffect(() => {
+        previews.forEach((u) => URL.revokeObjectURL(u));
+        const next = files.map((f) => URL.createObjectURL(f));
+        setPreviews(next);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [files.length]);
+
+    // Upload images using multipart/form-data (no Firebase)
+    const uploadImages = async (filesToUpload: File[]) => {
+        if (filesToUpload.length === 0) return [];
+        const form = new FormData();
+        filesToUpload.forEach((f) => form.append('images', f));
+        const res = await fetch('/api/uploads/images', { method: 'POST', body: form });
+        if (!res.ok) throw new Error('Upload failed');
+        const data: { urls: string[] } = await res.json();
+        return data.urls || [];
+    };
+
+    // load thread (with race guards)
     const loadThread = useCallback(
         async (primaryKey: string, fallbackUsername?: string) => {
             threadAbortRef.current?.abort();
@@ -207,7 +227,15 @@ export default function Messenger() {
                         id: data.conversationId,
                         updatedAt: newest?.createdAt || new Date().toISOString(),
                         other: data.other,
-                        lastMessage: newest,
+                        lastMessage: newest
+                            ? {
+                                id: newest.id,
+                                content: newest.content,
+                                createdAt: newest.createdAt,
+                                isMine: newest.isMine,
+                                imageUrls: newest.imageUrls ?? [],
+                            }
+                            : null,
                     };
                     const byOther = new Map(prev.map((c) => [c.other?.id, c]));
                     byOther.set(data.other.id, updated);
@@ -223,11 +251,11 @@ export default function Messenger() {
         [convos, messages.length]
     );
 
-    // poll only for new messages (does not replace existing)
+    // poll for new messages
     const pollThreadSince = useCallback(async () => {
         if (!otherKey) return;
 
-        const reqId = threadReqIdRef.current; // snapshot
+        const reqId = threadReqIdRef.current;
         try {
             const url = lastTimestamp
                 ? `/api/messages?to=${encodeURIComponent(otherKey)}&cursor=${encodeURIComponent(lastTimestamp)}`
@@ -259,27 +287,53 @@ export default function Messenger() {
                     normalizeConvos(
                         list.map((c) =>
                             c.id === data.conversationId
-                                ? { ...c, lastMessage: newest, updatedAt: newest.createdAt }
+                                ? {
+                                    ...c,
+                                    lastMessage: {
+                                        id: newest.id,
+                                        content: newest.content,
+                                        createdAt: newest.createdAt,
+                                        isMine: newest.isMine,
+                                        imageUrls: newest.imageUrls ?? [],
+                                    },
+                                    updatedAt: newest.createdAt,
+                                }
                                 : c
                         )
                     )
                 );
             }
         } catch {
-            /* swallow polling errors */
+            /* ignore */
         }
     }, [otherKey, lastTimestamp, activeOther?.id]);
 
+    // send message (text + images)
     const send = useCallback(async () => {
-        if (!draft.trim() || !activeOther) return;
-        const text = draft.trim();
-        setDraft('');
+        if ((!draft.trim() && files.length === 0) || !activeOther) return;
 
+        const text = draft.trim();
+        const filesToSend = files.slice();
+        setDraft('');
+        setFiles([]);
+        setPreviews([]);
+
+        // Upload images first
+        let uploaded: string[] = [];
+        try {
+            uploaded = await uploadImages(filesToSend);
+        } catch {
+            return;
+        }
+
+        // optimistic UI
         const tempId = `temp-${Date.now()}`;
+        const nowIso = new Date().toISOString();
         const optimistic: ThreadMessage = {
             id: tempId,
             content: text,
-            createdAt: new Date().toISOString(),
+            imageUrls: uploaded,
+            createdAt: nowIso,
             isMine: true,
             readAt: null,
         };
@@ -295,10 +349,11 @@ export default function Messenger() {
                                 lastMessage: {
                                     id: tempId,
                                     content: text,
-                                    createdAt: optimistic.createdAt,
+                                    imageUrls: uploaded,
+                                    createdAt: nowIso,
                                     isMine: true,
                                 },
-                                updatedAt: optimistic.createdAt,
+                                updatedAt: nowIso,
                             }
                             : c
                     )
@@ -311,25 +366,24 @@ export default function Messenger() {
             const res = await fetch('/api/messages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ to: toField, content: text }),
+                body: JSON.stringify({ to: toField, content: text, imageUrls: uploaded }),
             });
             if (!res.ok) throw new Error();
-
             const data: { id: string; createdAt: string; conversationId: string } = await res.json();
             setActiveConvoId((prev) => prev ?? data.conversationId);
             setMessages((prev) =>
                 prev.map((m) => (m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m))
             );
-
             fetchConversations();
         } catch {
+            // rollback optimistic
             setMessages((m) => m.filter((msg) => msg.id !== tempId));
         } finally {
             inputRef.current?.focus();
         }
-    }, [draft, activeOther, activeConvoId, fetchConversations]);
+    }, [draft, files, activeOther, activeConvoId, fetchConversations]);
 
-    // ---------------------- effects ----------------------
+    // -------- effects --------
 
     useEffect(() => {
         setConvosLoading(true);
@@ -338,7 +392,6 @@ export default function Messenger() {
         return () => clearInterval(t);
     }, [fetchConversations]);
 
-    // Deep link: respond only to URL changes (not convos refresh)
     useEffect(() => {
         const toParam = searchParams.get('to');
         if (!toParam) return;
@@ -359,14 +412,13 @@ export default function Messenger() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
-    // Poll the active thread every 2s
     useEffect(() => {
         if (!otherKey) return;
         const t = setInterval(pollThreadSince, 2000);
         return () => clearInterval(t);
     }, [otherKey, pollThreadSince]);
 
-    // ---------------------- actions ----------------------
+    // -------- actions --------
 
     const onPick = (row: ConversationRow) => {
         if (!row.other) return;
@@ -394,15 +446,51 @@ export default function Messenger() {
         setSearchFollowers([]);
     };
 
-    // ---------------------- render ----------------------
+    // ---- attachments renderer (smaller images + no awkward gaps) ----
+    const Attachments = ({ urls }: { urls: string[] }) => {
+        if (!urls || urls.length === 0) return null;
+        if (urls.length === 1) {
+            const u = urls[0]!;
+            return (
+                <a href={u} target="_blank" rel="noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={u}
+                        alt="attachment"
+                        className="rounded-lg max-w-full h-auto max-h-56"  // was max-h-80 → smaller
+                    />
+                </a>
+            );
+        }
+        const gridCols =
+            urls.length === 2 ? 'grid-cols-2' : urls.length <= 4 ? 'grid-cols-2' : 'grid-cols-3';
+        return (
+            <div className={clsx('grid gap-2', gridCols)}>
+                {urls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={url}
+                            alt="attachment"
+                            className="rounded-lg w-full h-auto max-h-32 object-cover"  // was max-h-40 → smaller
+                        />
+                    </a>
+                ))}
+            </div>
+        );
+    };
+
+    // -------- render --------
 
     return (
-        <div className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex flex-row">
-            {/* Left column: conversations + search */}
-            <aside className="border-r min-h-[70vh] w-[320px] flex-shrink-0">
+        <div
+            className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex"
+            style={{ height: '85vh' }}  // fixed height so inner panes scroll, not the page
+        >
+            {/* Left column */}
+            <aside className="border-r w-[320px] flex-shrink-0 flex flex-col h-full">
                 <div className="px-4 py-3 font-semibold">Messages</div>
 
-                {/* Search input */}
                 <div className="px-3 pb-3">
                     <input
                         className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
@@ -412,85 +500,94 @@ export default function Messenger() {
                     />
                 </div>
 
-                {/* Search results (followers to start new chat) */}
-                {search.trim().length >= 2 && (
-                    <div className="px-3 pb-2">
-                        <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                            Start a new chat {searchLoading ? '(searching…)' : ''}
-                        </div>
-                        {searchFollowers.length === 0 && !searchLoading ? (
-                            <div className="text-xs text-gray-400 mb-2">No matching followed users.</div>
-                        ) : (
-                            <ul className="mb-2">
-                                {searchFollowers.map((u) => (
-                                    <li
-                                        key={u.id}
-                                        className="px-3 py-2 rounded cursor-pointer hover:bg-gray-50 flex items-center gap-3"
-                                        onClick={() => startChatWithUser(u)}
-                                    >
-                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                            {(u.username || u.name || 'U').slice(0, 2)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="text-sm font-medium truncate">{u.username || u.name || 'User'}</div>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                        <div className="h-px bg-gray-100 my-2" />
-                    </div>
-                )}
-
-                {/* Conversations (filtered locally) */}
-                <div className="px-0">
-                    <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">
-                        Conversations
-                    </div>
-                    {convosLoading ? (
-                        <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
-                    ) : convosError ? (
-                        <div className="px-4 py-2 text-sm text-red-500">{convosError}</div>
-                    ) : filteredConvos.length === 0 ? (
-                        <div className="px-4 py-6 text-sm text-gray-400">No conversations found.</div>
-                    ) : (
-                        <ul>
-                            {filteredConvos.map((c) => {
-                                const other = c.other;
-                                if (!other) return null;
-                                const name = other.username || other.name || 'User';
-                                const preview = c.lastMessage?.content || 'No messages yet';
-                                const active = c.id === activeConvoId || other.id === activeOther?.id;
-                                return (
-                                    <li
-                                        key={other.id}
-                                        className={clsx(
-                                            'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b',
-                                            active && 'bg-gray-100'
-                                        )}
-                                        onClick={() => onPick(c)}
-                                    >
-                                        <div className="flex items-center gap-3">
+                {/* Scrollable left pane */}
+                <div className="flex-1 overflow-y-auto px-0">
+                    {search.trim().length >= 2 && (
+                        <div className="px-3 pb-2">
+                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                                Start a new chat {searchLoading ? '(searching…)' : ''}
+                            </div>
+                            {searchFollowers.length === 0 && !searchLoading ? (
+                                <div className="text-xs text-gray-400 mb-2">No matching followed users.</div>
+                            ) : (
+                                <ul className="mb-2">
+                                    {searchFollowers.map((u) => (
+                                        <li
+                                            key={u.id}
+                                            className="px-3 py-2 rounded cursor-pointer hover:bg-gray-50 flex items-center gap-3"
+                                            onClick={() => startChatWithUser(u)}
+                                        >
                                             <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                                {(other.username || other.name || 'U').slice(0, 2)}
+                                                {(u.username || u.name || 'U').slice(0, 2)}
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="text-sm font-medium truncate">{name}</div>
-                                                <div className="text-xs text-gray-500 truncate">{preview}</div>
+                                                <div className="text-sm font-medium truncate">{u.username || u.name || 'User'}</div>
                                             </div>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <div className="h-px bg-gray-100 my-2" />
+                        </div>
                     )}
+
+                    <div className="px-0">
+                        <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">
+                            Conversations
+                        </div>
+                        {convosLoading ? (
+                            <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
+                        ) : convosError ? (
+                            <div className="px-4 py-2 text-sm text-red-500">{convosError}</div>
+                        ) : filteredConvos.length === 0 ? (
+                            <div className="px-4 py-6 text-sm text-gray-400">No conversations found.</div>
+                        ) : (
+                            <ul>
+                                {filteredConvos.map((c) => {
+                                    const other = c.other;
+                                    if (!other) return null;
+                                    const name = other.username || other.name || 'User';
+                                    const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
+                                    const previewText =
+                                        c.lastMessage
+                                            ? (c.lastMessage.content?.trim()
+                                                ? c.lastMessage.content
+                                                : hasPhoto
+                                                    ? '📷 Photo'
+                                                    : 'No messages yet')
+                                            : 'No messages yet';
+                                    const active = c.id === activeConvoId || other.id === activeOther?.id;
+                                    return (
+                                        <li
+                                            key={other.id}
+                                            className={clsx(
+                                                'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b',
+                                                active && 'bg-gray-100'
+                                            )}
+                                            onClick={() => onPick(c)}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                                    {(other.username || other.name || 'U').slice(0, 2)}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-medium truncate">{name}</div>
+                                                    <div className="text-xs text-gray-500 truncate">{previewText}</div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             </aside>
 
-            {/* Right column: thread */}
-            <section className="flex flex-col min-h-[70vh] flex-1">
-                {/* Header */}
-                <div className="h-14 border-b flex items-center gap-3 px-4">
+            {/* Right column */}
+            <section className="flex flex-col h-full flex-1 overflow-hidden">
+                {/* Fixed header */}
+                <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
                     {activeOther ? (
                         <>
                             <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
@@ -505,7 +602,7 @@ export default function Messenger() {
                     )}
                 </div>
 
-                {/* Messages */}
+                {/* Scrollable messages area */}
                 <div className="flex-1 overflow-y-auto px-4 py-4">
                     {!activeOther ? (
                         <div className="text-center text-sm text-gray-400 mt-20">No conversation selected.</div>
@@ -517,13 +614,12 @@ export default function Messenger() {
                         <div className="space-y-3">
                             {messages.map((m) => {
                                 const ts = formatTimestamp(m.createdAt);
+                                const hasText = Boolean(m.content && m.content.trim().length);
+                                const imgs = m.imageUrls ?? [];
                                 return (
                                     <div
                                         key={m.id}
-                                        className={clsx(
-                                            'w-full flex flex-col',
-                                            m.isMine ? 'items-end' : 'items-start'
-                                        )}
+                                        className={clsx('w-full flex flex-col', m.isMine ? 'items-end' : 'items-start')}
                                     >
                                         <div
                                             className={clsx(
@@ -532,7 +628,13 @@ export default function Messenger() {
                                             )}
                                             title={new Date(m.createdAt).toLocaleString()}
                                         >
-                                            {m.content}
+                                            {hasText && <span>{m.content}</span>}
+
+                                            {imgs.length > 0 && (
+                                                <div className={clsx(hasText && 'mt-2')}>
+                                                    <Attachments urls={imgs} />
+                                                </div>
+                                            )}
                                         </div>
                                         <div
                                             className={clsx(
@@ -552,8 +654,8 @@ export default function Messenger() {
                     )}
                 </div>
 
-                {/* Composer */}
-                <div className="h-16 border-t flex items-center gap-2 px-4">
+                {/* Fixed composer */}
+                <div className="h-16 border-t flex items-center gap-2 px-4 flex-shrink-0">
                     <input
                         key={otherKey || 'no-thread'}
                         ref={inputRef}
@@ -569,12 +671,37 @@ export default function Messenger() {
                             }
                         }}
                     />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                            const picked = Array.from(e.target.files || []);
+                            const maxBytes = 8 * 1024 * 1024;
+                            const valid = picked.filter((f) => f.type.startsWith('image/') && f.size <= maxBytes);
+                            setFiles((prev) => [...prev, ...valid].slice(0, 10));
+                            e.currentTarget.value = '';
+                        }}
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!activeOther || !session}
+                        className={clsx(
+                            'px-3 py-2 rounded-full text-sm font-medium border',
+                            !activeOther || !session ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-50'
+                        )}
+                        title="Attach images"
+                    >
+                        + Image
+                    </button>
                     <button
                         onClick={send}
-                        disabled={!activeOther || !session || !draft.trim()}
+                        disabled={!activeOther || !session || (!draft.trim() && files.length === 0)}
                         className={clsx(
                             'px-4 py-2 rounded-full text-sm font-medium',
-                            !activeOther || !session || !draft.trim()
+                            !activeOther || !session || (!draft.trim() && files.length === 0)
                                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                 : 'bg-gray-900 text-white hover:bg-black'
                         )}
@@ -582,6 +709,31 @@ export default function Messenger() {
                         Send
                     </button>
                 </div>
+
+                {/* Selected image previews (scroll with page? keep fixed height content below composer) */}
+                {files.length > 0 && (
+                    <div className="border-t px-4 py-3">
+                        <div className="text-xs text-gray-500 mb-2">Attachments</div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {previews.map((url, i) => (
+                                <div key={i} className="relative group">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={url} alt="preview" className="h-24 w-full object-cover rounded-lg" />
+                                    <button
+                                        className="absolute -top-2 -right-2 bg-black/70 text-white text-[10px] rounded-full px-1.5 py-0.5 opacity-0 group-hover:opacity-100"
+                                        onClick={() => {
+                                            setFiles((prev) => prev.filter((_, idx) => idx !== i));
+                                            setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+                                        }}
+                                        title="Remove"
+                                    >
+                                        x
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </section>
         </div>
     );

@@ -242,12 +242,11 @@ model Message {
   id             String       @id @default(cuid())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
-
-  // named relation that matches User.messagesSent
   sender   User   @relation("UserSentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   senderId String
 
   content   String
+  imageUrls  String[] @default([])
   createdAt DateTime  @default(now())
   readAt    DateTime?
 }
