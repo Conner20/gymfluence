@@ -18,9 +18,10 @@ export async function GET() {
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
+    // Fetch conversations with last message + participants
     const rows = await db.conversation.findMany({
         where: { participants: { some: { userId: me.id } } },
-        orderBy: { updatedAt: "asc" }, // order doesn't matter; we re-sort below
+        orderBy: { updatedAt: "asc" },
         include: {
             participants: {
                 include: { user: { select: { id: true, username: true, name: true, image: true } } },
@@ -28,12 +29,32 @@ export async function GET() {
             messages: {
                 orderBy: { createdAt: "desc" },
                 take: 1,
-                select: { id: true, content: true, createdAt: true, senderId: true },
+                select: { id: true, content: true, imageUrls: true, createdAt: true, senderId: true },
             },
         },
         take: 100,
     });
 
+    const convoIds = rows.map((c) => c.id);
+
+    // Compute unread counts (messages from others with readAt = null)
+    const unreadGroups = convoIds.length
+        ? await db.message.groupBy({
+            by: ["conversationId"],
+            where: {
+                conversationId: { in: convoIds },
+                senderId: { not: me.id },
+                readAt: null,
+            },
+            _count: { _all: true },
+        })
+        : [];
+
+    const unreadMap = new Map<string, number>(
+        unreadGroups.map((g) => [g.conversationId, (g as any)._count?._all ?? 0])
+    );
+
+    // Collapse accidental duplicates by OTHER USER id, keep newest
     const byOther = new Map<string, any>();
     for (const c of rows) {
         const others = c.participants.filter((p) => p.userId !== me.id).map((p) => p.user);
@@ -49,10 +70,12 @@ export async function GET() {
                 ? {
                     id: last.id,
                     content: last.content,
+                    imageUrls: last.imageUrls,
                     createdAt: last.createdAt.toISOString(),
                     isMine: last.senderId === me.id,
                 }
                 : null,
+            unreadCount: unreadMap.get(c.id) ?? 0,
         };
 
         const prev = byOther.get(other.id);

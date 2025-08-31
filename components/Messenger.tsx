@@ -17,6 +17,7 @@ type ConversationRow = {
     updatedAt: string;
     other: LiteUser | null;
     lastMessage: { id: string; content: string; createdAt: string; isMine: boolean; imageUrls?: string[] } | null;
+    unreadCount?: number;
 };
 
 type ThreadMessage = {
@@ -104,7 +105,7 @@ export default function Messenger() {
             } else {
                 const ta = new Date(existing.lastMessage?.createdAt || existing.updatedAt).getTime();
                 const tb = new Date(c.lastMessage?.createdAt || c.updatedAt).getTime();
-                if (tb > ta) map.set(k, c);
+                if (tb > ta) map.set(k, { ...c, unreadCount: c.unreadCount ?? existing.unreadCount });
             }
         }
         const list = Array.from(map.values());
@@ -221,6 +222,7 @@ export default function Messenger() {
                 setActiveOther(data.other);
                 setMessages(data.messages);
 
+                // Merge into left list and reset unreadCount for this thread (we've just read it)
                 setConvos((prev) => {
                     const newest = data.messages.at(-1) || null;
                     const updated: ConversationRow = {
@@ -236,9 +238,10 @@ export default function Messenger() {
                                 imageUrls: newest.imageUrls ?? [],
                             }
                             : null,
+                        unreadCount: 0, // reset on open
                     };
                     const byOther = new Map(prev.map((c) => [c.other?.id, c]));
-                    byOther.set(data.other.id, updated);
+                    byOther.set(data.other.id, { ...updated, unreadCount: 0 });
                     return normalizeConvos(Array.from(byOther.values()));
                 });
             } catch (err: any) {
@@ -297,6 +300,7 @@ export default function Messenger() {
                                         imageUrls: newest.imageUrls ?? [],
                                     },
                                     updatedAt: newest.createdAt,
+                                    unreadCount: 0, // active thread is being read
                                 }
                                 : c
                         )
@@ -457,7 +461,7 @@ export default function Messenger() {
                     <img
                         src={u}
                         alt="attachment"
-                        className="rounded-lg max-w-full h-auto max-h-56"  // was max-h-80 → smaller
+                        className="rounded-lg max-w-full h-auto max-h-56"
                     />
                 </a>
             );
@@ -472,7 +476,7 @@ export default function Messenger() {
                         <img
                             src={url}
                             alt="attachment"
-                            className="rounded-lg w-full h-auto max-h-32 object-cover"  // was max-h-40 → smaller
+                            className="rounded-lg w-full h-auto max-h-32 object-cover"
                         />
                     </a>
                 ))}
@@ -485,7 +489,7 @@ export default function Messenger() {
     return (
         <div
             className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex"
-            style={{ height: '85vh' }}  // fixed height so inner panes scroll, not the page
+            style={{ height: '85vh' }}
         >
             {/* Left column */}
             <aside className="border-r w-[320px] flex-shrink-0 flex flex-col h-full">
@@ -557,6 +561,7 @@ export default function Messenger() {
                                                     : 'No messages yet')
                                             : 'No messages yet';
                                     const active = c.id === activeConvoId || other.id === activeOther?.id;
+
                                     return (
                                         <li
                                             key={other.id}
@@ -570,10 +575,21 @@ export default function Messenger() {
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
                                                     {(other.username || other.name || 'U').slice(0, 2)}
                                                 </div>
-                                                <div className="min-w-0">
+
+                                                {/* Middle grows to fill; keeps dot on far right */}
+                                                <div className="min-w-0 flex-1">
                                                     <div className="text-sm font-medium truncate">{name}</div>
                                                     <div className="text-xs text-gray-500 truncate">{previewText}</div>
                                                 </div>
+
+                                                {/* Unread dot on the far right */}
+                                                {!active && (c.unreadCount ?? 0) > 0 && (
+                                                    <span
+                                                        className="inline-block w-2 h-2 rounded-full bg-green-500 ml-2 flex-shrink-0"
+                                                        title={`${c.unreadCount} unread`}
+                                                        aria-label={`${c.unreadCount} unread`}
+                                                    />
+                                                )}
                                             </div>
                                         </li>
                                     );
@@ -710,7 +726,7 @@ export default function Messenger() {
                     </button>
                 </div>
 
-                {/* Selected image previews (scroll with page? keep fixed height content below composer) */}
+                {/* Selected image previews */}
                 {files.length > 0 && (
                     <div className="border-t px-4 py-3">
                         <div className="text-xs text-gray-500 mb-2">Attachments</div>
@@ -727,7 +743,7 @@ export default function Messenger() {
                                         }}
                                         title="Remove"
                                     >
-                                        x
+                                        ×
                                     </button>
                                 </div>
                             ))}
