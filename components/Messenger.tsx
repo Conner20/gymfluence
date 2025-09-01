@@ -16,9 +16,9 @@ type ConversationRow = {
     id: string;
     updatedAt: string;
     isGroup: boolean;
-    groupName?: string;
-    groupMembers?: LiteUser[]; // other members (excluding me)
-    other: LiteUser | null; // DM only
+    groupName?: string | null;
+    groupMembers?: LiteUser[];
+    other: LiteUser | null;
     lastMessage: { id: string; content: string; createdAt: string; isMine: boolean; imageUrls?: string[] } | null;
     unreadCount?: number;
 };
@@ -30,7 +30,7 @@ type ThreadMessage = {
     createdAt: string;
     isMine: boolean;
     readAt: string | null;
-    sender?: LiteUser | null; // who sent it (for group labeling)
+    sender?: LiteUser | null;
 };
 
 export default function Messenger() {
@@ -46,8 +46,9 @@ export default function Messenger() {
 
     // Right: active thread
     const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
-    const [activeOther, setActiveOther] = useState<LiteUser | null>(null); // DM only
-    const [activeGroupMembers, setActiveGroupMembers] = useState<LiteUser[] | null>(null); // group only
+    const [activeOther, setActiveOther] = useState<LiteUser | null>(null); // DM
+    const [activeGroupMembers, setActiveGroupMembers] = useState<LiteUser[] | null>(null); // Group
+    const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
     const [messages, setMessages] = useState<ThreadMessage[]>([]);
     const [threadLoading, setThreadLoading] = useState(false);
     const [threadError, setThreadError] = useState<string | null>(null);
@@ -61,22 +62,23 @@ export default function Messenger() {
     const [previews, setPreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // search (left, DM/convo filter)
+    // search (left)
     const [search, setSearch] = useState('');
     const [searchFollowers, setSearchFollowers] = useState<LiteUser[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
 
-    // NEW GROUP state
+    // NEW GROUP
     const [showNewGroup, setShowNewGroup] = useState(false);
     const [groupQuery, setGroupQuery] = useState('');
     const [groupResults, setGroupResults] = useState<LiteUser[]>([]);
     const [groupLoading, setGroupLoading] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-    // MANAGE modal state
+    // MANAGE modal
     const [showManage, setShowManage] = useState(false);
+    const [groupNameInput, setGroupNameInput] = useState('');
 
-    // ADD PEOPLE (inside Manage modal)
+    // ADD PEOPLE (Manage)
     const [addQuery, setAddQuery] = useState('');
     const [addResults, setAddResults] = useState<LiteUser[]>([]);
     const [addLoading, setAddLoading] = useState(false);
@@ -106,13 +108,13 @@ export default function Messenger() {
     const goToProfile = (u: LiteUser | undefined | null) => {
         if (!u) return;
         const slug = u.username || u.id;
-        router.push(`/u/${encodeURIComponent(slug)}`);
+        router.push(`/profile/${encodeURIComponent(slug)}`);
     };
 
     // ---------- system message helpers ----------
     const SYS_PREFIX = '[SYS] ';
     const isSystemMessage = (m: ThreadMessage) => {
-        if ((m.imageUrls?.length ?? 0) > 0) return false; // system msgs have no images
+        if ((m.imageUrls?.length ?? 0) > 0) return false;
         if (m.content?.startsWith(SYS_PREFIX)) return true;
         const t = m.content?.trim() || '';
         return (
@@ -125,18 +127,13 @@ export default function Messenger() {
 
     // ---------------- helpers ----------------
 
-    // Collapse duplicate entries:
-    // - "Real" groups are those with at least two OTHER members (you + >=2 others)
-    // - 1:1 DMs and "fake groups" (you + 1 other) are deduped by the other user's id
     const normalizeConvos = (rows: ConversationRow[]) => {
         const byKey = new Map<string, ConversationRow>();
-
         const pickNewest = (a: ConversationRow, b: ConversationRow) => {
             const ta = new Date(a.lastMessage?.createdAt || a.updatedAt).getTime();
             const tb = new Date(b.lastMessage?.createdAt || b.updatedAt).getTime();
             return tb > ta ? b : a;
         };
-
         for (const c of rows) {
             const realGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
             if (realGroup) {
@@ -148,7 +145,6 @@ export default function Messenger() {
             const key = `dm:${dmOtherId}`;
             byKey.set(key, byKey.get(key) ? pickNewest(byKey.get(key)!, c) : c);
         }
-
         const list = Array.from(byKey.values());
         list.sort((a, b) => {
             const ta = new Date(a.lastMessage?.createdAt || a.updatedAt).getTime();
@@ -172,7 +168,7 @@ export default function Messenger() {
         }
     }, []);
 
-    // followers search (left column quick DM search)
+    // followers search (left)
     useEffect(() => {
         const q = search.trim();
         if (q.length < 2) {
@@ -201,7 +197,7 @@ export default function Messenger() {
         };
     }, [search]);
 
-    // NEW GROUP: search followers for modal
+    // NEW GROUP search
     useEffect(() => {
         if (!showNewGroup) return;
         const q = groupQuery.trim();
@@ -231,7 +227,7 @@ export default function Messenger() {
         };
     }, [groupQuery, showNewGroup]);
 
-    // MANAGE modal: search to add users (ensures you can re-add someone you removed)
+    // Manage modal add-users search
     useEffect(() => {
         if (!showManage || !activeGroupMembers) return;
         const q = addQuery.trim();
@@ -261,7 +257,7 @@ export default function Messenger() {
         };
     }, [addQuery, showManage, activeGroupMembers]);
 
-    // React to ?newGroup=1 in URL
+    // React to ?newGroup
     useEffect(() => {
         const wants = searchParams.get('newGroup') === '1';
         setShowNewGroup(wants);
@@ -280,7 +276,6 @@ export default function Messenger() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [files.length]);
 
-    // Upload images (to your /api/uploads/images)
     const uploadImages = async (filesToUpload: File[]) => {
         if (filesToUpload.length === 0) return [];
         const form = new FormData();
@@ -313,7 +308,7 @@ export default function Messenger() {
                 const data: {
                     conversationId: string;
                     other?: LiteUser | null;
-                    group?: { members: LiteUser[] };
+                    group?: { name: string | null; members: LiteUser[] };
                     messages: ThreadMessage[];
                 } = await res.json();
 
@@ -322,13 +317,13 @@ export default function Messenger() {
                 setActiveConvoId(data.conversationId);
                 setActiveOther(data.other ?? null);
                 setActiveGroupMembers(data.group?.members ?? null);
+                setActiveGroupName(data.group?.name ?? null);
                 setMessages(data.messages);
 
-                // reset unread for this thread
                 setConvos((prev) =>
                     normalizeConvos(
                         prev.map((c) =>
-                            c.id === data.conversationId ? { ...c, unreadCount: 0 } : c
+                            c.id === data.conversationId ? { ...c, unreadCount: 0, groupName: data.group?.name ?? c.groupName } : c
                         )
                     )
                 );
@@ -372,9 +367,9 @@ export default function Messenger() {
                 setActiveConvoId(data.conversationId);
                 setActiveOther(data.other);
                 setActiveGroupMembers(null);
+                setActiveGroupName(null);
                 setMessages(data.messages);
 
-                // Update/insert preview row on the left
                 setConvos((prev) => {
                     const newest = data.messages.at(-1) || null;
                     const updated: ConversationRow = {
@@ -382,7 +377,7 @@ export default function Messenger() {
                         updatedAt: newest?.createdAt || new Date().toISOString(),
                         isGroup: false,
                         other: data.other,
-                        groupName: undefined,
+                        groupName: null,
                         groupMembers: undefined,
                         lastMessage: newest
                             ? { id: newest.id, content: newest.content, createdAt: newest.createdAt, isMine: newest.isMine, imageUrls: newest.imageUrls ?? [] }
@@ -403,7 +398,6 @@ export default function Messenger() {
         [messages.length]
     );
 
-    // poll by conversationId (works for DM and group)
     const pollThreadSince = useCallback(async () => {
         if (!activeConvoId) return;
         try {
@@ -417,7 +411,7 @@ export default function Messenger() {
             const data: {
                 conversationId: string;
                 other?: LiteUser | null;
-                group?: { members: LiteUser[] };
+                group?: { name: string | null; members: LiteUser[] };
                 messages: ThreadMessage[];
             } = await res.json();
 
@@ -448,6 +442,7 @@ export default function Messenger() {
                                     },
                                     updatedAt: newest.createdAt,
                                     unreadCount: 0,
+                                    groupName: data.group?.name ?? c.groupName,
                                 }
                                 : c
                         )
@@ -459,7 +454,6 @@ export default function Messenger() {
         }
     }, [activeConvoId, lastTimestamp]);
 
-    // send message
     const send = useCallback(async () => {
         if ((!draft.trim() && files.length === 0) || (!activeConvoId && !activeOther)) return;
 
@@ -522,10 +516,8 @@ export default function Messenger() {
                 prev.map((m) => (m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m))
             );
 
-            // refresh left list
             fetchConversations();
         } catch {
-            // rollback the optimistic message
             setMessages((m) => m.filter((msg) => msg.id !== tempId));
         } finally {
             inputRef.current?.focus();
@@ -534,7 +526,6 @@ export default function Messenger() {
 
     // ---------------- effects ----------------
 
-    // Load conversations + poll the list periodically
     useEffect(() => {
         setConvosLoading(true);
         fetchConversations();
@@ -542,13 +533,14 @@ export default function Messenger() {
         return () => clearInterval(t);
     }, [fetchConversations]);
 
-    // Deep-links: ?convoId=... or ?to=...
+    // Deep-links
     useEffect(() => {
         const cid = searchParams.get('convoId');
         const to = searchParams.get('to');
         if (cid) {
             setActiveOther(null);
             setActiveGroupMembers(null);
+            setActiveGroupName(null);
             setMessages([]);
             loadByConversationId(cid);
             return;
@@ -558,6 +550,7 @@ export default function Messenger() {
             if (guess) {
                 setActiveOther(guess);
                 setActiveGroupMembers(null);
+                setActiveGroupName(null);
                 setMessages([]);
             }
             loadByTo(to);
@@ -565,7 +558,6 @@ export default function Messenger() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
-    // Poll the active thread every 2s
     useEffect(() => {
         if (!activeConvoId) return;
         const t = setInterval(pollThreadSince, 2000);
@@ -583,12 +575,14 @@ export default function Messenger() {
         if (realGroup) {
             setActiveOther(null);
             setActiveGroupMembers(row.groupMembers ?? []);
+            setActiveGroupName(row.groupName ?? null);
             setActiveConvoId(row.id);
             router.replace(`${pathname}?convoId=${encodeURIComponent(row.id)}`);
             loadByConversationId(row.id);
         } else if (row.other) {
             setActiveOther(row.other);
             setActiveGroupMembers(null);
+            setActiveGroupName(null);
             setActiveConvoId(row.id);
             const pretty = row.other.username || row.other.id;
             router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
@@ -602,6 +596,7 @@ export default function Messenger() {
         setActiveConvoId(null);
         setActiveOther(user);
         setActiveGroupMembers(null);
+        setActiveGroupName(null);
         const pretty = user.username || user.id;
         router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
         loadByTo(user.id);
@@ -609,7 +604,6 @@ export default function Messenger() {
         setSearchFollowers([]);
     };
 
-    // ---- attachments renderer ----
     const Attachments = ({ urls }: { urls: string[] }) => {
         if (!urls || urls.length === 0) return null;
         if (urls.length === 1) {
@@ -634,23 +628,18 @@ export default function Messenger() {
         );
     };
 
-    // ---------------- render ----------------
-
     const normalized = normalizeConvos(convos);
 
     return (
-        <div
-            className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex"
-            style={{ height: '85vh' }}
-        >
+        <div className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex" style={{ height: '85vh' }}>
             {/* Left column */}
             <aside className="border-r w-[340px] flex-shrink-0 flex flex-col h-full">
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="font-semibold">Messages</div>
                     <button
                         onClick={() => {
-                            setShowNewGroup(true); // open immediately
-                            router.replace(`${pathname}?newGroup=1`); // deep link/back button
+                            setShowNewGroup(true);
+                            router.replace(`${pathname}?newGroup=1`);
                         }}
                         className="text-xs px-2 py-1 rounded bg-gray-900 text-white hover:bg-black"
                     >
@@ -667,7 +656,6 @@ export default function Messenger() {
                     />
                 </div>
 
-                {/* Quick: start a new DM from search */}
                 {search && (
                     <div className="px-3 pb-2">
                         <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Start chat</div>
@@ -694,12 +682,9 @@ export default function Messenger() {
                     </div>
                 )}
 
-                {/* Scrollable left pane */}
                 <div className="flex-1 overflow-y-auto px-0">
                     <div className="px-0">
-                        <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">
-                            Conversations
-                        </div>
+                        <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">Conversations</div>
                         {convosLoading ? (
                             <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
                         ) : convosError ? (
@@ -720,17 +705,13 @@ export default function Messenger() {
                                     return (
                                         <li
                                             key={realGroup ? `grp:${c.id}` : `dm:${c.other?.id}`}
-                                            className={clsx(
-                                                'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b',
-                                                active && 'bg-gray-100'
-                                            )}
+                                            className={clsx('px-4 py-3 cursor-pointer hover:bg-gray-50 border-b', active && 'bg-gray-100')}
                                             onClick={() => onPick(c)}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
                                                     {realGroup ? 'G' : (c.other?.username || c.other?.name || 'U').slice(0, 2)}
                                                 </div>
-
                                                 <div className="min-w-0 flex-1">
                                                     <div className="text-sm font-medium truncate">
                                                         {realGroup ? (
@@ -750,7 +731,6 @@ export default function Messenger() {
                                                     </div>
                                                     <div className="text-xs text-gray-500 truncate">{previewText}</div>
                                                 </div>
-
                                                 {(c.unreadCount ?? 0) > 0 && !active && (
                                                     <span
                                                         className="inline-block w-2 h-2 rounded-full bg-green-500 ml-2 flex-shrink-0"
@@ -770,7 +750,7 @@ export default function Messenger() {
 
             {/* Right column */}
             <section className="flex flex-col h-full flex-1 overflow-hidden">
-                {/* Fixed header */}
+                {/* Header */}
                 <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
                     {activeConvoId ? (
                         <>
@@ -779,20 +759,24 @@ export default function Messenger() {
                             </div>
                             <div className="font-medium truncate flex-1">
                                 {activeGroupMembers ? (
-                                    <span className="truncate">
-                                        {activeGroupMembers
-                                            .filter((u) => !myUsername || u.username !== myUsername) // exclude me
-                                            .map((u, idx) => (
-                                                <button
-                                                    key={u.id}
-                                                    className="hover:underline mr-1"
-                                                    onClick={() => goToProfile(u)}
-                                                    title={u.username || u.name || 'User'}
-                                                >
-                                                    {(u.username || u.name || 'User') + (idx < activeGroupMembers.length - 1 ? ',' : '')}
-                                                </button>
-                                            ))}
-                                    </span>
+                                    activeGroupName ? (
+                                        <span className="truncate">{activeGroupName}</span>
+                                    ) : (
+                                        <span className="truncate">
+                                            {activeGroupMembers
+                                                .filter((u) => !myUsername || u.username !== myUsername)
+                                                .map((u, idx) => (
+                                                    <button
+                                                        key={u.id}
+                                                        className="hover:underline mr-1"
+                                                        onClick={() => goToProfile(u)}
+                                                        title={u.username || u.name || 'User'}
+                                                    >
+                                                        {(u.username || u.name || 'User') + (idx < activeGroupMembers.length - 1 ? ',' : '')}
+                                                    </button>
+                                                ))}
+                                        </span>
+                                    )
                                 ) : (
                                     <button className="hover:underline" onClick={() => goToProfile(activeOther!)}>
                                         {activeOther?.username || activeOther?.name || 'User'}
@@ -802,6 +786,7 @@ export default function Messenger() {
 
                             <button
                                 onClick={() => {
+                                    setGroupNameInput(activeGroupName ?? '');
                                     setAddQuery('');
                                     setAddResults([]);
                                     setAddSelectedIds([]);
@@ -818,7 +803,7 @@ export default function Messenger() {
                     )}
                 </div>
 
-                {/* Scrollable messages area */}
+                {/* Messages */}
                 <div className="flex-1 overflow-y-auto px-4 py-4">
                     {!activeConvoId ? (
                         <div className="text-center text-sm text-gray-400 mt-20">No conversation selected.</div>
@@ -829,18 +814,13 @@ export default function Messenger() {
                     ) : (
                         <div className="space-y-3">
                             {messages.map((m) => {
-                                // ---- System notice (no bubble) ----
                                 if (isSystemMessage(m)) {
                                     return (
                                         <div key={m.id} className="w-full flex">
-                                            <div className="mx-auto text-[12px] text-gray-500 italic">
-                                                {systemText(m)}
-                                            </div>
+                                            <div className="mx-auto text-[12px] text-gray-500 italic">{systemText(m)}</div>
                                         </div>
                                     );
                                 }
-
-                                // ---- Regular message ----
                                 const ts = formatTimestamp(m.createdAt);
                                 const hasText = Boolean(m.content && m.content.trim().length);
                                 const imgs = m.imageUrls ?? [];
@@ -849,7 +829,6 @@ export default function Messenger() {
 
                                 return (
                                     <div key={m.id} className={clsx('w-full flex flex-col', m.isMine ? 'items-end' : 'items-start')}>
-                                        {/* Group: show sender above bubble only for OTHER users; clickable + underline on hover */}
                                         {activeGroupMembers && !m.isMine && (
                                             <button
                                                 className="text-[11px] mb-0.5 text-left pl-1 text-gray-600 hover:underline"
@@ -887,7 +866,7 @@ export default function Messenger() {
                     )}
                 </div>
 
-                {/* Fixed composer */}
+                {/* Composer */}
                 <div className="h-16 border-t flex items-center gap-2 px-4 flex-shrink-0">
                     <input
                         key={activeConvoId || activeOther?.id || 'no-thread'}
@@ -945,7 +924,6 @@ export default function Messenger() {
                     </button>
                 </div>
 
-                {/* Selected image previews */}
                 {files.length > 0 && (
                     <div className="border-t px-4 py-3">
                         <div className="text-xs text-gray-500 mb-2">Attachments</div>
@@ -971,16 +949,13 @@ export default function Messenger() {
                 )}
             </section>
 
-            {/* ---------- NEW GROUP MODAL ---------- */}
+            {/* NEW GROUP MODAL */}
             {showNewGroup && (
                 <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
                     <div className="bg-white w-[520px] max-w-[92vw] rounded-xl shadow-lg p-5">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-lg font-semibold">Create Group</h3>
-                            <button
-                                className="text-sm px-2 py-1 rounded hover:bg-gray-100"
-                                onClick={() => router.replace(pathname)}
-                            >
+                            <button className="text-sm px-2 py-1 rounded hover:bg-gray-100" onClick={() => router.replace(pathname)}>
                                 Close
                             </button>
                         </div>
@@ -1027,9 +1002,7 @@ export default function Messenger() {
                         </div>
 
                         <div className="mt-4 flex items-center justify-between">
-                            <div className="text-xs text-gray-500">
-                                Selected: {selectedIds.length}
-                            </div>
+                            <div className="text-xs text-gray-500">Selected: {selectedIds.length}</div>
                             <button
                                 className={clsx(
                                     "px-3 py-2 rounded-md text-sm font-medium",
@@ -1069,7 +1042,7 @@ export default function Messenger() {
                 </div>
             )}
 
-            {/* ---------- MANAGE CONVERSATION MODAL ---------- */}
+            {/* MANAGE CONVERSATION MODAL */}
             {showManage && activeConvoId && (
                 <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
                     <div className="bg-white w-[600px] max-w-[92vw] rounded-xl shadow-lg p-5">
@@ -1090,6 +1063,51 @@ export default function Messenger() {
 
                         {activeGroupMembers ? (
                             <>
+                                {/* Group name */}
+                                <div className="mb-5">
+                                    <div className="text-sm font-medium mb-1">Group name</div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                            placeholder="Add a name (optional)"
+                                            value={groupNameInput}
+                                            onChange={(e) => setGroupNameInput(e.target.value)}
+                                        />
+                                        <button
+                                            className={clsx(
+                                                "px-3 py-2 rounded-md text-sm font-medium",
+                                                groupNameInput === (activeGroupName ?? '') ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-black"
+                                            )}
+                                            disabled={groupNameInput === (activeGroupName ?? '')}
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
+                                                        method: "PATCH",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ name: groupNameInput }),
+                                                    });
+                                                    if (!res.ok) {
+                                                        const data = await res.json().catch(() => ({}));
+                                                        alert(data?.message || "Failed to rename group.");
+                                                        return;
+                                                    }
+                                                    const data: { conversationId: string; name: string | null } = await res.json();
+                                                    setActiveGroupName(data.name ?? null);
+                                                    setGroupNameInput(data.name ?? '');
+                                                    // reflect on left list
+                                                    setConvos((prev) =>
+                                                        prev.map((c) => (c.id === data.conversationId ? { ...c, groupName: data.name } : c))
+                                                    );
+                                                } catch {
+                                                    alert("Failed to rename group.");
+                                                }
+                                            }}
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {/* Add people */}
                                 <div className="mb-5">
                                     <div className="text-sm font-medium mb-1">Add people</div>
@@ -1174,7 +1192,7 @@ export default function Messenger() {
                                     </div>
                                 </div>
 
-                                {/* Members */}
+                                {/* Members list */}
                                 <div className="text-sm text-gray-500 mb-2">Members</div>
                                 <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
                                     {activeGroupMembers.map((u) => (
@@ -1204,15 +1222,14 @@ export default function Messenger() {
                                                             const data = await res.json();
 
                                                             if (data.deleted) {
-                                                                // conversation removed (became <2 participants)
                                                                 setShowManage(false);
                                                                 setActiveConvoId(null);
                                                                 setActiveGroupMembers(null);
+                                                                setActiveGroupName(null);
                                                                 setActiveOther(null);
                                                                 setMessages([]);
                                                                 router.replace(pathname);
                                                             } else {
-                                                                // refresh members and thread view
                                                                 setActiveGroupMembers(data.participants);
                                                                 await fetchConversations();
                                                                 await loadByConversationId(activeConvoId);
@@ -1242,6 +1259,7 @@ export default function Messenger() {
                                                 setShowManage(false);
                                                 setActiveConvoId(null);
                                                 setActiveGroupMembers(null);
+                                                setActiveGroupName(null);
                                                 setActiveOther(null);
                                                 setMessages([]);
                                                 router.replace(pathname);

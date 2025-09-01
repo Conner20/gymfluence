@@ -219,6 +219,7 @@ model Conversation {
   id           String                    @id @default(cuid())
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
+  name         String?
   participants ConversationParticipant[]
   messages     Message[]
   dmKey        String?                    @unique
