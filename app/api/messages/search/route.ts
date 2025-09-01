@@ -5,17 +5,15 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
 /**
- * GET /api/messages/search?q=<string>
- * Returns up to 10 following users (ACCEPTED) whose username or name matches q.
+ * GET /api/messages/search?q=...
+ * Returns people you FOLLOW or who FOLLOW you (ACCEPTED),
+ * filtered by username/name contains `q` (case-insensitive).
  */
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const q = (searchParams.get("q") || "").trim();
-
     const session = await getServerSession(authOptions);
-    const meIdFromSession = (session?.user as any)?.id as string | undefined;
     const meEmail = session?.user?.email ?? undefined;
-    if (!meIdFromSession && !meEmail) {
+    const meIdFromSession = (session?.user as any)?.id as string | undefined;
+    if (!meEmail && !meIdFromSession) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,30 +23,41 @@ export async function GET(req: Request) {
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
+    const { searchParams } = new URL(req.url);
+    const q = (searchParams.get("q") || "").trim();
     if (q.length < 2) {
         return NextResponse.json({ followers: [] });
     }
 
-    const matches = await db.follow.findMany({
+    // Collect IDs of people I follow and people who follow me (ACCEPTED)
+    const [followingRows, followersRows] = await Promise.all([
+        db.follow.findMany({
+            where: { followerId: me.id, status: "ACCEPTED" },
+            select: { followingId: true },
+        }),
+        db.follow.findMany({
+            where: { followingId: me.id, status: "ACCEPTED" },
+            select: { followerId: true },
+        }),
+    ]);
+
+    const idSet = new Set<string>();
+    for (const r of followingRows) idSet.add(r.followingId);
+    for (const r of followersRows) idSet.add(r.followerId);
+
+    if (idSet.size === 0) return NextResponse.json({ followers: [] });
+
+    const results = await db.user.findMany({
         where: {
-            followerId: me.id,
-            status: "ACCEPTED",
-            following: {
-                OR: [
-                    { username: { contains: q, mode: "insensitive" } },
-                    { name: { contains: q, mode: "insensitive" } },
-                ],
-            },
+            id: { in: Array.from(idSet) },
+            OR: [
+                { username: { contains: q, mode: "insensitive" } },
+                { name: { contains: q, mode: "insensitive" } },
+            ],
         },
-        include: {
-            following: { select: { id: true, username: true, name: true, image: true } },
-        },
-        take: 10,
+        select: { id: true, username: true, name: true, image: true },
+        take: 50,
     });
 
-    const followers = matches
-        .map((f) => f.following)
-        .filter((u) => u.id !== me.id);
-
-    return NextResponse.json({ followers });
+    return NextResponse.json({ followers: results });
 }
