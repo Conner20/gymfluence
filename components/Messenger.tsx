@@ -5,11 +5,82 @@ import clsx from 'clsx';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
+// --- SharedPostModal (auto-resizes to the real post height) ---
+function SharedPostModal({
+    postId,
+    onClose,
+}: {
+    postId: string;
+    onClose: () => void;
+}) {
+    const frameRef = React.useRef<HTMLIFrameElement>(null);
+
+    React.useEffect(() => {
+        function onMessage(e: MessageEvent) {
+            if (!e.data || e.data.type !== 'post-embed-size') return;
+            if (e.origin !== window.location.origin) return;
+            const el = frameRef.current;
+            if (!el) return;
+            const maxH = Math.max(320, Math.min(e.data.height, window.innerHeight - 120));
+            el.style.height = `${maxH}px`;
+        }
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
+    }, []);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-xl shadow-2xl w-[min(96vw,1100px)]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between px-4 py-2 border-b">
+                    <div className="font-medium">Post</div>
+                    <div className="flex items-center gap-4 text-sm">
+                        <a
+                            href={`/post/${encodeURIComponent(postId)}`}
+                            className="text-gray-600 hover:underline"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            Open in new tab
+                        </a>
+                        <button className="text-gray-600 hover:text-black" onClick={onClose}>
+                            Close
+                        </button>
+                    </div>
+                </div>
+
+                {/* Iframe auto-resizes via postMessage from /post/[id] */}
+                <iframe
+                    ref={frameRef}
+                    src={`/post/${encodeURIComponent(postId)}`}
+                    className="w-full block rounded-b-xl"
+                    style={{
+                        height:
+                            typeof window !== 'undefined' ? Math.min(700, window.innerHeight - 120) : 700,
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
 type LiteUser = {
     id: string;
     username: string | null;
     name: string | null;
     image?: string | null;
+};
+
+type SharedPost = {
+    id: string;
+    title: string;
+    imageUrl?: string | null;
+    author: LiteUser;
 };
 
 type ConversationRow = {
@@ -31,7 +102,13 @@ type ThreadMessage = {
     isMine: boolean;
     readAt: string | null;
     sender?: LiteUser | null;
+    sharedUser?: LiteUser | null;
+    sharedPost?: SharedPost | null;
 };
+
+type ShareDraft =
+    | { type: 'profile'; url: string; label?: string; userId?: string }
+    | { type: 'post'; post: SharedPost };
 
 export default function Messenger() {
     const { data: session } = useSession();
@@ -62,6 +139,9 @@ export default function Messenger() {
     const [previews, setPreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // share composer (only from share buttons)
+    const [shareDraft, setShareDraft] = useState<ShareDraft | null>(null);
+
     // search (left)
     const [search, setSearch] = useState('');
     const [searchFollowers, setSearchFollowers] = useState<LiteUser[]>([]);
@@ -83,6 +163,9 @@ export default function Messenger() {
     const [addResults, setAddResults] = useState<LiteUser[]>([]);
     const [addLoading, setAddLoading] = useState(false);
     const [addSelectedIds, setAddSelectedIds] = useState<string[]>([]);
+
+    // Shared post modal
+    const [openPostId, setOpenPostId] = useState<string | null>(null);
 
     // guards
     const threadAbortRef = useRef<AbortController | null>(null);
@@ -108,7 +191,22 @@ export default function Messenger() {
     const goToProfile = (u: LiteUser | undefined | null) => {
         if (!u) return;
         const slug = u.username || u.id;
-        router.push(`/profile/${encodeURIComponent(slug)}`);
+        router.push(`/u/${encodeURIComponent(slug)}`);
+    };
+
+    // ---------- URL helpers ----------
+    const linkify = (text: string) => {
+        const parts = text.split(/(https?:\/\/[^\s]+|\/u\/[^\s]+)/g);
+        return parts.map((p, i) => {
+            if (/^(https?:\/\/[^\s]+|\/u\/[^\s]+)$/.test(p)) {
+                return (
+                    <a key={i} href={p} className="underline break-all" target="_blank" rel="noreferrer">
+                        {p}
+                    </a>
+                );
+            }
+            return <span key={i}>{p}</span>;
+        });
     };
 
     // ---------- system message helpers ----------
@@ -119,7 +217,10 @@ export default function Messenger() {
         const t = m.content?.trim() || '';
         return (
             t.toLowerCase().endsWith(' left the conversation.') ||
-            / removed .+ from the conversation\.$/i.test(t)
+            / removed .+ from the conversation\.$/i.test(t) ||
+            / renamed the group from /.test(t) ||
+            / named the group /.test(t) ||
+            / removed the group name /.test(t)
         );
     };
     const systemText = (m: ThreadMessage) =>
@@ -127,6 +228,7 @@ export default function Messenger() {
 
     // ---------------- helpers ----------------
 
+    // Collapse accidental duplicates; only show real groups (>= 2 other members)
     const normalizeConvos = (rows: ConversationRow[]) => {
         const byKey = new Map<string, ConversationRow>();
         const pickNewest = (a: ConversationRow, b: ConversationRow) => {
@@ -141,6 +243,7 @@ export default function Messenger() {
                 byKey.set(key, byKey.get(key) ? pickNewest(byKey.get(key)!, c) : c);
                 continue;
             }
+            // DM: key by other user id to avoid duplicates
             const dmOtherId = c.other?.id || c.groupMembers?.[0]?.id || c.id;
             const key = `dm:${dmOtherId}`;
             byKey.set(key, byKey.get(key) ? pickNewest(byKey.get(key)!, c) : c);
@@ -257,18 +360,40 @@ export default function Messenger() {
         };
     }, [addQuery, showManage, activeGroupMembers]);
 
-    // React to ?newGroup
+    // Parse share params (only from share buttons)
     useEffect(() => {
-        const wants = searchParams.get('newGroup') === '1';
-        setShowNewGroup(wants);
-        if (!wants) {
-            setGroupQuery('');
-            setGroupResults([]);
-            setSelectedIds([]);
+        const shareType = searchParams.get('shareType');
+        const shareId = searchParams.get('shareId'); // for posts (post id)
+        const shareUrl = searchParams.get('shareUrl'); // for profile (full url)
+        const shareLabel = searchParams.get('shareLabel') || undefined; // for profile (display label)
+        const shareUserId = searchParams.get('shareUserId') || undefined; // optional: profile's user id (for nicer card)
+
+        if (shareType === 'profile' && shareUrl) {
+            setShareDraft({ type: 'profile', url: shareUrl, label: shareLabel, userId: shareUserId });
+        } else if (shareType === 'post' && shareId) {
+            (async () => {
+                try {
+                    const res = await fetch(`/api/share/preview?type=post&id=${encodeURIComponent(shareId)}`, { cache: 'no-store' });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data?.post) {
+                        setShareDraft({ type: 'post', post: data.post as SharedPost });
+                    }
+                } catch {
+                    /* ignore */
+                }
+            })();
         }
     }, [searchParams]);
 
     // Create object URLs for previews
+    useEffect(() => {
+        return () => {
+            previews.forEach((u) => URL.revokeObjectURL(u));
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useEffect(() => {
         previews.forEach((u) => URL.revokeObjectURL(u));
         const next = files.map((f) => URL.createObjectURL(f));
@@ -454,75 +579,107 @@ export default function Messenger() {
         }
     }, [activeConvoId, lastTimestamp]);
 
-    const send = useCallback(async () => {
-        if ((!draft.trim() && files.length === 0) || (!activeConvoId && !activeOther)) return;
+    const send = useCallback(
+        async () => {
+            const hasText = !!draft.trim();
+            const hasFiles = files.length > 0;
+            const hasShare = !!shareDraft;
+            if (!hasText && !hasFiles && !hasShare) return;
+            if (!activeConvoId && !activeOther) return;
 
-        const text = draft.trim();
-        const filesToSend = files.slice();
-        setDraft('');
-        setFiles([]);
-        setPreviews([]);
+            // For profile share: if no text provided, send the URL as content
+            const profileUrl = shareDraft?.type === 'profile' ? shareDraft.url : '';
+            const text = draft.trim() || profileUrl;
 
-        let uploaded: string[] = [];
-        try {
-            uploaded = await uploadImages(filesToSend);
-        } catch {
-            return;
-        }
+            const filesToSend = files.slice();
+            setDraft('');
+            setFiles([]);
+            setPreviews([]);
 
-        const tempId = `temp-${Date.now()}`;
-        const nowIso = new Date().toISOString();
-        const optimistic: ThreadMessage = {
-            id: tempId,
-            content: text,
-            imageUrls: uploaded,
-            createdAt: nowIso,
-            isMine: true,
-            readAt: null,
-            sender: { id: 'me', username: myUsername ?? 'you', name: 'You', image: null },
-        };
-        setMessages((m) => [...m, optimistic]);
+            let uploaded: string[] = [];
+            try {
+                uploaded = await uploadImages(filesToSend);
+            } catch {
+                return;
+            }
 
-        if (activeConvoId) {
-            setConvos((list) =>
-                normalizeConvos(
-                    list.map((c) =>
-                        c.id === activeConvoId
-                            ? {
-                                ...c,
-                                lastMessage: { id: tempId, content: text, imageUrls: uploaded, createdAt: nowIso, isMine: true },
-                                updatedAt: nowIso,
-                            }
-                            : c
+            const tempId = `temp-${Date.now()}`;
+            const nowIso = new Date().toISOString();
+            const optimistic: ThreadMessage = {
+                id: tempId,
+                content: text,
+                imageUrls: uploaded,
+                createdAt: nowIso,
+                isMine: true,
+                readAt: null,
+                sender: { id: 'me', username: myUsername ?? 'you', name: 'You', image: null },
+                sharedUser:
+                    shareDraft?.type === 'profile' && shareDraft.userId
+                        ? { id: shareDraft.userId, username: shareDraft.label ?? null, name: shareDraft.label ?? null }
+                        : null,
+                sharedPost: shareDraft?.type === 'post' ? shareDraft.post : null,
+            };
+            setMessages((m) => [...m, optimistic]);
+
+            if (activeConvoId) {
+                setConvos((list) =>
+                    normalizeConvos(
+                        list.map((c) =>
+                            c.id === activeConvoId
+                                ? {
+                                    ...c,
+                                    lastMessage: { id: tempId, content: text, imageUrls: uploaded, createdAt: nowIso, isMine: true },
+                                    updatedAt: nowIso,
+                                }
+                                : c
+                        )
                     )
-                )
-            );
-        }
+                );
+            }
 
-        try {
-            const body = activeConvoId
-                ? { conversationId: activeConvoId, content: text, imageUrls: uploaded }
-                : { to: activeOther!.username || activeOther!.id, content: text, imageUrls: uploaded };
+            try {
+                const body: any = activeConvoId
+                    ? { conversationId: activeConvoId, content: text, imageUrls: uploaded }
+                    : { to: activeOther!.username || activeOther!.id, content: text, imageUrls: uploaded };
 
-            const res = await fetch('/api/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error();
-            const data: { id: string; createdAt: string; conversationId: string } = await res.json();
-            setActiveConvoId((prev) => prev ?? data.conversationId);
-            setMessages((prev) =>
-                prev.map((m) => (m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m))
-            );
+                // Share payloads: profile -> map to "user" if userId present; post -> "post"
+                if (shareDraft?.type === 'profile' && shareDraft.userId) {
+                    body.share = { type: 'user', id: shareDraft.userId };
+                } else if (shareDraft?.type === 'post') {
+                    body.share = { type: 'post', id: shareDraft.post.id };
+                }
 
-            fetchConversations();
-        } catch {
-            setMessages((m) => m.filter((msg) => msg.id !== tempId));
-        } finally {
-            inputRef.current?.focus();
-        }
-    }, [draft, files, activeConvoId, activeOther, fetchConversations, myUsername]);
+                const res = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (!res.ok) throw new Error();
+                const data: { id: string; createdAt: string; conversationId: string } = await res.json();
+                setActiveConvoId((prev) => prev ?? data.conversationId);
+                setMessages((prev) =>
+                    prev.map((m) => (m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m))
+                );
+
+                setShareDraft(null);
+                // remove share params from URL
+                const sp = new URLSearchParams(searchParams.toString());
+                sp.delete('shareType');
+                sp.delete('shareId');
+                sp.delete('shareUrl');
+                sp.delete('shareLabel');
+                sp.delete('shareUserId');
+                router.replace(`${pathname}${sp.toString() ? `?${sp}` : ''}`);
+
+                fetchConversations();
+            } catch {
+                setMessages((m) => m.filter((msg) => msg.id !== tempId));
+            } finally {
+                inputRef.current?.focus();
+            }
+        },
+        [draft, files, activeConvoId, activeOther, fetchConversations, myUsername, shareDraft, router, pathname, searchParams]
+    );
 
     // ---------------- effects ----------------
 
@@ -604,6 +761,7 @@ export default function Messenger() {
         setSearchFollowers([]);
     };
 
+    // ---------- small components ----------
     const Attachments = ({ urls }: { urls: string[] }) => {
         if (!urls || urls.length === 0) return null;
         if (urls.length === 1) {
@@ -628,684 +786,814 @@ export default function Messenger() {
         );
     };
 
+    const ShareCard = ({ m }: { m: ThreadMessage }) => {
+        if (m.sharedUser || (m.content && /^https?:\/\//.test(m.content))) {
+            // profile share – show a simple profile card + a link (URL comes from message content if present)
+            const u = m.sharedUser;
+            const label = u?.username || u?.name || 'Profile';
+            const slug = u?.username || u?.id;
+            const linkFromContent =
+                (m.content && /(https?:\/\/[^\s]+)/.exec(m.content)?.[0]) || '';
+            const href = linkFromContent || (slug ? `/u/${encodeURIComponent(slug)}` : '#');
+            return (
+                <a
+                    href={href}
+                    className="block border rounded-lg p-3 hover:bg-gray-50"
+                    onClick={(e) => e.stopPropagation()}
+                    target={href.startsWith('http') ? '_blank' : undefined}
+                    rel={href.startsWith('http') ? 'noreferrer' : undefined}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                            {(label || 'PR').slice(0, 2)}
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{label}</div>
+                            <div className="text-xs text-gray-500 truncate">Open profile →</div>
+                        </div>
+                    </div>
+                </a>
+            );
+        }
+        if (m.sharedPost) {
+            const p = m.sharedPost;
+            const author = p.author?.username || p.author?.name || 'Author';
+            return (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenPostId(p.id);
+                    }}
+                    className="w-full text-left border rounded-lg p-3 hover:bg-gray-50"
+                    title="Open post"
+                >
+                    <div className="flex gap-3">
+                        {p.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.imageUrl} alt="" className="w-16 h-16 object-cover rounded-md flex-shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{p.title}</div>
+                            <div className="text-xs text-gray-500 truncate">by {author}</div>
+                            <div className="text-xs text-gray-500 mt-1">Click to open</div>
+                        </div>
+                    </div>
+                </button>
+            );
+        }
+        return null;
+    };
+
     const normalized = normalizeConvos(convos);
 
     return (
-        <div className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex" style={{ height: '85vh' }}>
-            {/* Left column */}
-            <aside className="border-r w-[340px] flex-shrink-0 flex flex-col h-full">
-                <div className="px-4 py-3 flex items-center justify-between">
-                    <div className="font-semibold">Messages</div>
-                    <button
-                        onClick={() => {
-                            setShowNewGroup(true);
-                            router.replace(`${pathname}?newGroup=1`);
-                        }}
-                        className="text-xs px-2 py-1 rounded bg-gray-900 text-white hover:bg-black"
-                    >
-                        New Group
-                    </button>
-                </div>
-
-                <div className="px-3 pb-3">
-                    <input
-                        className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
-                        placeholder="Search followers or conversations…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-
-                {search && (
-                    <div className="px-3 pb-2">
-                        <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Start chat</div>
-                        <div className="border rounded-md max-h-40 overflow-y-auto divide-y">
-                            {searchLoading ? (
-                                <div className="p-2 text-sm text-gray-500">Searching…</div>
-                            ) : searchFollowers.length === 0 ? (
-                                <div className="p-2 text-sm text-gray-400">No matches</div>
-                            ) : (
-                                searchFollowers.map((u) => (
-                                    <div
-                                        key={u.id}
-                                        className="p-2 text-sm hover:bg-gray-50 cursor-pointer flex items-center gap-2"
-                                        onClick={() => startChatWithUser(u)}
-                                    >
-                                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
-                                            {(u.username || u.name || 'U').slice(0, 2)}
-                                        </div>
-                                        <div className="truncate">{u.username || u.name || 'User'}</div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+        <>
+            <div
+                className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex"
+                style={{ height: '85vh' }}
+            >
+                {/* Left column */}
+                <aside className="border-r w-[340px] flex-shrink-0 flex flex-col h-full">
+                    <div className="px-4 py-3 flex items-center justify-between">
+                        <div className="font-semibold">Messages</div>
+                        <button
+                            onClick={() => {
+                                setShowNewGroup(true);
+                                router.replace(`${pathname}?newGroup=1`);
+                            }}
+                            className="text-xs px-2 py-1 rounded bg-gray-900 text-white hover:bg-black"
+                        >
+                            New Group
+                        </button>
                     </div>
-                )}
 
-                <div className="flex-1 overflow-y-auto px-0">
-                    <div className="px-0">
-                        <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">Conversations</div>
-                        {convosLoading ? (
-                            <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
-                        ) : convosError ? (
-                            <div className="px-4 py-2 text-sm text-red-500">{convosError}</div>
-                        ) : normalized.length === 0 ? (
-                            <div className="px-4 py-6 text-sm text-gray-400">No conversations found.</div>
-                        ) : (
-                            <ul>
-                                {normalized.map((c) => {
-                                    const realGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
-                                    const active = c.id === activeConvoId || (!realGroup && c.other?.id === activeOther?.id);
-                                    const title = realGroup ? (c.groupName || 'Group') : (c.other?.username || c.other?.name || 'User');
-                                    const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
-                                    const previewText = c.lastMessage
-                                        ? (c.lastMessage.content?.trim() ? c.lastMessage.content : hasPhoto ? '📷 Photo' : 'No messages yet')
-                                        : 'No messages yet';
-
-                                    return (
-                                        <li
-                                            key={realGroup ? `grp:${c.id}` : `dm:${c.other?.id}`}
-                                            className={clsx('px-4 py-3 cursor-pointer hover:bg-gray-50 border-b', active && 'bg-gray-100')}
-                                            onClick={() => onPick(c)}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                                    {realGroup ? 'G' : (c.other?.username || c.other?.name || 'U').slice(0, 2)}
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="text-sm font-medium truncate">
-                                                        {realGroup ? (
-                                                            title
-                                                        ) : (
-                                                            <button
-                                                                className="hover:underline"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    goToProfile(c.other);
-                                                                }}
-                                                                title={title}
-                                                            >
-                                                                {title}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 truncate">{previewText}</div>
-                                                </div>
-                                                {(c.unreadCount ?? 0) > 0 && !active && (
-                                                    <span
-                                                        className="inline-block w-2 h-2 rounded-full bg-green-500 ml-2 flex-shrink-0"
-                                                        title={`${c.unreadCount} unread`}
-                                                        aria-label={`${c.unreadCount} unread`}
-                                                    />
-                                                )}
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        )}
-                    </div>
-                </div>
-            </aside>
-
-            {/* Right column */}
-            <section className="flex flex-col h-full flex-1 overflow-hidden">
-                {/* Header */}
-                <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
-                    {activeConvoId ? (
-                        <>
-                            <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                {activeGroupMembers ? 'G' : (activeOther?.username || activeOther?.name || 'U').slice(0, 2)}
-                            </div>
-                            <div className="font-medium truncate flex-1">
-                                {activeGroupMembers ? (
-                                    activeGroupName ? (
-                                        <span className="truncate">{activeGroupName}</span>
-                                    ) : (
-                                        <span className="truncate">
-                                            {activeGroupMembers
-                                                .filter((u) => !myUsername || u.username !== myUsername)
-                                                .map((u, idx) => (
-                                                    <button
-                                                        key={u.id}
-                                                        className="hover:underline mr-1"
-                                                        onClick={() => goToProfile(u)}
-                                                        title={u.username || u.name || 'User'}
-                                                    >
-                                                        {(u.username || u.name || 'User') + (idx < activeGroupMembers.length - 1 ? ',' : '')}
-                                                    </button>
-                                                ))}
-                                        </span>
-                                    )
-                                ) : (
-                                    <button className="hover:underline" onClick={() => goToProfile(activeOther!)}>
-                                        {activeOther?.username || activeOther?.name || 'User'}
-                                    </button>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    setGroupNameInput(activeGroupName ?? '');
-                                    setAddQuery('');
-                                    setAddResults([]);
-                                    setAddSelectedIds([]);
-                                    setShowManage(true);
-                                }}
-                                className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
-                                title="Manage conversation"
-                            >
-                                Manage
-                            </button>
-                        </>
-                    ) : (
-                        <div className="text-sm text-gray-500">Select a conversation</div>
-                    )}
-                </div>
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-4 py-4">
-                    {!activeConvoId ? (
-                        <div className="text-center text-sm text-gray-400 mt-20">No conversation selected.</div>
-                    ) : threadLoading && messages.length === 0 ? (
-                        <div className="text-center text-sm text-gray-400 mt-20">Loading…</div>
-                    ) : messages.length === 0 ? (
-                        <div className="text-center text-sm text-gray-300 mt-20">No messages yet.</div>
-                    ) : (
-                        <div className="space-y-3">
-                            {messages.map((m) => {
-                                if (isSystemMessage(m)) {
-                                    return (
-                                        <div key={m.id} className="w-full flex">
-                                            <div className="mx-auto text-[12px] text-gray-500 italic">{systemText(m)}</div>
-                                        </div>
-                                    );
-                                }
-                                const ts = formatTimestamp(m.createdAt);
-                                const hasText = Boolean(m.content && m.content.trim().length);
-                                const imgs = m.imageUrls ?? [];
-                                const sender = m.sender;
-                                const senderLabel = sender?.username || sender?.name || (m.isMine ? 'You' : 'User');
-
-                                return (
-                                    <div key={m.id} className={clsx('w-full flex flex-col', m.isMine ? 'items-end' : 'items-start')}>
-                                        {activeGroupMembers && !m.isMine && (
-                                            <button
-                                                className="text-[11px] mb-0.5 text-left pl-1 text-gray-600 hover:underline"
-                                                onClick={() => goToProfile(sender || null)}
-                                                title={senderLabel}
-                                            >
-                                                {senderLabel}
-                                            </button>
-                                        )}
-                                        <div
-                                            className={clsx(
-                                                'rounded-2xl px-3 py-2 text-sm break-words max-w-[70%] inline-block',
-                                                m.isMine ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-800'
-                                            )}
-                                            title={new Date(m.createdAt).toLocaleString()}
-                                        >
-                                            {hasText && <span>{m.content}</span>}
-                                            {imgs.length > 0 && <div className={clsx(hasText && 'mt-2')}><Attachments urls={imgs} /></div>}
-                                        </div>
-                                        <div
-                                            className={clsx(
-                                                'mt-1 text-[10px] leading-none text-gray-400',
-                                                m.isMine ? 'text-right pr-1' : 'text-left pl-1'
-                                            )}
-                                        >
-                                            {ts}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                    {activeConvoId && threadError && (
-                        <div className="mt-3 text-center text-xs text-red-500">{threadError}</div>
-                    )}
-                </div>
-
-                {/* Composer */}
-                <div className="h-16 border-t flex items-center gap-2 px-4 flex-shrink-0">
-                    <input
-                        key={activeConvoId || activeOther?.id || 'no-thread'}
-                        ref={inputRef}
-                        className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40"
-                        placeholder="Type a message..."
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        disabled={!(activeConvoId || activeOther) || !session}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                send();
-                            }
-                        }}
-                    />
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                            const picked = Array.from(e.target.files || []);
-                            const maxBytes = 8 * 1024 * 1024;
-                            const valid = picked.filter((f) => f.type.startsWith('image/') && f.size <= maxBytes);
-                            setFiles((prev) => [...prev, ...valid].slice(0, 10));
-                            e.currentTarget.value = '';
-                        }}
-                    />
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={!(activeConvoId || activeOther) || !session}
-                        className={clsx(
-                            'px-3 py-2 rounded-full text-sm font-medium border',
-                            !(activeConvoId || activeOther) || !session
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'bg-white hover:bg-gray-50'
-                        )}
-                        title="Attach images"
-                    >
-                        + Image
-                    </button>
-                    <button
-                        onClick={send}
-                        disabled={!(activeConvoId || activeOther) || !session || (!draft.trim() && files.length === 0)}
-                        className={clsx(
-                            'px-4 py-2 rounded-full text-sm font-medium',
-                            !(activeConvoId || activeOther) || !session || (!draft.trim() && files.length === 0)
-                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                : 'bg-gray-900 text-white hover:bg-black'
-                        )}
-                    >
-                        Send
-                    </button>
-                </div>
-
-                {files.length > 0 && (
-                    <div className="border-t px-4 py-3">
-                        <div className="text-xs text-gray-500 mb-2">Attachments</div>
-                        <div className="grid grid-cols-4 gap-2">
-                            {previews.map((url, i) => (
-                                <div key={i} className="relative group">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={url} alt="preview" className="h-24 w-full object-cover rounded-lg" />
-                                    <button
-                                        className="absolute -top-2 -right-2 bg-black/70 text-white text-[10px] rounded-full px-1.5 py-0.5 opacity-0 group-hover:opacity-100"
-                                        onClick={() => {
-                                            setFiles((prev) => prev.filter((_, idx) => idx !== i));
-                                            setPreviews((prev) => prev.filter((_, idx) => idx !== i));
-                                        }}
-                                        title="Remove"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </section>
-
-            {/* NEW GROUP MODAL */}
-            {showNewGroup && (
-                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-                    <div className="bg-white w-[520px] max-w-[92vw] rounded-xl shadow-lg p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold">Create Group</h3>
-                            <button className="text-sm px-2 py-1 rounded hover:bg-gray-100" onClick={() => router.replace(pathname)}>
-                                Close
-                            </button>
-                        </div>
-
-                        <p className="text-sm text-gray-500 mb-2">
-                            Select at least <strong>two</strong> people to start a group.
-                        </p>
-
+                    <div className="px-3 pb-3">
                         <input
                             className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
-                            placeholder="Search your followers…"
-                            value={groupQuery}
-                            onChange={(e) => setGroupQuery(e.target.value)}
+                            placeholder="Search followers or conversations…"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
                         />
+                    </div>
 
-                        <div className="mt-3 max-h-52 overflow-y-auto border rounded-md divide-y">
-                            {groupLoading ? (
-                                <div className="p-3 text-sm text-gray-500">Searching…</div>
-                            ) : groupResults.length === 0 ? (
-                                <div className="p-3 text-sm text-gray-400">No people found.</div>
-                            ) : (
-                                groupResults.map((u) => {
-                                    const checked = selectedIds.includes(u.id);
-                                    return (
-                                        <label key={u.id} className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
-                                            <input
-                                                type="checkbox"
-                                                className="h-4 w-4"
-                                                checked={checked}
-                                                onChange={(e) => {
-                                                    setSelectedIds((prev) =>
-                                                        e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
-                                                    );
-                                                }}
-                                            />
-                                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                    {search && (
+                        <div className="px-3 pb-2">
+                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Start chat</div>
+                            <div className="border rounded-md max-h-40 overflow-y-auto divide-y">
+                                {searchLoading ? (
+                                    <div className="p-2 text-sm text-gray-500">Searching…</div>
+                                ) : searchFollowers.length === 0 ? (
+                                    <div className="p-2 text-sm text-gray-400">No matches</div>
+                                ) : (
+                                    searchFollowers.map((u) => (
+                                        <div
+                                            key={u.id}
+                                            className="p-2 text-sm hover:bg-gray-50 cursor-pointer flex items-center gap-2"
+                                            onClick={() => startChatWithUser(u)}
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
                                                 {(u.username || u.name || 'U').slice(0, 2)}
                                             </div>
                                             <div className="truncate">{u.username || u.name || 'User'}</div>
-                                        </label>
-                                    );
-                                })
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto px-0">
+                        <div className="px-0">
+                            <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">Conversations</div>
+                            {convosLoading ? (
+                                <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
+                            ) : convosError ? (
+                                <div className="px-4 py-2 text-sm text-red-500">{convosError}</div>
+                            ) : normalized.length === 0 ? (
+                                <div className="px-4 py-6 text-sm text-gray-400">No conversations found.</div>
+                            ) : (
+                                <ul>
+                                    {normalized.map((c) => {
+                                        const realGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
+                                        const active = c.id === activeConvoId || (!realGroup && c.other?.id === activeOther?.id);
+                                        const title = realGroup ? (c.groupName || 'Group') : (c.other?.username || c.other?.name || 'User');
+                                        const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
+                                        const previewText = c.lastMessage
+                                            ? (c.lastMessage.content?.trim() ? c.lastMessage.content : hasPhoto ? '📷 Photo' : 'No messages yet')
+                                            : 'No messages yet';
+
+                                        return (
+                                            <li
+                                                key={realGroup ? `grp:${c.id}` : `dm:${c.other?.id}`}
+                                                className={clsx('px-4 py-3 cursor-pointer hover:bg-gray-50 border-b', active && 'bg-gray-100')}
+                                                onClick={() => onPick(c)}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                                        {realGroup ? 'G' : (c.other?.username || c.other?.name || 'U').slice(0, 2)}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="text-sm font-medium truncate">
+                                                            {realGroup ? (
+                                                                title
+                                                            ) : (
+                                                                <button
+                                                                    className="hover:underline"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        goToProfile(c.other);
+                                                                    }}
+                                                                    title={title}
+                                                                >
+                                                                    {title}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 truncate">{previewText}</div>
+                                                    </div>
+                                                    {(c.unreadCount ?? 0) > 0 && !active && (
+                                                        <span
+                                                            className="inline-block w-2 h-2 rounded-full bg-green-500 ml-2 flex-shrink-0"
+                                                            title={`${c.unreadCount} unread`}
+                                                            aria-label={`${c.unreadCount} unread`}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
                             )}
                         </div>
-
-                        <div className="mt-4 flex items-center justify-between">
-                            <div className="text-xs text-gray-500">Selected: {selectedIds.length}</div>
-                            <button
-                                className={clsx(
-                                    "px-3 py-2 rounded-md text-sm font-medium",
-                                    selectedIds.length < 2 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-black"
-                                )}
-                                disabled={selectedIds.length < 2}
-                                onClick={async () => {
-                                    try {
-                                        const res = await fetch("/api/conversations", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ userIds: selectedIds }),
-                                        });
-                                        if (!res.ok) {
-                                            const data = await res.json().catch(() => ({}));
-                                            alert(data?.message || "Failed to create group.");
-                                            return;
-                                        }
-                                        const data: { conversationId: string } = await res.json();
-
-                                        router.replace(`${pathname}?convoId=${encodeURIComponent(data.conversationId)}`);
-                                        setShowNewGroup(false);
-                                        setGroupQuery('');
-                                        setGroupResults([]);
-                                        setSelectedIds([]);
-                                        await fetchConversations();
-                                        await loadByConversationId(data.conversationId);
-                                    } catch {
-                                        alert("Failed to create group.");
-                                    }
-                                }}
-                            >
-                                Create Group
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                </aside>
 
-            {/* MANAGE CONVERSATION MODAL */}
-            {showManage && activeConvoId && (
-                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-                    <div className="bg-white w-[600px] max-w-[92vw] rounded-xl shadow-lg p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold">Conversation settings</h3>
-                            <button
-                                className="text-sm px-2 py-1 rounded hover:bg-gray-100"
-                                onClick={() => {
-                                    setShowManage(false);
-                                    setAddQuery('');
-                                    setAddResults([]);
-                                    setAddSelectedIds([]);
-                                }}
-                            >
-                                Close
-                            </button>
-                        </div>
-
-                        {activeGroupMembers ? (
+                {/* Right column */}
+                <section className="flex flex-col h-full flex-1 overflow-hidden">
+                    {/* Header */}
+                    <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
+                        {activeConvoId ? (
                             <>
-                                {/* Group name */}
-                                <div className="mb-5">
-                                    <div className="text-sm font-medium mb-1">Group name</div>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
-                                            placeholder="Add a name (optional)"
-                                            value={groupNameInput}
-                                            onChange={(e) => setGroupNameInput(e.target.value)}
-                                        />
-                                        <button
-                                            className={clsx(
-                                                "px-3 py-2 rounded-md text-sm font-medium",
-                                                groupNameInput === (activeGroupName ?? '') ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-black"
-                                            )}
-                                            disabled={groupNameInput === (activeGroupName ?? '')}
-                                            onClick={async () => {
-                                                try {
-                                                    const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
-                                                        method: "PATCH",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ name: groupNameInput }),
-                                                    });
-                                                    if (!res.ok) {
-                                                        const data = await res.json().catch(() => ({}));
-                                                        alert(data?.message || "Failed to rename group.");
-                                                        return;
-                                                    }
-                                                    const data: { conversationId: string; name: string | null } = await res.json();
-                                                    setActiveGroupName(data.name ?? null);
-                                                    setGroupNameInput(data.name ?? '');
-                                                    // reflect on left list
-                                                    setConvos((prev) =>
-                                                        prev.map((c) => (c.id === data.conversationId ? { ...c, groupName: data.name } : c))
-                                                    );
-                                                } catch {
-                                                    alert("Failed to rename group.");
-                                                }
-                                            }}
-                                        >
-                                            Save
-                                        </button>
-                                    </div>
+                                <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                    {activeGroupMembers ? 'G' : (activeOther?.username || activeOther?.name || 'U').slice(0, 2)}
                                 </div>
-
-                                {/* Add people */}
-                                <div className="mb-5">
-                                    <div className="text-sm font-medium mb-1">Add people</div>
-                                    <input
-                                        className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
-                                        placeholder="Search your followers…"
-                                        value={addQuery}
-                                        onChange={(e) => setAddQuery(e.target.value)}
-                                    />
-                                    <div className="mt-2 max-h-48 overflow-y-auto border rounded-md divide-y">
-                                        {addLoading ? (
-                                            <div className="p-3 text-sm text-gray-500">Searching…</div>
-                                        ) : addResults.length === 0 ? (
-                                            <div className="p-3 text-sm text-gray-400">No people found.</div>
+                                <div className="font-medium truncate flex-1">
+                                    {activeGroupMembers ? (
+                                        activeGroupName ? (
+                                            <span className="truncate">{activeGroupName}</span>
                                         ) : (
-                                            addResults.map((u) => {
-                                                const alreadyIn = activeGroupMembers.some((m) => m.id === u.id);
-                                                const checked = addSelectedIds.includes(u.id);
-                                                const disabled = alreadyIn;
-                                                return (
-                                                    <label
-                                                        key={u.id}
-                                                        className={clsx(
-                                                            "flex items-center gap-3 px-3 py-2 text-sm cursor-pointer",
-                                                            disabled ? "opacity-50" : "hover:bg-gray-50"
-                                                        )}
-                                                        title={alreadyIn ? "Already in this conversation" : ""}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            className="h-4 w-4"
-                                                            checked={checked}
-                                                            disabled={disabled}
-                                                            onChange={(e) => {
-                                                                setAddSelectedIds((prev) =>
-                                                                    e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
-                                                                );
-                                                            }}
-                                                        />
-                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                                            {(u.username || u.name || 'U').slice(0, 2)}
-                                                        </div>
-                                                        <div className="truncate">{u.username || u.name || 'User'}</div>
-                                                    </label>
-                                                );
-                                            })
-                                        )}
-                                    </div>
-                                    <div className="mt-3 flex items-center justify-end">
-                                        <button
-                                            className={clsx(
-                                                "px-3 py-2 rounded-md text-sm font-medium",
-                                                addSelectedIds.length < 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-black"
-                                            )}
-                                            disabled={addSelectedIds.length < 1}
-                                            onClick={async () => {
-                                                try {
-                                                    const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}/participants`, {
-                                                        method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ userIds: addSelectedIds }),
-                                                    });
-                                                    if (!res.ok) {
-                                                        const data = await res.json().catch(() => ({}));
-                                                        alert(data?.message || "Failed to add users.");
-                                                        return;
-                                                    }
-                                                    const data = await res.json();
-                                                    setActiveGroupMembers(data.participants);
-                                                    setAddQuery('');
-                                                    setAddResults([]);
-                                                    setAddSelectedIds([]);
-                                                    await fetchConversations();
-                                                    await loadByConversationId(activeConvoId);
-                                                } catch {
-                                                    alert("Failed to add users.");
-                                                }
-                                            }}
-                                        >
-                                            Add to Group
+                                            <span className="truncate">
+                                                {activeGroupMembers
+                                                    .filter((u) => !myUsername || u.username !== myUsername)
+                                                    .map((u, idx) => (
+                                                        <button
+                                                            key={u.id}
+                                                            className="hover:underline mr-1"
+                                                            onClick={() => goToProfile(u)}
+                                                            title={u.username || u.name || 'User'}
+                                                        >
+                                                            {(u.username || u.name || 'User') + (idx < activeGroupMembers.length - 1 ? ',' : '')}
+                                                        </button>
+                                                    ))}
+                                            </span>
+                                        )
+                                    ) : (
+                                        <button className="hover:underline" onClick={() => goToProfile(activeOther!)}>
+                                            {activeOther?.username || activeOther?.name || 'User'}
                                         </button>
-                                    </div>
+                                    )}
                                 </div>
 
-                                {/* Members list */}
-                                <div className="text-sm text-gray-500 mb-2">Members</div>
-                                <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
-                                    {activeGroupMembers.map((u) => (
-                                        <div key={u.id} className="flex items-center gap-3 px-3 py-2">
-                                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                                {(u.username || u.name || 'U').slice(0, 2)}
-                                            </div>
-                                            <button
-                                                className="text-sm hover:underline text-left truncate"
-                                                title={u.username || u.name || 'User'}
-                                                onClick={() => goToProfile(u)}
-                                            >
-                                                {u.username || u.name || 'User'}
-                                            </button>
-                                            <div className="flex-1" />
-                                            {u.username !== myUsername && (
-                                                <button
-                                                    className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
-                                                    onClick={async () => {
-                                                        try {
-                                                            const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}/participants`, {
-                                                                method: "DELETE",
-                                                                headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ userId: u.id }),
-                                                            });
-                                                            if (!res.ok) throw new Error(await res.text());
-                                                            const data = await res.json();
+                                {activeGroupMembers && (
+                                    <button
+                                        onClick={() => {
+                                            setGroupNameInput(activeGroupName ?? '');
+                                            setAddQuery('');
+                                            setAddResults([]);
+                                            setAddSelectedIds([]);
+                                            setShowManage(true);
+                                        }}
+                                        className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                                        title="Manage conversation"
+                                    >
+                                        Manage
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <div className="text-sm text-gray-500">Select a conversation</div>
+                        )}
+                    </div>
 
-                                                            if (data.deleted) {
-                                                                setShowManage(false);
-                                                                setActiveConvoId(null);
-                                                                setActiveGroupMembers(null);
-                                                                setActiveGroupName(null);
-                                                                setActiveOther(null);
-                                                                setMessages([]);
-                                                                router.replace(pathname);
-                                                            } else {
-                                                                setActiveGroupMembers(data.participants);
-                                                                await fetchConversations();
-                                                                await loadByConversationId(activeConvoId);
-                                                            }
-                                                        } catch {
-                                                            alert("Failed to remove user.");
-                                                        }
-                                                    }}
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto px-4 py-4">
+                        {!activeConvoId ? (
+                            <div className="text-center text-sm text-gray-400 mt-20">No conversation selected.</div>
+                        ) : threadLoading && messages.length === 0 ? (
+                            <div className="text-center text-sm text-gray-400 mt-20">Loading…</div>
+                        ) : messages.length === 0 ? (
+                            <div className="text-center text-sm text-gray-300 mt-20">No messages yet.</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {messages.map((m) => {
+                                    if (isSystemMessage(m)) {
+                                        return (
+                                            <div key={m.id} className="w-full flex">
+                                                <div className="mx-auto text-[12px] text-gray-500 italic">{systemText(m)}</div>
+                                            </div>
+                                        );
+                                    }
+                                    const ts = formatTimestamp(m.createdAt);
+                                    const hasText = Boolean(m.content && m.content.trim().length);
+                                    const imgs = m.imageUrls ?? [];
+                                    const sender = m.sender;
+                                    const senderLabel = sender?.username || sender?.name || (m.isMine ? 'You' : 'User');
+                                    const hasShare =
+                                        !!m.sharedUser || !!m.sharedPost || (m.content && /^https?:\/\//.test(m.content));
+
+                                    return (
+                                        <div key={m.id} className={clsx('w-full flex flex-col', m.isMine ? 'items-end' : 'items-start')}>
+                                            {activeGroupMembers && !m.isMine && (
+                                                <button
+                                                    className="text-[11px] mb-0.5 text-left pl-1 text-gray-600 hover:underline"
+                                                    onClick={() => goToProfile(sender || null)}
+                                                    title={senderLabel}
                                                 >
-                                                    Remove
+                                                    {senderLabel}
                                                 </button>
                                             )}
+                                            <div
+                                                className={clsx(
+                                                    'rounded-2xl px-3 py-2 text-sm break-words max-w-[70%] inline-block',
+                                                    m.isMine ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-800'
+                                                )}
+                                                title={new Date(m.createdAt).toLocaleString()}
+                                            >
+                                                {hasText && <span>{linkify(m.content)}</span>}
+
+                                                {imgs.length > 0 && (
+                                                    <div className={clsx((hasText || hasShare) && 'mt-2')}>
+                                                        <Attachments urls={imgs} />
+                                                    </div>
+                                                )}
+
+                                                {hasShare && (
+                                                    <div className={clsx((hasText || imgs.length > 0) && 'mt-2')}>
+                                                        <ShareCard m={m} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div
+                                                className={clsx(
+                                                    'mt-1 text-[10px] leading-none text-gray-400',
+                                                    m.isMine ? 'text-right pr-1' : 'text-left pl-1'
+                                                )}
+                                            >
+                                                {ts}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {activeConvoId && threadError && (
+                            <div className="mt-3 text-center text-xs text-red-500">{threadError}</div>
+                        )}
+                    </div>
+
+                    {/* Composer */}
+                    <div className="border-t flex flex-col gap-2 px-4 py-3 flex-shrink-0">
+                        {/* Share draft preview bar */}
+                        {shareDraft && (
+                            <div className="border rounded-lg p-2 flex items-center gap-3">
+                                {shareDraft.type === 'profile' ? (
+                                    <>
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                            {(shareDraft.label || 'PR').slice(0, 2)}
+                                        </div>
+                                        <div className="text-sm min-w-0">
+                                            <div className="truncate">
+                                                Sharing profile:{' '}
+                                                <span className="font-medium">{shareDraft.label || 'Profile'}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">{shareDraft.url}</div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {shareDraft.post.imageUrl && (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={shareDraft.post.imageUrl} alt="" className="w-10 h-10 object-cover rounded-md" />
+                                        )}
+                                        <div className="text-sm min-w-0">
+                                            <div className="truncate">
+                                                Sharing post: <span className="font-medium">{shareDraft.post.title}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                                by {shareDraft.post.author.username || shareDraft.post.author.name || 'Author'}
+                                            </div>
+                                        </div>
+                                        <div className="flex-1" />
+                                        <button
+                                            type="button"
+                                            className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                                            onClick={() => setOpenPostId(shareDraft.post.id)}
+                                        >
+                                            Preview
+                                        </button>
+                                    </>
+                                )}
+                                <div className="flex-1" />
+                                <button
+                                    className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                                    onClick={() => {
+                                        setShareDraft(null);
+                                        const sp = new URLSearchParams(searchParams.toString());
+                                        sp.delete('shareType');
+                                        sp.delete('shareId');
+                                        sp.delete('shareUrl');
+                                        sp.delete('shareLabel');
+                                        sp.delete('shareUserId');
+                                        router.replace(`${pathname}${sp.toString() ? `?${sp}` : ''}`);
+                                    }}
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="h-10 flex items-center gap-2">
+                            <input
+                                key={activeConvoId || activeOther?.id || 'no-thread'}
+                                ref={inputRef}
+                                className="flex-1 h-full border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40"
+                                placeholder="Type a message..."
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                disabled={!(activeConvoId || activeOther) || !session}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        send();
+                                    }
+                                }}
+                            />
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                    const picked = Array.from(e.target.files || []);
+                                    const maxBytes = 8 * 1024 * 1024;
+                                    const valid = picked.filter((f) => f.type.startsWith('image/') && f.size <= maxBytes);
+                                    setFiles((prev) => [...prev, ...valid].slice(0, 10));
+                                    e.currentTarget.value = '';
+                                }}
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={!(activeConvoId || activeOther) || !session}
+                                className={clsx(
+                                    'px-3 py-2 rounded-full text-sm font-medium border',
+                                    !(activeConvoId || activeOther) || !session
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white hover:bg-gray-50'
+                                )}
+                                title="Attach images"
+                            >
+                                + Image
+                            </button>
+                            <button
+                                onClick={send}
+                                disabled={
+                                    !(activeConvoId || activeOther) ||
+                                    !session ||
+                                    (!draft.trim() && files.length === 0 && !shareDraft)
+                                }
+                                className={clsx(
+                                    'px-4 py-2 rounded-full text-sm font-medium',
+                                    !(activeConvoId || activeOther) ||
+                                        !session ||
+                                        (!draft.trim() && files.length === 0 && !shareDraft)
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-gray-900 text-white hover:bg-black'
+                                )}
+                            >
+                                Send
+                            </button>
+                        </div>
+
+                        {files.length > 0 && (
+                            <div className="border rounded-lg p-2">
+                                <div className="text-xs text-gray-500 mb-2">Attachments</div>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {previews.map((url, i) => (
+                                        <div key={i} className="relative group">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={url} alt="preview" className="h-24 w-full object-cover rounded-lg" />
+                                            <button
+                                                className="absolute -top-2 -right-2 bg-black/70 text-white text-[10px] rounded-full px-1.5 py-0.5 opacity-0 group-hover:opacity-100"
+                                                onClick={() => {
+                                                    setFiles((prev) => prev.filter((_, idx) => idx !== i));
+                                                    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+                                                }}
+                                                title="Remove"
+                                            >
+                                                ×
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
-
-                                <div className="mt-4 flex items-center justify-between">
-                                    <div />
-                                    <button
-                                        className="px-3 py-2 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700"
-                                        onClick={async () => {
-                                            try {
-                                                const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
-                                                    method: "DELETE",
-                                                });
-                                                if (!res.ok) throw new Error(await res.text());
-                                                setShowManage(false);
-                                                setActiveConvoId(null);
-                                                setActiveGroupMembers(null);
-                                                setActiveGroupName(null);
-                                                setActiveOther(null);
-                                                setMessages([]);
-                                                router.replace(pathname);
-                                                await fetchConversations();
-                                            } catch {
-                                                alert("Failed to leave conversation.");
-                                            }
-                                        }}
-                                    >
-                                        Leave Conversation
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-sm text-gray-500 mb-4">
-                                    This is a direct message. You can delete the conversation.
-                                </div>
-                                <div className="flex items-center justify-end">
-                                    <button
-                                        className="px-3 py-2 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700"
-                                        onClick={async () => {
-                                            try {
-                                                const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
-                                                    method: "DELETE",
-                                                });
-                                                if (!res.ok) throw new Error(await res.text());
-                                                setShowManage(false);
-                                                setActiveConvoId(null);
-                                                setActiveOther(null);
-                                                setMessages([]);
-                                                router.replace(pathname);
-                                                await fetchConversations();
-                                            } catch {
-                                                alert("Failed to delete conversation.");
-                                            }
-                                        }}
-                                    >
-                                        Delete Conversation
-                                    </button>
-                                </div>
-                            </>
+                            </div>
                         )}
                     </div>
-                </div>
+                </section>
+
+                {/* ----------- NEW GROUP MODAL ----------- */}
+                {showNewGroup && (
+                    <div
+                        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+                        onClick={() => {
+                            setShowNewGroup(false);
+                            router.replace(pathname);
+                        }}
+                    >
+                        <div
+                            className="bg-white p-5 rounded-xl shadow-lg w-[520px] max-w-[92vw]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="text-lg font-semibold">New Group</div>
+                                <button
+                                    className="text-sm text-gray-500 hover:text-black"
+                                    onClick={() => {
+                                        setShowNewGroup(false);
+                                        router.replace(pathname);
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div className="mb-2 text-xs text-gray-500">Add at least 2 people</div>
+                            <input
+                                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                placeholder="Search your followers…"
+                                value={groupQuery}
+                                onChange={(e) => setGroupQuery(e.target.value)}
+                            />
+
+                            <div className="mt-3 border rounded-md max-h-56 overflow-y-auto divide-y">
+                                {groupLoading ? (
+                                    <div className="p-3 text-sm text-gray-500">Searching…</div>
+                                ) : groupResults.length === 0 ? (
+                                    <div className="p-3 text-sm text-gray-400">No matches</div>
+                                ) : (
+                                    groupResults.map((u) => {
+                                        const chosen = selectedIds.includes(u.id);
+                                        return (
+                                            <label
+                                                key={u.id}
+                                                className="p-2 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={chosen}
+                                                    onChange={(e) =>
+                                                        setSelectedIds((prev) =>
+                                                            e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
+                                                        )
+                                                    }
+                                                />
+                                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
+                                                    {(u.username || u.name || 'U').slice(0, 2)}
+                                                </div>
+                                                <div className="truncate">{u.username || u.name || 'User'}</div>
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            {selectedIds.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {groupResults
+                                        .filter((u) => selectedIds.includes(u.id))
+                                        .map((u) => (
+                                            <span key={u.id} className="px-2 py-1 text-xs bg-gray-100 rounded-full">
+                                                {u.username || u.name || 'User'}
+                                            </span>
+                                        ))}
+                                </div>
+                            )}
+
+                            <div className="mt-4 flex justify-end gap-2">
+                                <button
+                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
+                                    onClick={() => {
+                                        setShowNewGroup(false);
+                                        router.replace(pathname);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className={clsx(
+                                        'text-sm px-3 py-2 rounded text-white',
+                                        selectedIds.length < 2 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                    )}
+                                    disabled={selectedIds.length < 2}
+                                    onClick={async () => {
+                                        try {
+                                            const res = await fetch('/api/conversations', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ userIds: selectedIds }),
+                                            });
+                                            if (!res.ok) throw new Error();
+                                            const data: { conversationId: string } = await res.json();
+                                            setShowNewGroup(false);
+                                            router.replace(`${pathname}?convoId=${encodeURIComponent(data.conversationId)}`);
+                                            setSelectedIds([]);
+                                            setGroupQuery('');
+                                            setGroupResults([]);
+                                            loadByConversationId(data.conversationId);
+                                            fetchConversations();
+                                        } catch {
+                                            alert('Failed to create group.');
+                                        }
+                                    }}
+                                >
+                                    Create Group
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ----------- MANAGE GROUP MODAL ----------- */}
+                {showManage && activeConvoId && activeGroupMembers && (
+                    <div
+                        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+                        onClick={() => setShowManage(false)}
+                    >
+                        <div
+                            className="bg-white p-5 rounded-xl shadow-lg w-[560px] max-w-[94vw]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="text-lg font-semibold">Manage Group</div>
+                                <button className="text-sm text-gray-500 hover:text-black" onClick={() => setShowManage(false)}>
+                                    Close
+                                </button>
+                            </div>
+
+                            {/* Rename */}
+                            <div className="mb-5">
+                                <div className="text-sm font-medium mb-1">Group name</div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                        placeholder="Optional group name"
+                                        value={groupNameInput}
+                                        onChange={(e) => setGroupNameInput(e.target.value)}
+                                    />
+                                    <button
+                                        className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
+                                                    method: 'PATCH',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ name: groupNameInput.trim() || null }),
+                                                });
+                                                if (!res.ok) throw new Error();
+                                                const data = await res.json();
+                                                setActiveGroupName(data.name ?? null);
+                                                setShowManage(false);
+                                                fetchConversations();
+                                            } catch {
+                                                alert('Failed to rename group.');
+                                            }
+                                        }}
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    Members will see a grey system line announcing the change.
+                                </div>
+                            </div>
+
+                            {/* Members list with remove */}
+                            <div className="mb-5">
+                                <div className="text-sm font-medium mb-2">Members</div>
+                                <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                                    {activeGroupMembers.map((u) => (
+                                        <div key={u.id} className="p-2 flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
+                                                {(u.username || u.name || 'U').slice(0, 2)}
+                                            </div>
+                                            <button
+                                                className="text-sm hover:underline text-left truncate flex-1"
+                                                onClick={() => goToProfile(u)}
+                                                title={u.username || u.name || 'User'}
+                                            >
+                                                {u.username || u.name || 'User'}
+                                            </button>
+                                            <button
+                                                className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await fetch(
+                                                            `/api/conversations/${encodeURIComponent(activeConvoId)}/members?userId=${encodeURIComponent(u.id)}`,
+                                                            { method: 'DELETE' }
+                                                        );
+                                                        if (!res.ok) throw new Error();
+                                                        setActiveGroupMembers((prev) => (prev ? prev.filter((m) => m.id !== u.id) : prev));
+                                                        fetchConversations();
+                                                    } catch {
+                                                        alert('Failed to remove user.');
+                                                    }
+                                                }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Add people */}
+                            <div className="mb-5">
+                                <div className="text-sm font-medium mb-1">Add people</div>
+                                <input
+                                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                    placeholder="Search your followers…"
+                                    value={addQuery}
+                                    onChange={(e) => setAddQuery(e.target.value)}
+                                />
+                                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y">
+                                    {addLoading ? (
+                                        <div className="p-2 text-sm text-gray-500">Searching…</div>
+                                    ) : addResults.length === 0 ? (
+                                        <div className="p-2 text-sm text-gray-400">No matches</div>
+                                    ) : (
+                                        addResults.map((u) => {
+                                            const alreadyIn = !!activeGroupMembers.find((m) => m.id === u.id);
+                                            const chosen = addSelectedIds.includes(u.id);
+                                            return (
+                                                <label
+                                                    key={u.id}
+                                                    className={clsx(
+                                                        'p-2 text-sm flex items-center gap-2 cursor-pointer',
+                                                        alreadyIn ? 'opacity-50' : 'hover:bg-gray-50'
+                                                    )}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={alreadyIn}
+                                                        checked={chosen}
+                                                        onChange={(e) =>
+                                                            setAddSelectedIds((prev) =>
+                                                                e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
+                                                            )
+                                                        }
+                                                    />
+                                                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text:[10px] uppercase">
+                                                        {(u.username || u.name || 'U').slice(0, 2)}
+                                                    </div>
+                                                    <div className="truncate">{u.username || u.name || 'User'}</div>
+                                                    {alreadyIn && <span className="ml-auto text-[11px] text-gray-400">In group</span>}
+                                                </label>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {addSelectedIds.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {addResults
+                                            .filter((u) => addSelectedIds.includes(u.id))
+                                            .map((u) => (
+                                                <span key={u.id} className="px-2 py-1 text-xs bg-gray-100 rounded-full">
+                                                    {u.username || u.name || 'User'}
+                                                </span>
+                                            ))}
+                                    </div>
+                                )}
+
+                                <div className="mt-2 flex justify-end">
+                                    <button
+                                        className={clsx(
+                                            'text-sm px-3 py-2 rounded text-white',
+                                            addSelectedIds.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                        )}
+                                        disabled={addSelectedIds.length === 0}
+                                        onClick={async () => {
+                                            try {
+                                                const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}/members`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ userIds: addSelectedIds }),
+                                                });
+                                                if (!res.ok) throw new Error();
+                                                const data: { added: LiteUser[] } = await res.json();
+                                                setActiveGroupMembers((prev) => [...(prev ?? []), ...data.added]);
+                                                setAddSelectedIds([]);
+                                                setAddQuery('');
+                                                setAddResults([]);
+                                                fetchConversations();
+                                            } catch {
+                                                alert('Failed to add users.');
+                                            }
+                                        }}
+                                    >
+                                        Add selected
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Danger zone */}
+                            <div className="flex items-center justify-between">
+                                <button
+                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
+                                    onClick={async () => {
+                                        try {
+                                            const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
+                                                method: 'DELETE',
+                                            });
+                                            if (!res.ok) throw new Error();
+                                            setShowManage(false);
+                                            router.replace(pathname);
+                                            setActiveConvoId(null);
+                                            setActiveGroupMembers(null);
+                                            setActiveGroupName(null);
+                                            setMessages([]);
+                                            fetchConversations();
+                                        } catch {
+                                            alert('Failed to leave/delete conversation.');
+                                        }
+                                    }}
+                                >
+                                    Leave conversation
+                                </button>
+                                <div className="text-xs text-gray-500">
+                                    If you are the last member, the conversation will be deleted.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ----------- POST MODAL (auto-resizing) ----------- */}
+            {openPostId && (
+                <SharedPostModal postId={openPostId} onClose={() => setOpenPostId(null)} />
             )}
-        </div>
+        </>
     );
 }

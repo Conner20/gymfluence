@@ -111,6 +111,15 @@ export async function GET(req: Request) {
         take: 50,
         include: {
             sender: { select: { id: true, username: true, name: true, image: true } },
+            sharedUser: { select: { id: true, username: true, name: true, image: true } },
+            sharedPost: {
+                select: {
+                    id: true,
+                    title: true,
+                    imageUrl: true,
+                    author: { select: { id: true, username: true, name: true, image: true } },
+                },
+            },
         },
     });
 
@@ -134,6 +143,22 @@ export async function GET(req: Request) {
             sender: m.sender
                 ? { id: m.sender.id, username: m.sender.username, name: m.sender.name, image: m.sender.image }
                 : null,
+            sharedUser: m.sharedUser
+                ? { id: m.sharedUser.id, username: m.sharedUser.username, name: m.sharedUser.name, image: m.sharedUser.image }
+                : null,
+            sharedPost: m.sharedPost
+                ? {
+                    id: m.sharedPost.id,
+                    title: m.sharedPost.title,
+                    imageUrl: m.sharedPost.imageUrl,
+                    author: {
+                        id: m.sharedPost.author.id,
+                        username: m.sharedPost.author.username,
+                        name: m.sharedPost.author.name,
+                        image: m.sharedPost.author.image,
+                    },
+                }
+                : null,
         })),
     });
 }
@@ -141,8 +166,8 @@ export async function GET(req: Request) {
 /**
  * POST /api/messages
  * body:
- *  - { to: string (id or username), content?: string, imageUrls?: string[] }
- *  - OR { conversationId: string, content?: string, imageUrls?: string[] }
+ *  - { to: string (id or username), content?: string, imageUrls?: string[], share?: { type:'user'|'post', id:string } }
+ *  - OR { conversationId: string, content?: string, imageUrls?: string[], share?: { ... } }
  */
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -163,8 +188,9 @@ export async function POST(req: Request) {
 
     const content = (body.content ?? "").toString();
     const imageUrls: string[] = Array.isArray(body.imageUrls) ? body.imageUrls.map(String) : [];
+    const share = body.share && typeof body.share === "object" ? body.share : null;
 
-    if (!content.trim() && imageUrls.length === 0) {
+    if (!content.trim() && imageUrls.length === 0 && !share) {
         return NextResponse.json({ message: "Message is empty" }, { status: 400 });
     }
 
@@ -187,12 +213,36 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Recipient missing" }, { status: 400 });
     }
 
+    // Validate share target if present
+    let sharedUserId: string | undefined = undefined;
+    let sharedPostId: string | undefined = undefined;
+
+    if (share) {
+        const t = String(share.type || "").toLowerCase();
+        const id = String(share.id || "");
+        if (t === "user") {
+            const user =
+                (await db.user.findUnique({ where: { id }, select: { id: true } })) ||
+                (await db.user.findUnique({ where: { username: id }, select: { id: true } }));
+            if (!user) return NextResponse.json({ message: "User to share not found" }, { status: 404 });
+            sharedUserId = user.id;
+        } else if (t === "post") {
+            const post = await db.post.findUnique({ where: { id }, select: { id: true } });
+            if (!post) return NextResponse.json({ message: "Post to share not found" }, { status: 404 });
+            sharedPostId = post.id;
+        } else {
+            return NextResponse.json({ message: "Invalid share.type" }, { status: 400 });
+        }
+    }
+
     const msg = await db.message.create({
         data: {
             conversationId: convoId!,
             senderId: me.id,
             content: content.trim(),
             imageUrls,
+            sharedUserId,
+            sharedPostId,
         },
     });
 

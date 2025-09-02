@@ -1,6 +1,7 @@
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import Messenger from "@/components/Messenger";
+import Navbar from "@/components/Navbar";
 
 export default async function Messages() {
     const session = await getServerSession(authOptions);
@@ -14,6 +15,9 @@ export default async function Messages() {
             <main className="flex justify-center px-4 py-6">
                 <Messenger />
             </main>
+            <Navbar />
         </div>
+        
+        
     );
 }

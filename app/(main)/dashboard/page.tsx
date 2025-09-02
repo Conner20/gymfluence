@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Navbar from "@/components/Navbar";
 
 export default async function Dashboard() {
     return <div className="min-h-screen bg-[#f8f8f8]">
@@ -23,5 +24,6 @@ export default async function Dashboard() {
                 </Link>
             </nav>
         </header>
+        <Navbar />
     </div>
 }

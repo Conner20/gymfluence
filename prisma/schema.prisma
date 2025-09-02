@@ -73,18 +73,17 @@ model User {
   trainerProfile TrainerProfile?
   gymProfile     GymProfile?
 
-  // Follows
-  following Follow[] @relation("UserFollows") // users I follow
-  followers Follow[] @relation("UserFollowedBy") // users who follow me
+  following Follow[] @relation("UserFollows")
+  followers Follow[] @relation("UserFollowedBy")
 
-  // Notifications:
-  // - As recipient (someone notified me)
   notifications      Notification[] @relation("UserNotifications")
-  // - As actor (I triggered a notification for someone else)
   actorNotifications Notification[] @relation("UserActorNotifications")
 
   conversationParticipants ConversationParticipant[] @relation("UserConversationParticipants")
   messagesSent             Message[]                 @relation("UserSentMessages")
+
+  // Inverse side of Message.sharedUser
+  sharedInMessages Message[] @relation("SharedUser")
 }
 
 model TraineeProfile {
@@ -142,6 +141,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+
 model Post {
   id        String   @id @default(cuid())
   title     String
@@ -153,6 +153,9 @@ model Post {
   likes    Like[]
   comments Comment[]
   imageUrl String?
+
+  // Inverse side of Message.sharedPost
+  sharedInMessages Message[] @relation("SharedPost")
 }
 
 model Like {
@@ -241,13 +244,23 @@ model ConversationParticipant {
 
 model Message {
   id             String       @id @default(cuid())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
-  sender   User   @relation("UserSentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  sender   User   @relation("UserSentMessages", fields: [senderId], references: [id])
   senderId String
 
-  content   String
+  content    String
   imageUrls  String[] @default([])
-  createdAt DateTime  @default(now())
-  readAt    DateTime?
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+
+  // Share relations (FK side specifies fields/references)
+  sharedUser   User? @relation("SharedUser", fields: [sharedUserId], references: [id])
+  sharedUserId String?
+
+  sharedPost   Post? @relation("SharedPost", fields: [sharedPostId], references: [id])
+  sharedPostId String?
+
+  @@index([conversationId, createdAt])
 }

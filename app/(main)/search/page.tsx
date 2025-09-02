@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search as SearchIcon, ChevronDown } from "lucide-react";
 import clsx from "clsx";
+import Navbar from "@/components/Navbar";
 
 const GOALS = [
     "weight loss",
@@ -215,6 +216,7 @@ export default function SearchPage() {
                     </ul>
                 )}
             </div>
+            <Navbar />
         </div>
     );
 }

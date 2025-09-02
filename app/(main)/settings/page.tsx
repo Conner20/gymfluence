@@ -1,4 +1,5 @@
 import PrivacyToggle from "./privacy-toggle";
+import Navbar from "@/components/Navbar";
 
 export default async function Settings() {
     return <div className="min-h-screen bg-[#f8f8f8]">
@@ -12,6 +13,6 @@ export default async function Settings() {
             <h1 className="text-2xl font-semibold mb-4">Settings</h1>
             <PrivacyToggle />
         </div>
-        
+        <Navbar />
     </div>
 }

@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { db } from "@/prisma/client";
 import HomePosts from "@/components/HomePosts";
+import Navbar from "@/components/Navbar";
 
 export const revalidate = 0; // always fresh server render
 
@@ -73,6 +74,7 @@ export default async function Home() {
                 {/* Pass the filtered posts down; component can use or ignore this prop */}
                 <HomePosts initialPosts={posts} />
             </main>
+            <Navbar />
         </div>
     );
 }
