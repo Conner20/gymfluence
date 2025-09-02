@@ -1,3 +1,4 @@
+// components/PostDetail.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
@@ -58,7 +59,10 @@ export default function PostDetail({ postId }: { postId: string }) {
 
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<"NOT_FOUND" | "PRIVATE" | "GENERIC" | null>(null);
+
+    // If post is private and viewer can't see it, we try to capture author info for a follow link.
+    const [privateInfo, setPrivateInfo] = useState<{ username?: string | null; id?: string | null } | null>(null);
 
     // Share modal
     const [shareOpen, setShareOpen] = useState(false);
@@ -66,27 +70,43 @@ export default function PostDetail({ postId }: { postId: string }) {
     const [convosLoading, setConvosLoading] = useState(false);
     const [convosError, setConvosError] = useState<string | null>(null);
 
-    const [shareQuery, setShareQuery] = useState('');
+    const [shareQuery, setShareQuery] = useState("");
     const [shareResults, setShareResults] = useState<LiteUser[]>([]);
     const [shareSearching, setShareSearching] = useState(false);
 
     const canShare = useMemo(() => !!session, [session]);
 
     const fetchPost = async () => {
-        setError(null);
+        setErrorCode(null);
+        setPrivateInfo(null);
         setLoading(true);
         try {
             const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`, { cache: "no-store" });
+
             if (res.status === 404) {
-                setError("Post not found or not visible.");
                 setPost(null);
+                setErrorCode("NOT_FOUND");
                 return;
             }
+
+            if (res.status === 403) {
+                // Try to glean author identifiers from the response body if the API provides them
+                const data = await res.json().catch(() => ({} as any));
+                const authorUsername =
+                    data?.author?.username ?? data?.authorUsername ?? null;
+                const authorId = data?.author?.id ?? data?.authorId ?? null;
+                setPrivateInfo({ username: authorUsername, id: authorId });
+                setPost(null);
+                setErrorCode("PRIVATE");
+                return;
+            }
+
             if (!res.ok) throw new Error();
+
             const data: Post = await res.json();
             setPost(data);
         } catch {
-            setError("Failed to load post.");
+            setErrorCode("GENERIC");
         } finally {
             setLoading(false);
         }
@@ -97,18 +117,16 @@ export default function PostDetail({ postId }: { postId: string }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [postId]);
 
-    // --- NEW: auto-size when embedded in iframe (Messenger preview) ---
+    // Auto-size when embedded in an iframe (Messenger preview)
     useEffect(() => {
         if (typeof window === "undefined") return;
-        // Only do this when embedded (not full page)
-        if (window === window.parent) return;
+        if (window === window.parent) return; // not embedded
 
         const sendSize = () => {
             const h = document.documentElement.scrollHeight;
             window.parent.postMessage({ type: "post-embed-size", height: h }, window.location.origin);
         };
 
-        // Initial + observe changes
         sendSize();
         const ro = new ResizeObserver(() => sendSize());
         ro.observe(document.body);
@@ -121,12 +139,15 @@ export default function PostDetail({ postId }: { postId: string }) {
             window.removeEventListener("load", onLoad);
         };
     }, []);
-    // --- end NEW ---
 
     const handleLike = async () => {
         if (!post) return;
         try {
             const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/like`, { method: "POST" });
+            if (res.status === 401) {
+                alert("Sign in to like posts.");
+                return;
+            }
             if (!res.ok) throw new Error();
             fetchPost();
         } catch {
@@ -139,12 +160,12 @@ export default function PostDetail({ postId }: { postId: string }) {
         setConvosError(null);
         setConvosLoading(true);
         try {
-            const res = await fetch('/api/messages/conversations', { cache: 'no-store' });
+            const res = await fetch("/api/messages/conversations", { cache: "no-store" });
             if (!res.ok) throw new Error();
             const data: ConversationRow[] = await res.json();
             setConvos(data);
         } catch {
-            setConvosError('Failed to load conversations.');
+            setConvosError("Failed to load conversations.");
         } finally {
             setConvosLoading(false);
         }
@@ -162,7 +183,7 @@ export default function PostDetail({ postId }: { postId: string }) {
         setShareSearching(true);
         const t = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
                 if (!res.ok) throw new Error();
                 const data: { followers: LiteUser[] } = await res.json();
                 if (!alive) return;
@@ -179,10 +200,10 @@ export default function PostDetail({ postId }: { postId: string }) {
         };
     }, [shareQuery, shareOpen]);
 
-    const displayName = (u?: LiteUser | null) => u?.username || u?.name || 'User';
+    const displayName = (u?: LiteUser | null) => u?.username || u?.name || "User";
     const conversationTitle = (c: ConversationRow) => {
         const realGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
-        if (realGroup) return c.groupName || 'Group';
+        if (realGroup) return c.groupName || "Group";
         return displayName(c.other);
     };
 
@@ -208,7 +229,41 @@ export default function PostDetail({ postId }: { postId: string }) {
     };
 
     if (loading) return <div className="text-gray-500 p-8">Loading post…</div>;
-    if (error) return <div className="text-red-500 p-8">{error}</div>;
+
+    // ——— Tailored PRIVATE message with a direct link to the author's profile to request follow ———
+    if (errorCode === "PRIVATE") {
+        const slug = privateInfo?.username || privateInfo?.id || null;
+        return (
+            <div className="w-full max-w-lg mx-auto px-4">
+                <div className="bg-white rounded-2xl shadow p-6 text-center">
+                    <h2 className="font-semibold text-lg text-gray-800">This post is private</h2>
+                    <p className="text-sm text-gray-600 mt-2">
+                        You don't have permission to view this post because the author's account is private.
+                    </p>
+                    {slug ? (
+                        <div className="mt-4">
+                            <Link
+                                href={`/u/${encodeURIComponent(slug)}`}
+                                className="inline-block px-4 py-2 rounded-md bg-gray-900 text-white text-sm hover:bg-black"
+                            >
+                                Visit profile to request follow
+                            </Link>
+                            <p className="text-xs text-gray-500 mt-2">
+                                Send a follow request. Once accepted, you'll be able to view this post.
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-gray-500 mt-3">
+                            Ask the sender to share the author's profile so you can request to follow them.
+                        </p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (errorCode === "NOT_FOUND") return <div className="text-red-500 p-8">Post not found.</div>;
+    if (errorCode === "GENERIC") return <div className="text-red-500 p-8">Failed to load post.</div>;
     if (!post) return null;
 
     return (
@@ -289,10 +344,16 @@ export default function PostDetail({ postId }: { postId: string }) {
                 </article>
             </div>
 
-            {/* (Share modal kept as-is if you already added it earlier) */}
+            {/* Share modal */}
             {shareOpen && (
-                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setShareOpen(false)}>
-                    <div className="bg-white rounded-xl shadow-xl w-[680px] max-w-[94vw] p-5" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+                    onClick={() => setShareOpen(false)}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl w-[680px] max-w-[94vw] p-5"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div className="text-lg font-semibold">Share post</div>
                             <button className="text-gray-500 hover:text-black" onClick={() => setShareOpen(false)} title="Close">
@@ -325,7 +386,7 @@ export default function PostDetail({ postId }: { postId: string }) {
                                                 title={`Share with ${displayName(u)}`}
                                             >
                                                 <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
-                                                    {(u.username || u.name || 'U').slice(0, 2)}
+                                                    {(u.username || u.name || "U").slice(0, 2)}
                                                 </div>
                                                 <div className="truncate">{displayName(u)}</div>
                                             </button>
@@ -350,13 +411,12 @@ export default function PostDetail({ postId }: { postId: string }) {
                                     convos.map((c) => {
                                         const title = conversationTitle(c);
                                         const isGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
-                                        const initials = isGroup ? 'G' : (c.other?.username || c.other?.name || 'U').slice(0, 2);
-                                        const preview =
-                                            c.lastMessage?.content?.trim()
-                                                ? c.lastMessage.content
-                                                : (c.lastMessage?.imageUrls?.length ?? 0) > 0
-                                                    ? '📷 Photo'
-                                                    : 'No messages yet';
+                                        const initials = isGroup ? "G" : (c.other?.username || c.other?.name || "U").slice(0, 2);
+                                        const preview = c.lastMessage?.content?.trim()
+                                            ? c.lastMessage.content
+                                            : (c.lastMessage?.imageUrls?.length ?? 0) > 0
+                                                ? "📷 Photo"
+                                                : "No messages yet";
                                         return (
                                             <button
                                                 key={c.id}
