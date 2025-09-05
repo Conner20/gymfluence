@@ -63,6 +63,7 @@ model User {
   image         String?
   role          Role?
   isPrivate     Boolean   @default(false)
+  bio           String?
 
   post           Post[]
   accounts       Account[]

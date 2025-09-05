@@ -35,10 +35,12 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: Post[] }) {
         refreshCounts,
     } = useFollow(user.id);
 
+    // Expanded post state (fills the grey content area)
+    const [openPostId, setOpenPostId] = useState<string | null>(null);
+
     // optimistic requested state to avoid flicker on private follow
     const [optimisticRequested, setOptimisticRequested] = useState(false);
     useEffect(() => {
-        // sync back to server truth when it changes
         if (!isPending) setOptimisticRequested(false);
     }, [isPending]);
 
@@ -262,7 +264,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: Post[] }) {
                     <ProfileStat label="posts" value={canViewPrivate ? localPosts.length : "—"} />
                 </div>
 
-                {/* Own-profile controls at the bottom */}
+                {/* Own-profile buttons at the bottom */}
                 {isOwnProfile && (
                     <div className="flex flex-col gap-2 mb-6">
                         <button
@@ -281,9 +283,12 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: Post[] }) {
                 )}
             </aside>
 
-            <main className="flex-1 p-8">
-                {canViewPrivate ? (
-                    <MediaGrid posts={localPosts} />
+            {/* MAIN: grid OR inline post viewer */}
+            <main className="relative flex-1 p-8">
+                {openPostId ? (
+                    <ProfilePostViewer postId={openPostId} onClose={() => setOpenPostId(null)} />
+                ) : canViewPrivate ? (
+                    <MediaGrid posts={localPosts} onOpen={setOpenPostId} />
                 ) : (
                     <PrivatePlaceholder />
                 )}
@@ -322,22 +327,53 @@ function ProfileStat({ label, value }: { label: string; value: React.ReactNode }
     );
 }
 
-function MediaGrid({ posts }: { posts: Post[] }) {
+/** Grid of media tiles; clicking a tile opens the inline viewer */
+function MediaGrid({ posts, onOpen }: { posts: Post[]; onOpen: (id: string) => void }) {
     return (
         <div className="grid grid-cols-3 gap-2">
             {posts.map((post) => (
-                <div
+                <button
                     key={post.id}
-                    className="bg-white rounded-lg flex items-center justify-center w-full h-56 overflow-hidden relative border"
+                    onClick={() => onOpen(post.id)}
+                    className="bg-white rounded-lg w-full h-56 overflow-hidden relative border hover:shadow focus:outline-none focus:ring-2 focus:ring-green-600/30"
                     title={post.title}
                 >
                     {post.imageUrl ? (
                         <img src={post.imageUrl} alt={post.title} className="object-cover w-full h-full" />
                     ) : (
-                        <span className="text-gray-600 font-semibold text-lg text-center px-4">{post.title}</span>
+                        <span className="text-gray-600 font-semibold text-lg text-center px-4 inline-flex items-center justify-center w-full h-full">
+                            {post.title}
+                        </span>
                     )}
-                </div>
+                </button>
             ))}
+        </div>
+    );
+}
+
+/** Fills the grey content area with a full, interactive post (iframe) */
+function ProfilePostViewer({ postId, onClose }: { postId: string; onClose: () => void }) {
+    // Close on Escape
+    React.useEffect(() => {
+        const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
+    return (
+        <div className="absolute inset-0">
+            <button
+                onClick={onClose}
+                className="absolute top-2 left-2 z-10 px-3 py-1.5 rounded-full border bg-white/90 backdrop-blur text-sm hover:bg-white shadow"
+                title="Back to profile"
+            >
+                ← Back to profile
+            </button>
+            <iframe
+                src={`/post/${encodeURIComponent(postId)}`}
+                className="w-full h-full rounded-lg border bg-white"
+                title="Post"
+            />
         </div>
     );
 }

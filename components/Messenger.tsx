@@ -787,37 +787,56 @@ export default function Messenger() {
     };
 
     const ShareCard = ({ m }: { m: ThreadMessage }) => {
-        if (m.sharedUser || (m.content && /^https?:\/\//.test(m.content))) {
-            // profile share – show a simple profile card + a link (URL comes from message content if present)
+        const containerClasses =
+            "block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline";
+
+        // PROFILE SHARE
+        if (m.sharedUser || (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.test(m.content))) {
             const u = m.sharedUser;
-            const label = u?.username || u?.name || 'Profile';
-            const slug = u?.username || u?.id;
-            const linkFromContent =
-                (m.content && /(https?:\/\/[^\s]+)/.exec(m.content)?.[0]) || '';
-            const href = linkFromContent || (slug ? `/u/${encodeURIComponent(slug)}` : '#');
+
+            // Infer slug from URL if needed
+            let linkFromContent =
+                (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.exec(m.content)?.[0]) || "";
+            let inferredSlug: string | undefined = u?.username || u?.name || u?.id || undefined;
+            if (!inferredSlug && linkFromContent) {
+                try {
+                    const url = linkFromContent.startsWith("http")
+                        ? new URL(linkFromContent)
+                        : new URL(linkFromContent, window.location.origin);
+                    const parts = url.pathname.split("/").filter(Boolean);
+                    if (parts[0] === "u" && parts[1]) inferredSlug = decodeURIComponent(parts[1]);
+                } catch { /* ignore */ }
+            }
+
+            const display = u?.username || inferredSlug || "Profile";
+            const href = linkFromContent || (inferredSlug ? `/u/${encodeURIComponent(inferredSlug)}` : "#");
+
             return (
                 <a
                     href={href}
-                    className="block border rounded-lg p-3 hover:bg-gray-50"
+                    className={containerClasses}
                     onClick={(e) => e.stopPropagation()}
-                    target={href.startsWith('http') ? '_blank' : undefined}
-                    rel={href.startsWith('http') ? 'noreferrer' : undefined}
+                    target={href.startsWith("http") ? "_blank" : undefined}
+                    rel={href.startsWith("http") ? "noreferrer" : undefined}
                 >
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                            {(label || 'PR').slice(0, 2)}
+                        <div className="w-10 h-10 rounded-full bg-white border-2 border-black flex items-center justify-center text-xs uppercase">
+                            {(display || "PR").slice(0, 2)}
                         </div>
                         <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{label}</div>
-                            <div className="text-xs text-gray-500 truncate">Open profile →</div>
+                            <div className="text-sm font-medium truncate text-black">{display}</div>
+                            <div className="text-xs truncate text-black">Open profile</div>
                         </div>
                     </div>
                 </a>
             );
         }
+
+        // POST SHARE — now same size as profile card (40×40 thumb, same paddings/typography)
         if (m.sharedPost) {
             const p = m.sharedPost;
-            const author = p.author?.username || p.author?.name || 'Author';
+            const author = p.author?.username || p.author?.name || "Author";
+
             return (
                 <button
                     type="button"
@@ -825,25 +844,37 @@ export default function Messenger() {
                         e.stopPropagation();
                         setOpenPostId(p.id);
                     }}
-                    className="w-full text-left border rounded-lg p-3 hover:bg-gray-50"
+                    className={`${containerClasses} w-full text-left`}
                     title="Open post"
                 >
-                    <div className="flex gap-3">
-                        {p.imageUrl && (
+                    <div className="flex items-center gap-3">
+                        {p.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.imageUrl} alt="" className="w-16 h-16 object-cover rounded-md flex-shrink-0" />
+                            <img
+                                src={p.imageUrl}
+                                alt=""
+                                className="w-10 h-10 object-cover rounded-md border-2 border-black flex-shrink-0"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-md bg-white border-2 border-black flex items-center justify-center text-xs">
+                                P
+                            </div>
                         )}
                         <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{p.title}</div>
-                            <div className="text-xs text-gray-500 truncate">by {author}</div>
-                            <div className="text-xs text-gray-500 mt-1">Click to open</div>
+                            <div className="text-sm font-medium truncate text-black">{p.title}</div>
+                            <div className="text-xs truncate text-black">by {author}</div>
                         </div>
                     </div>
                 </button>
             );
         }
+
         return null;
     };
+
+
+
+
 
     const normalized = normalizeConvos(convos);
 

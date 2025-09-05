@@ -72,7 +72,7 @@ export function PostComments({ postId }: { postId: string }) {
     }
 
     return (
-        <div className="bg-zinc-50 rounded-xl p-3 mt-4">
+        <div className="bg-white rounded-xl p-3 mt-4">
             <h4 className="font-bold mb-2 text-gray-700">Comments</h4>
             {session &&
                 <form
