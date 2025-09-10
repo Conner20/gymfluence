@@ -1,11 +1,45 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from "react";
-import { Search as SearchIcon, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+    MapPin,
+    MessageSquare,
+    Search,
+    Share2,
+    X,
+    ChevronDown,
+    Home,
+    DollarSign,
+    Target,
+    UserCircle2,
+} from "lucide-react";
 import clsx from "clsx";
 import Navbar from "@/components/Navbar";
 
-const GOALS = [
+type Role = "ALL" | "TRAINEE" | "TRAINER" | "GYM";
+
+type ResultItem = {
+    id: string;
+    username: string | null;
+    name: string | null;
+    image: string | null;
+    role: "TRAINEE" | "TRAINER" | "GYM";
+    isPrivate: boolean;
+    location: string | null;
+    price: number | null; // trainer hourlyRate / gym fee
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    goals?: string[] | null;
+    services?: string[] | null;
+    rating?: number | null;
+    clients?: number | null;
+    amenities?: string[] | null;
+    distanceKm: number | null;
+};
+
+const GOAL_OPTIONS = [
     "weight loss",
     "build strength",
     "improve endurance",
@@ -14,209 +48,447 @@ const GOALS = [
     "injury recovery",
 ];
 
+const DISTANCE_OPTIONS = [
+    { label: "any distance", km: 0 },
+    { label: "5 mi", km: 8 },
+    { label: "10 mi", km: 16 },
+    { label: "25 mi", km: 40 },
+    { label: "50 mi", km: 80 },
+    { label: "100 mi", km: 160 },
+];
+
+const PAGE_SIZE = 10;
+
 export default function SearchPage() {
-    const [name, setName] = useState("");
-    const [role, setRole] = useState("");
-    const [goal, setGoal] = useState<string[]>([]);
-    const [minBudget, setMinBudget] = useState("");
-    const [maxBudget, setMaxBudget] = useState("");
-    const [distance, setDistance] = useState("");
-    const [results, setResults] = useState<any[]>([]);
+    const router = useRouter();
 
-    const [showGoals, setShowGoals] = useState(false);
+    // --------- Filters ----------
+    const [q, setQ] = useState("");
+    const [role, setRole] = useState<Role>("ALL");
+    const [distanceKm, setDistanceKm] = useState<number>(0);
+    const [minBudget, setMinBudget] = useState<string>("");
+    const [maxBudget, setMaxBudget] = useState<string>("");
+    const [goals, setGoals] = useState<string[]>([]);
 
-    // Fetch users whenever a filter changes (or on mount, will fetch all users)
+    const [page, setPage] = useState(1);
+
+    // --------- Data ----------
+    const [loading, setLoading] = useState(false);
+    const [results, setResults] = useState<ResultItem[]>([]);
+    const [total, setTotal] = useState(0);
+    const [viewerHasCoords, setViewerHasCoords] = useState<boolean>(true);
+
+    const [selected, setSelected] = useState<ResultItem | null>(null);
+    const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
+
+    // Debounced fetch
     useEffect(() => {
+        const controller = new AbortController();
+        setLoading(true);
+
         const params = new URLSearchParams();
-        if (name) params.append("name", name);
-        if (role) params.append("role", role);
-        goal.forEach(g => params.append("goal", g));
-        if (minBudget) params.append("minBudget", minBudget);
-        if (maxBudget) params.append("maxBudget", maxBudget);
-        if (distance) params.append("distance", distance);
+        if (q.trim()) params.set("q", q.trim());
+        if (role !== "ALL") params.set("role", role);
+        if (distanceKm > 0) params.set("distanceKm", String(distanceKm));
+        if (minBudget.trim()) params.set("minBudget", String(Number(minBudget) || 0));
+        if (maxBudget.trim()) params.set("maxBudget", String(Number(maxBudget) || Number.POSITIVE_INFINITY));
+        if (goals.length) params.set("goals", goals.join(","));
+        params.set("page", String(page));
+        params.set("pageSize", String(PAGE_SIZE));
 
-        // Will fetch all users if params is empty (default)
-        fetch("/api/search-users?" + params.toString())
-            .then(res => res.json())
-            .then(setResults);
-    }, [name, role, goal, minBudget, maxBudget, distance]);
+        const t = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/search?${params.toString()}`, {
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                setResults(data.results || []);
+                setTotal(data.total || 0);
+                setViewerHasCoords(!!data.viewerHasCoords);
+                // keep selection in view if still present
+                if (selected) {
+                    const still = (data.results || []).find((r: ResultItem) => r.id === selected.id);
+                    setSelected(still || null);
+                }
+            } catch {
+                /* ignore */
+            } finally {
+                setLoading(false);
+            }
+        }, 250);
 
-    // Reset all filters
-    const resetFilters = () => {
-        setName("");
-        setRole("");
-        setGoal([]);
+        return () => {
+            controller.abort();
+            clearTimeout(t);
+        };
+    }, [q, role, distanceKm, minBudget, maxBudget, goals, page]);
+
+    // Reset to page 1 when filters change (except page itself)
+    useEffect(() => {
+        setPage(1);
+    }, [q, role, distanceKm, minBudget, maxBudget, goals]);
+
+    const resetAll = () => {
+        setQ("");
+        setRole("ALL");
+        setDistanceKm(0);
         setMinBudget("");
         setMaxBudget("");
-        setDistance("");
+        setGoals([]);
+        setPage(1);
     };
 
+    const roleLabel = (r: ResultItem["role"]) =>
+        r === "TRAINEE" ? "personal trainee" : r === "TRAINER" ? "personal trainer" : "gym";
+
+    // ---------- UI ----------
     return (
-        <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="w-full bg-white py-6 flex items-center pl-[40px] z-20 border-b">
-                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none mr-8">
-                    <span>search</span>
-                </h1>
-                {/* Search bar */}
-                <div className="relative flex items-center">
-                    <SearchIcon className="absolute left-3 top-2.5 text-gray-400" size={20} />
-                    <input
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        placeholder="Search by name"
-                        className="pl-10 pr-3 py-2 w-[230px] rounded-full border border-gray-200 bg-[#f8f8f8] focus:outline-none focus:ring-2 focus:ring-green-100"
-                    />
-                </div>
+        <div className="min-h-screen bg-[#f8f8f8] px-6 pb-8">
+            {/* Top bar */}
+            <header className="sticky top-0 z-10 bg-[#f8f8f8] pt-6 pb-4">
+                <div className="max-w-[1180px] mx-auto flex items-center gap-3">
+                    <div className="text-3xl text-green-700 font-medium mr-2">search</div>
 
-                {/* Distance filter */}
-                <select
-                    className="ml-6 px-4 py-2 rounded-full border border-gray-200 bg-[#f8f8f8] text-gray-700 focus:outline-none"
-                    value={distance}
-                    onChange={e => setDistance(e.target.value)}
-                >
-                    <option value="">distance</option>
-                    <option value="5">≤ 5 mi</option>
-                    <option value="10">≤ 10 mi</option>
-                    <option value="25">≤ 25 mi</option>
-                    <option value="50">≤ 50 mi</option>
-                </select>
+                    {/* Search input */}
+                    <div className="relative flex-1">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            className="w-full pl-9 pr-3 h-10 rounded-full border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                            placeholder="Search by name or username…"
+                            value={q}
+                            onChange={(e) => setQ(e.target.value)}
+                        />
+                    </div>
 
-                {/* Role filter */}
-                <select
-                    className="ml-2 px-4 py-2 rounded-full border border-gray-200 bg-[#f8f8f8] text-gray-700 focus:outline-none"
-                    value={role}
-                    onChange={e => setRole(e.target.value)}
-                >
-                    <option value="">entity</option>
-                    <option value="TRAINEE">trainee</option>
-                    <option value="TRAINER">trainer</option>
-                    <option value="GYM">gym</option>
-                </select>
-
-                {/* Budget filter */}
-                <div className="ml-2 flex items-center gap-2">
-                    <span className="text-sm text-gray-600">budget:</span>
-                    <input
-                        type="number"
-                        value={minBudget}
-                        onChange={e => setMinBudget(e.target.value)}
-                        placeholder="min"
-                        className="w-14 px-2 py-1 rounded border border-gray-200"
-                        min={0}
-                    />
-                    <span className="mx-1 text-gray-500">-</span>
-                    <input
-                        type="number"
-                        value={maxBudget}
-                        onChange={e => setMaxBudget(e.target.value)}
-                        placeholder="max"
-                        className="w-14 px-2 py-1 rounded border border-gray-200"
-                        min={0}
-                    />
-                </div>
-
-                {/* Goals multiselect */}
-                <div className="ml-2 relative">
-                    <button
-                        className={clsx(
-                            "flex items-center px-4 py-2 rounded-full border border-gray-200 bg-[#f8f8f8] text-gray-700",
-                            showGoals && "ring-2 ring-green-100"
-                        )}
-                        onClick={() => setShowGoals(v => !v)}
-                        type="button"
-                    >
-                        goals <ChevronDown className="ml-1 w-4 h-4" />
-                    </button>
-                    {showGoals && (
-                        <div className="absolute left-0 mt-2 bg-white border rounded shadow-lg p-2 z-50 w-48">
-                            {GOALS.map(g => (
-                                <label key={g} className="flex items-center py-1 px-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={goal.includes(g)}
-                                        onChange={() => setGoal(goal =>
-                                            goal.includes(g) ? goal.filter(x => x !== g) : [...goal, g]
-                                        )}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-gray-700">{g}</span>
-                                </label>
+                    {/* Distance */}
+                    <FilterPill icon={<MapPin size={16} />} label="distance">
+                        <div className="p-2 w-40">
+                            {DISTANCE_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.km}
+                                    className={clsx(
+                                        "w-full text-left text-sm px-2 py-1 rounded hover:bg-gray-100",
+                                        distanceKm === opt.km && "bg-gray-100"
+                                    )}
+                                    onClick={() => setDistanceKm(opt.km)}
+                                >
+                                    {opt.label}
+                                </button>
                             ))}
                         </div>
-                    )}
+                    </FilterPill>
+
+                    {/* Entity */}
+                    <FilterPill icon={<UserCircle2 size={16} />} label="entity">
+                        <div className="p-2 w-40">
+                            {(["ALL", "TRAINEE", "TRAINER", "GYM"] as Role[]).map((r) => (
+                                <button
+                                    key={r}
+                                    className={clsx(
+                                        "w-full text-left text-sm px-2 py-1 rounded hover:bg-gray-100",
+                                        role === r && "bg-gray-100"
+                                    )}
+                                    onClick={() => setRole(r)}
+                                >
+                                    {r === "ALL" ? "all" : r.toLowerCase()}
+                                </button>
+                            ))}
+                        </div>
+                    </FilterPill>
+
+                    {/* Budget */}
+                    <FilterPill icon={<DollarSign size={16} />} label="budget">
+                        <div className="p-3 w-64">
+                            <div className="text-xs text-gray-500 mb-1">trainer hourly / gym monthly</div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    className="w-24 border rounded px-2 py-1 text-sm"
+                                    placeholder="min"
+                                    inputMode="numeric"
+                                    value={minBudget}
+                                    onChange={(e) => setMinBudget(e.target.value)}
+                                />
+                                <span className="text-gray-400">—</span>
+                                <input
+                                    className="w-24 border rounded px-2 py-1 text-sm"
+                                    placeholder="max"
+                                    inputMode="numeric"
+                                    value={maxBudget}
+                                    onChange={(e) => setMaxBudget(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </FilterPill>
+
+                    {/* Goals / Services */}
+                    <FilterPill icon={<Target size={16} />} label="goals">
+                        <div className="p-2 w-64 max-h-64 overflow-y-auto">
+                            {GOAL_OPTIONS.map((g) => {
+                                const checked = goals.includes(g);
+                                return (
+                                    <label key={g} className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={(e) =>
+                                                setGoals((prev) =>
+                                                    e.target.checked ? [...prev, g] : prev.filter((x) => x !== g)
+                                                )
+                                            }
+                                        />
+                                        <span>{g}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </FilterPill>
+
+                    {/* Reset */}
+                    <button
+                        onClick={resetAll}
+                        className="ml-1 text-sm px-3 h-10 rounded-full border bg-white hover:bg-gray-50"
+                        title="Reset all filters"
+                    >
+                        Reset
+                    </button>
                 </div>
 
-                {/* Reset button */}
-                <button
-                    className="ml-4 px-3 py-1 rounded border text-xs text-gray-600 bg-white hover:bg-gray-100"
-                    onClick={resetFilters}
-                >
-                    Reset Filters
-                </button>
+                {!viewerHasCoords && distanceKm > 0 && (
+                    <div className="max-w-[1180px] mx-auto mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        Distance filter works best when your profile has a city (or coordinates). Add your city in
+                        <button
+                            className="underline ml-1 hover:text-amber-900"
+                            onClick={() => router.push("/settings")}
+                        >
+                            Settings → Profile
+                        </button>
+                        .
+                    </div>
+                )}
             </header>
 
-            {/* Results */}
-            <div className="max-w-2xl mx-auto mt-6">
-                {results.length === 0 ? (
-                    <div className="text-gray-400 text-center py-12">No results</div>
-                ) : (
-                    <ul>
-                        {results.map((user) => (
-                            <li key={user.id} className="bg-white rounded-xl shadow p-4 mb-4 flex items-center">
-                                <img
-                                    src={user.image || "/default-avatar.png"}
-                                    alt={user.name || user.username || ""}
-                                    className="w-12 h-12 rounded-full object-cover mr-4"
-                                />
-                                <div>
-                                    <div className="font-semibold text-lg">{user.name || user.username}</div>
-                                    <div className="text-sm text-gray-500 capitalize">{user.role?.toLowerCase()}</div>
-                                    {/* Trainer Info */}
-                                    {user.role === "TRAINER" && user.trainerProfile && (
-                                        <div>
-                                            <div className="text-xs text-gray-700">
-                                                Rate: ${user.trainerProfile.hourlyRate ?? "N/A"}/hr
+            {/* Body */}
+            <div className="max-w-[1180px] mx-auto grid grid-cols-[380px,1fr] gap-6">
+                {/* Left: results list */}
+                <aside className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                    {/* rows */}
+                    <div className="divide-y">
+                        {loading && results.length === 0 ? (
+                            <div className="p-4 text-sm text-gray-500">Searching…</div>
+                        ) : results.length === 0 ? (
+                            <div className="p-4 text-sm text-gray-400">No results.</div>
+                        ) : (
+                            results.map((r) => {
+                                const active = selected?.id === r.id;
+                                return (
+                                    <button
+                                        key={r.id}
+                                        className={clsx(
+                                            "w-full p-3 flex items-center gap-3 hover:bg-gray-50",
+                                            active && "bg-gray-100"
+                                        )}
+                                        onClick={() => setSelected(r)}
+                                    >
+                                        <Avatar url={r.image} name={r.username || r.name || "User"} />
+                                        <div className="min-w-0 text-left">
+                                            <div className="text-sm font-medium truncate">
+                                                {r.username || r.name || "User"}
+                                                {r.isPrivate && <span className="ml-1 text-[11px] text-gray-500">(private)</span>}
                                             </div>
-                                            <div className="text-xs text-gray-700">
-                                                Services: {user.trainerProfile.services?.join(", ") || "None"}
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {roleLabel(r)} • {r.city || r.location || "—"}
                                             </div>
-                                            <div className="text-xs text-gray-700">
-                                                Location: {[user.trainerProfile.city, user.trainerProfile.state, user.trainerProfile.country].filter(Boolean).join(", ")}
-                                            </div>
+                                            {r.price != null && (
+                                                <div className="text-xs text-gray-600">
+                                                    {r.role === "TRAINER" ? `$${r.price}/hr` : `$${r.price}/mo`}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                    {/* Trainee Info */}
-                                    {user.role === "TRAINEE" && user.traineeProfile && (
-                                        <div>
-                                            <div className="text-xs text-gray-700">
-                                                Goals: {user.traineeProfile.goals?.join(", ") || "None"}
-                                            </div>
-                                            <div className="text-xs text-gray-700">
-                                                Location: {[user.traineeProfile.city, user.traineeProfile.state, user.traineeProfile.country].filter(Boolean).join(", ")}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Gym Info */}
-                                    {user.role === "GYM" && user.gymProfile && (
-                                        <div>
-                                            <div className="text-xs text-gray-700">
-                                                Fee: ${user.gymProfile.fee ?? "N/A"}/mo
-                                            </div>
-                                            <div className="text-xs text-gray-700">
-                                                Amenities: {user.gymProfile.amenities?.join(", ") || "None"}
-                                            </div>
-                                            <div className="text-xs text-gray-700">
-                                                Location: {[user.gymProfile.city, user.gymProfile.state, user.gymProfile.country].filter(Boolean).join(", ")}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
+                                        {r.distanceKm != null && (
+                                            <div className="ml-auto text-xs text-gray-500">{Math.round(r.distanceKm)} km</div>
+                                        )}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {/* Paging */}
+                    <div className="border-t px-3 py-2 flex items-center justify-between">
+                        <button
+                            className="text-sm px-2 py-1 rounded border bg-white disabled:opacity-40"
+                            disabled={page <= 1}
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        >
+                            ‹ Prev
+                        </button>
+                        <div className="text-xs text-gray-500">
+                            Page {page} / {totalPages}
+                        </div>
+                        <button
+                            className="text-sm px-2 py-1 rounded border bg-white disabled:opacity-40"
+                            disabled={page >= totalPages}
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                            Next ›
+                        </button>
+                    </div>
+                </aside>
+
+                {/* Right: detail */}
+                <section className="bg-white rounded-xl border shadow-sm p-6 min-h-[520px]">
+                    {!selected ? (
+                        <div className="text-gray-400 text-sm">Select a result to see details.</div>
+                    ) : (
+                        <DetailCard r={selected} onMessage={() => router.push(`/messages?to=${encodeURIComponent(selected.username || selected.id)}`)} />
+                    )}
+                </section>
             </div>
             <Navbar />
         </div>
+    );
+}
+
+/* ----------------- Pieces ----------------- */
+
+function Avatar({ url, name }: { url: string | null; name: string }) {
+    if (url) {
+        // eslint-disable-next-line @next/next/no-img-element
+        return <img src={url} alt={name} className="w-10 h-10 rounded-full object-cover border" />;
+    }
+    return (
+        <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-medium text-gray-700">
+            {(name || "U").slice(0, 2).toUpperCase()}
+        </div>
+    );
+}
+
+function FilterPill({
+    icon,
+    label,
+    children,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    children: React.ReactNode;
+}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setOpen((v) => !v)}
+                className="h-10 px-3 rounded-full border bg-white text-sm flex items-center gap-1 hover:bg-gray-50"
+                title={label}
+            >
+                {icon}
+                <span className="capitalize">{label}</span>
+                <ChevronDown size={16} className="opacity-60" />
+            </button>
+            {open && (
+                <div
+                    className="absolute z-20 mt-2 bg-white border rounded-xl shadow-lg"
+                    onMouseLeave={() => setOpen(false)}
+                >
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function DetailCard({
+    r,
+    onMessage,
+}: {
+    r: ResultItem;
+    onMessage: () => void;
+}) {
+    const title = r.username || r.name || "User";
+    const sub = `${r.city || r.location || "Unknown"}${r.role === "TRAINER" && r.price != null ? ` • $${r.price}/hr` : ""}${r.role === "GYM" && r.price != null ? ` • $${r.price}/mo` : ""
+        }`;
+
+    return (
+        <>
+            <div className="flex items-start gap-4">
+                <Avatar url={r.image} name={title} />
+                <div className="min-w-0">
+                    <div className="text-2xl font-semibold">{title}</div>
+                    <div className="text-sm text-gray-500">{sub}</div>
+                    <div className="text-sm text-gray-500">{r.role === "TRAINEE" ? "Personal Trainee" : r.role === "TRAINER" ? "Personal Trainer" : "Gym"}</div>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                    <button
+                        className="px-2.5 py-1.5 rounded-full border bg-white hover:bg-gray-50"
+                        title="Message"
+                        onClick={onMessage}
+                    >
+                        <MessageSquare size={18} />
+                    </button>
+                    <button
+                        className="px-2.5 py-1.5 rounded-full border bg-white hover:bg-gray-50"
+                        title="Copy profile link"
+                        onClick={async () => {
+                            const slug = r.username || r.id;
+                            const url = `${window.location.origin}/u/${encodeURIComponent(slug)}`;
+                            try {
+                                await navigator.clipboard.writeText(url);
+                                alert("Profile link copied!");
+                            } catch {
+                                alert(url);
+                            }
+                        }}
+                    >
+                        <Share2 size={18} />
+                    </button>
+                </div>
+            </div>
+
+            <hr className="my-4" />
+
+            {/* About */}
+            <div className="mb-4">
+                <div className="font-medium mb-1">About {title}</div>
+                <div className="text-sm text-gray-700">
+                    {r.role === "TRAINER" && r.services?.length ? (
+                        <>
+                            <span className="text-gray-500">Services:</span> {r.services.join(" • ")}
+                            {r.rating != null && (
+                                <span className="ml-3 text-gray-500">Rating:</span>
+                            )}
+                            {r.rating != null && <span className="ml-1">{r.rating.toFixed(1)}</span>}
+                            {r.clients != null && (
+                                <>
+                                    <span className="ml-3 text-gray-500">Clients:</span>
+                                    <span className="ml-1">{r.clients}</span>
+                                </>
+                            )}
+                        </>
+                    ) : r.role === "TRAINEE" && r.goals?.length ? (
+                        <>
+                            <span className="text-gray-500">Goals:</span> {r.goals.join(" • ")}
+                        </>
+                    ) : r.role === "GYM" && r.amenities?.length ? (
+                        <>
+                            <span className="text-gray-500">Amenities:</span> {r.amenities.join(" • ")}
+                        </>
+                    ) : (
+                        <span className="text-gray-500">No additional details provided.</span>
+                    )}
+                </div>
+            </div>
+
+            {/* Location & distance */}
+            <div className="text-sm text-gray-600 flex items-center gap-2">
+                <MapPin size={16} className="opacity-70" />
+                <span>
+                    {r.city || r.location || "Unknown"}
+                    {r.state ? `, ${r.state}` : ""}
+                    {r.country ? `, ${r.country}` : ""}
+                </span>
+                {r.distanceKm != null && <span className="ml-2 text-gray-400">• ~{Math.round(r.distanceKm)} km away</span>}
+            </div>
+        </>
     );
 }

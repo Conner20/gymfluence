@@ -1,100 +1,257 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
-// Helper to build base filters from query params
-function buildFilters(params: any) {
-    const filters: any = {};
-    if (params.name) {
-        filters.OR = [
-            { username: { contains: params.name, mode: "insensitive" } },
-            { name: { contains: params.name, mode: "insensitive" } }
-        ];
-    }
-    if (params.role) {
-        filters.role = params.role;
-    }
-    return filters;
+// helpers (same as before)
+const toNum = (v: string | null, d: number) => {
+    if (v === null || v === "") return d;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : d;
+};
+
+type Role = "TRAINEE" | "TRAINER" | "GYM";
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+    const R = 6371;
+    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+    const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+    const sa =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((a.lat * Math.PI) / 180) *
+        Math.cos((b.lat * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(sa), Math.sqrt(1 - sa));
+    return R * c;
 }
 
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const name = searchParams.get("name");
-    const role = searchParams.get("role");
-    const minBudget = searchParams.get("minBudget");
-    const maxBudget = searchParams.get("maxBudget");
-    const goals = searchParams.getAll("goal");
+    const url = new URL(req.url);
+    const q = url.searchParams.get("q")?.trim() ?? "";
+    const roleParam = (url.searchParams.get("role") || "ALL").toUpperCase();
+    const roles: Role[] =
+        roleParam === "ALL" ? ["TRAINEE", "TRAINER", "GYM"] : ([(roleParam as Role)] as Role[]);
 
-    // If no filters are set, return all users (with all profiles)
-    const noFilters =
-        !name && !role && !minBudget && !maxBudget && goals.length === 0;
+    const minBudget = toNum(url.searchParams.get("minBudget"), 0);
+    const maxBudget = toNum(url.searchParams.get("maxBudget"), Number.POSITIVE_INFINITY);
+    const distanceKm = toNum(url.searchParams.get("distanceKm"), 0);
+    const goalsParam = url.searchParams.get("goals") || "";
+    const goals = goalsParam.split(",").map((s) => s.trim()).filter(Boolean);
 
-    // Include all profiles always for flexibility in frontend rendering
-    const profileIncludes = {
-        traineeProfile: true,
-        trainerProfile: true,
-        gymProfile: true,
-    };
+    const page = Math.max(1, toNum(url.searchParams.get("page"), 1));
+    const pageSize = Math.min(Math.max(5, toNum(url.searchParams.get("pageSize"), 10)), 200);
 
-    if (noFilters) {
-        const allUsers = await db.user.findMany({ include: profileIncludes });
-        console.log("[API] Returning ALL users:", allUsers.length);
-        return NextResponse.json(allUsers);
+    const session = await getServerSession(authOptions);
+
+    let viewerId: string | null = null;
+    if (session?.user?.email) {
+        const me = await db.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true },
+        });
+        viewerId = me?.id ?? null;
     }
 
-    // Else, build filter for main user object
-    const filters = buildFilters({ name, role });
+    // viewer coords (optional)
+    let viewerLat: number | null = null;
+    let viewerLng: number | null = null;
+    let viewerCity: string | null = null;
 
-    // Profile-specific filtering
-    let include: any = { ...profileIncludes }; // Always include all profiles for frontend rendering
-    let profileWhere: any = {};
-
-    // You may want to further filter users by their profiles if a role is selected and goals/budget are present
-    if (role === "TRAINEE") {
-        if (goals.length) profileWhere.goals = { hasSome: goals };
-        include.traineeProfile = Object.keys(profileWhere).length
-            ? { where: profileWhere }
-            : true;
-    } else if (role === "TRAINER") {
-        if (goals.length) profileWhere.services = { hasSome: goals };
-        if (minBudget) profileWhere.hourlyRate = { gte: Number(minBudget) };
-        if (maxBudget) {
-            profileWhere.hourlyRate = {
-                ...profileWhere.hourlyRate,
-                lte: Number(maxBudget),
-            };
+    if (viewerId) {
+        const me = await db.user.findUnique({
+            where: { id: viewerId },
+            select: {
+                location: true,
+                traineeProfile: { select: { lat: true, lng: true, city: true } },
+                trainerProfile: { select: { lat: true, lng: true, city: true } },
+                gymProfile: { select: { lat: true, lng: true, city: true } },
+            },
+        });
+        const p = me?.traineeProfile || me?.trainerProfile || me?.gymProfile || null;
+        if (p?.lat != null && p?.lng != null) {
+            viewerLat = p.lat;
+            viewerLng = p.lng;
         }
-        include.trainerProfile = Object.keys(profileWhere).length
-            ? { where: profileWhere }
-            : true;
-    } else if (role === "GYM") {
-        if (goals.length) profileWhere.amenities = { hasSome: goals };
-        if (minBudget) profileWhere.fee = { gte: Number(minBudget) };
-        if (maxBudget) {
-            profileWhere.fee = {
-                ...profileWhere.fee,
-                lte: Number(maxBudget),
-            };
-        }
-        include.gymProfile = Object.keys(profileWhere).length
-            ? { where: profileWhere }
-            : true;
+        viewerCity = p?.city || (me?.location ?? null);
     }
 
-    const users = await db.user.findMany({
-        where: filters,
-        include,
+    // text filter
+    const baseName: any = q
+        ? {
+            OR: [
+                { username: { contains: q, mode: "insensitive" } },
+                { name: { contains: q, mode: "insensitive" } },
+            ],
+        }
+        : {};
+
+    // role blocks (+ goals/services + budget)
+    const roleBlocks = roles.map((r) => {
+        const block: any = { role: r };
+        if (goals.length) {
+            if (r === "TRAINEE") block.traineeProfile = { goals: { hasSome: goals } };
+            if (r === "TRAINER")
+                block.trainerProfile = { ...(block.trainerProfile || {}), services: { hasSome: goals } };
+        }
+        if (Number.isFinite(minBudget) || Number.isFinite(maxBudget)) {
+            if (r === "TRAINER") {
+                block.trainerProfile = {
+                    ...(block.trainerProfile || {}),
+                    hourlyRate: {
+                        gte: Number.isFinite(minBudget) ? minBudget : undefined,
+                        lte: Number.isFinite(maxBudget) ? maxBudget : undefined,
+                    },
+                };
+            }
+            if (r === "GYM") {
+                block.gymProfile = {
+                    ...(block.gymProfile || {}),
+                    fee: {
+                        gte: Number.isFinite(minBudget) ? minBudget : undefined,
+                        lte: Number.isFinite(maxBudget) ? maxBudget : undefined,
+                    },
+                };
+            }
+        }
+        return block;
     });
 
-    // Optionally filter users by only those who have the relevant profile
-    const filtered = role
-        ? users.filter(user =>
-            (role === "TRAINEE" && user.traineeProfile) ||
-            (role === "TRAINER" && user.trainerProfile) ||
-            (role === "GYM" && user.gymProfile)
-        )
-        : users;
+    // PRIVACY: public OR (private AND followed by viewer with ACCEPTED)
+    const privacyWhere: any = viewerId
+        ? {
+            OR: [
+                { isPrivate: false },
+                {
+                    isPrivate: true,
+                    followers: { some: { followerId: viewerId, status: "ACCEPTED" } },
+                },
+            ],
+        }
+        : { isPrivate: false };
 
-    console.log("[API] Returning users after filters:", filtered.length);
+    // EXCLUDE SELF when signed in
+    const notSelf = viewerId ? { NOT: { id: viewerId } } : {};
 
-    return NextResponse.json(filtered);
+    const where: any = {
+        AND: [baseName, privacyWhere, notSelf],
+        ...(roleBlocks.length ? { OR: roleBlocks } : {}),
+    };
+
+    const raw = await db.user.findMany({
+        where,
+        take: 500,
+        orderBy: { username: "asc" },
+        select: {
+            id: true,
+            username: true,
+            name: true,
+            image: true,
+            role: true,
+            isPrivate: true,
+            location: true,
+            bio: true, // <-- NEW: include user bio
+            traineeProfile: {
+                select: { goals: true, city: true, state: true, country: true, lat: true, lng: true },
+            },
+            trainerProfile: {
+                select: {
+                    services: true,
+                    hourlyRate: true,
+                    rating: true,
+                    clients: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                },
+            },
+            gymProfile: {
+                select: {
+                    fee: true,
+                    amenities: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                },
+            },
+        },
+    });
+
+    const haveViewerPoint = viewerLat != null && viewerLng != null;
+
+    const processed = raw
+        .map((u) => {
+            const p = u.traineeProfile || u.trainerProfile || u.gymProfile || ({} as any);
+            const lat: number | undefined = p.lat ?? undefined;
+            const lng: number | undefined = p.lng ?? undefined;
+
+            let distance: number | null = null;
+            if (haveViewerPoint && lat != null && lng != null) {
+                distance = haversineKm({ lat: viewerLat!, lng: viewerLng! }, { lat, lng });
+            }
+
+            const price =
+                u.role === "TRAINER"
+                    ? u.trainerProfile?.hourlyRate ?? null
+                    : u.role === "GYM"
+                        ? u.gymProfile?.fee ?? null
+                        : null;
+
+            const city = p.city || null;
+            const state = p.state || null;
+            const country = p.country || null;
+
+            return {
+                id: u.id,
+                username: u.username,
+                name: u.name,
+                image: u.image,
+                role: u.role,
+                isPrivate: u.isPrivate,
+                location: u.location,
+                price,
+                city,
+                state,
+                country,
+                goals: u.traineeProfile?.goals ?? null,
+                services: u.trainerProfile?.services ?? null,
+                rating: u.trainerProfile?.rating ?? null,
+                clients: u.trainerProfile?.clients ?? null,
+                amenities: u.gymProfile?.amenities ?? null,
+                distanceKm: distance,
+                about: u.bio ?? null, // <-- surface user bio as description
+            };
+        })
+        .filter((r) => {
+            if (distanceKm > 0) {
+                if (r.distanceKm != null) return r.distanceKm <= distanceKm;
+                if (viewerCity && r.city) return viewerCity.toLowerCase() === r.city.toLowerCase();
+                return false;
+            }
+            return true;
+        });
+
+    processed.sort((a, b) => {
+        if (a.distanceKm != null && b.distanceKm != null) return a.distanceKm - b.distanceKm;
+        if (a.distanceKm != null) return -1;
+        if (b.distanceKm != null) return 1;
+        const an = (a.username || a.name || "").toLowerCase();
+        const bn = (b.username || b.name || "").toLowerCase();
+        return an.localeCompare(bn);
+    });
+
+    const total = processed.length;
+    const start = (page - 1) * pageSize;
+    const pageItems = processed.slice(start, start + pageSize);
+
+    return NextResponse.json({
+        page,
+        pageSize,
+        total,
+        results: pageItems,
+        viewerHasCoords: haveViewerPoint,
+    });
 }

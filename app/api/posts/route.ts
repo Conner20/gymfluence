@@ -106,100 +106,130 @@ export async function POST(req: Request) {
 // - Public authors visible to everyone
 // - Private authors visible to followers
 // - Viewer always sees their own posts
-export async function GET(_req: Request) {
+export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
-    const userEmail = session?.user?.email ?? null;
+    const viewerEmail = session?.user?.email ?? null;
 
-    let currentUserId: string | null = null;
-    if (userEmail) {
+    let viewerId: string | null = null;
+    if (viewerEmail) {
         const me = await db.user.findUnique({
-            where: { email: userEmail },
+            where: { email: viewerEmail },
             select: { id: true },
         });
-        currentUserId = me?.id ?? null;
+        viewerId = me?.id ?? null;
     }
 
+    const { searchParams } = new URL(req.url);
+    const authorId = searchParams.get("authorId");
+
     try {
-        let followedIds: string[] = [];
-        if (currentUserId) {
-            const following = await db.follow.findMany({
-                where: { followerId: currentUserId, status: "ACCEPTED" },
-                select: { followingId: true },
+        // ---------- PROFILE FEED (authorId provided) ----------
+        if (authorId) {
+            // privacy gate
+            const author = await db.user.findUnique({
+                where: { id: authorId },
+                select: { id: true, isPrivate: true },
             });
-            followedIds = following.map(f => f.followingId);
+            if (!author) return NextResponse.json([], { status: 200 });
+
+            if (author.isPrivate && viewerId !== author.id) {
+                const canSee = viewerId
+                    ? await db.follow.findFirst({
+                        where: {
+                            followerId: viewerId,
+                            followingId: author.id,
+                            status: "ACCEPTED",
+                        },
+                        select: { id: true },
+                    })
+                    : null;
+
+                if (!canSee) {
+                    // Hide posts from non-followers of private accounts
+                    return NextResponse.json([], { status: 200 });
+                }
+            }
+
+            const posts = await db.post.findMany({
+                where: { authorId },
+                orderBy: { createdAt: "desc" },
+                include: {
+                    author: { select: { id: true, username: true, name: true } },
+                    likes: { select: { userId: true } },
+                    comments: {
+                        where: { parentId: null },
+                        select: { id: true },
+                    },
+                },
+                take: 60,
+            });
+
+            const formatted = posts.map((p) => ({
+                id: p.id,
+                title: p.title,
+                content: p.content,
+                imageUrl: p.imageUrl ?? null,
+                createdAt: p.createdAt,
+                author: p.author ? { id: p.author.id, username: p.author.username, name: p.author.name } : null,
+                likeCount: p.likes.length,
+                didLike: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
+                commentCount: p.comments.length, // (top-level only; replies loaded in PostComments)
+            }));
+
+            return NextResponse.json(formatted);
         }
 
-        const whereFilter = {
-            OR: [
-                { author: { isPrivate: false } },
-                ...(currentUserId ? [{ authorId: { in: followedIds } }] : []),
-                ...(currentUserId ? [{ authorId: currentUserId }] : []),
-            ],
-        };
+        // ---------- HOME FEED (no authorId) ----------
+        let followedIds: string[] = [];
+        if (viewerId) {
+            const following = await db.follow.findMany({
+                where: { followerId: viewerId, status: "ACCEPTED" },
+                select: { followingId: true },
+            });
+            followedIds = following.map((f) => f.followingId);
+        }
+
+        // IMPORTANT: no `as const` and use relation filter with `is: {...}`
+        const whereFilter =
+            viewerId
+                ? {
+                    OR: [
+                        { author: { is: { isPrivate: false } } },
+                        { authorId: { in: followedIds } },
+                        { authorId: viewerId },
+                    ],
+                }
+                : { author: { is: { isPrivate: false } } };
 
         const posts = await db.post.findMany({
             where: whereFilter,
             orderBy: { createdAt: "desc" },
             include: {
-                author: true,
-                likes: true,
+                author: { select: { id: true, username: true, name: true } },
+                likes: { select: { userId: true } },
                 comments: {
                     where: { parentId: null },
-                    orderBy: { createdAt: "asc" },
-                    include: {
-                        author: true,
-                        replies: {
-                            orderBy: { createdAt: "asc" },
-                            include: { author: true },
-                        },
-                    },
+                    select: { id: true },
                 },
             },
+            take: 60,
         });
 
-        const formatted = posts.map(post => ({
-            id: post.id,
-            title: post.title,
-            content: post.content,
-            imageUrl: post.imageUrl ?? null,
-            createdAt: post.createdAt,
-            author: {
-                id: post.author?.id ?? "",
-                username: post.author?.username ?? null,
-                name: post.author?.name ?? null,
-                image: post.author?.image ?? null,
-                isPrivate: !!post.author?.isPrivate,
-            },
-            likeCount: post.likes.length,
-            didLike: currentUserId
-                ? post.likes.some(like => like.userId === currentUserId)
-                : false,
-            commentCount:
-                post.comments.length +
-                post.comments.reduce((sum, c) => sum + (c.replies?.length ?? 0), 0),
-            comments: post.comments.map(comment => ({
-                id: comment.id,
-                content: comment.content,
-                createdAt: comment.createdAt,
-                author: {
-                    username: comment.author?.username ?? null,
-                    email: comment.author?.email ?? null,
-                },
-                replies: comment.replies.map(reply => ({
-                    id: reply.id,
-                    content: reply.content,
-                    createdAt: reply.createdAt,
-                    author: {
-                        username: reply.author?.username ?? null,
-                        email: reply.author?.email ?? null,
-                    },
-                })),
-            })),
+        const formatted = posts.map((p) => ({
+            id: p.id,
+            title: p.title,
+            content: p.content,
+            imageUrl: p.imageUrl ?? null,
+            createdAt: p.createdAt,
+            author: p.author ? { id: p.author.id, username: p.author.username, name: p.author.name } : null,
+            likeCount: p.likes.length,
+            didLike: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
+            commentCount: p.comments.length,
         }));
 
         return NextResponse.json(formatted);
-    } catch (error) {
-        console.error("GET /api/posts error:", error);
+    } catch (e) {
+        console.error("GET /api/posts error:", e);
         return NextResponse.json({ message: "Failed to fetch posts." }, { status: 500 });
     }
 }
