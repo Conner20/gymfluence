@@ -1,10 +1,11 @@
-// app/settings/page.tsx
+// app/(main)/settings/page.tsx
 'use client';
 
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import PrivacyToggle from "./privacy-toggle";
 import Navbar from "@/components/Navbar";
+import SearchProfileEditor from "@/components/SearchProfileEditor";
 
 export default function SettingsPage() {
     const { data: session, status } = useSession();
@@ -105,7 +106,9 @@ export default function SettingsPage() {
                 </h1>
             </header>
 
-            <main className="max-w-3xl mx-auto p-6">
+            {/* note the space-y-6 and wrapping SearchProfileEditor in its own white card */}
+            <main className="max-w-3xl mx-auto p-6 space-y-6">
+                {/* Profile + Privacy card */}
                 <div className="bg-white rounded-xl shadow p-6 space-y-6">
                     <section>
                         <h2 className="font-semibold mb-4">Profile</h2>
@@ -195,7 +198,13 @@ export default function SettingsPage() {
                         <PrivacyToggle />
                     </section>
                 </div>
+
+                {/* Search Profile card (this was missing a white container) */}
+                <div className="bg-white rounded-xl shadow p-6 space-y-6">
+                    <SearchProfileEditor />
+                </div>
             </main>
+
             <Navbar />
         </div>
     );

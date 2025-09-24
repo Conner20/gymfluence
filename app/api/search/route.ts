@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
-
-// helpers (same as before)
-const toNum = (v: string | null, d: number) => {
-    if (v === null || v === "") return d;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : d;
-};
+import path from "node:path";
+import fs from "node:fs/promises";
 
 type Role = "TRAINEE" | "TRAINER" | "GYM";
+
+const toNum = (v: string | null) => {
+    if (v == null || v.trim() === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+};
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
     const R = 6371;
@@ -25,24 +26,45 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
     return R * c;
 }
 
+// NEW: read gallery images from /public/uploads/search-gallery/:userId
+async function readSearchGallery(userId: string): Promise<string[]> {
+    const dir = path.join(process.cwd(), "public", "uploads", "search-gallery", userId);
+    try {
+        const entries = await fs.readdir(dir);
+        return entries
+            .filter((f) => !f.startsWith("."))
+            .sort()
+            .reverse()
+            .slice(0, 18)
+            .map((f) => `/uploads/search-gallery/${userId}/${f}`);
+    } catch {
+        return [];
+    }
+}
+
 export async function GET(req: Request) {
     const url = new URL(req.url);
-    const q = url.searchParams.get("q")?.trim() ?? "";
-    const roleParam = (url.searchParams.get("role") || "ALL").toUpperCase();
-    const roles: Role[] =
-        roleParam === "ALL" ? ["TRAINEE", "TRAINER", "GYM"] : ([(roleParam as Role)] as Role[]);
 
-    const minBudget = toNum(url.searchParams.get("minBudget"), 0);
-    const maxBudget = toNum(url.searchParams.get("maxBudget"), Number.POSITIVE_INFINITY);
-    const distanceKm = toNum(url.searchParams.get("distanceKm"), 0);
+    const q = url.searchParams.get("q")?.trim() ?? "";
+    const roleParam = (url.searchParams.get("role") || "ALL").toUpperCase() as "ALL" | Role;
+
+    // IMPORTANT: only treat as active if the param exists and is non-empty
+    const hasMin = url.searchParams.has("minBudget") && url.searchParams.get("minBudget")!.trim() !== "";
+    const hasMax = url.searchParams.has("maxBudget") && url.searchParams.get("maxBudget")!.trim() !== "";
+    const minBudget = hasMin ? toNum(url.searchParams.get("minBudget")) : null;
+    const maxBudget = hasMax ? toNum(url.searchParams.get("maxBudget")) : null;
+
+    const distanceKm = toNum(url.searchParams.get("distanceKm")) ?? 0;
+
     const goalsParam = url.searchParams.get("goals") || "";
     const goals = goalsParam.split(",").map((s) => s.trim()).filter(Boolean);
 
-    const page = Math.max(1, toNum(url.searchParams.get("page"), 1));
-    const pageSize = Math.min(Math.max(5, toNum(url.searchParams.get("pageSize"), 10)), 200);
+    const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+    const pageSize = Math.min(Math.max(5, Number(url.searchParams.get("pageSize") || 50)), 1000);
 
     const session = await getServerSession(authOptions);
 
+    // viewer id (hide self + apply private-follow rule)
     let viewerId: string | null = null;
     if (session?.user?.email) {
         const me = await db.user.findUnique({
@@ -55,16 +77,14 @@ export async function GET(req: Request) {
     // viewer coords (optional)
     let viewerLat: number | null = null;
     let viewerLng: number | null = null;
-    let viewerCity: string | null = null;
 
     if (viewerId) {
         const me = await db.user.findUnique({
             where: { id: viewerId },
             select: {
-                location: true,
-                traineeProfile: { select: { lat: true, lng: true, city: true } },
-                trainerProfile: { select: { lat: true, lng: true, city: true } },
-                gymProfile: { select: { lat: true, lng: true, city: true } },
+                traineeProfile: { select: { lat: true, lng: true } },
+                trainerProfile: { select: { lat: true, lng: true } },
+                gymProfile: { select: { lat: true, lng: true } },
             },
         });
         const p = me?.traineeProfile || me?.trainerProfile || me?.gymProfile || null;
@@ -72,74 +92,91 @@ export async function GET(req: Request) {
             viewerLat = p.lat;
             viewerLng = p.lng;
         }
-        viewerCity = p?.city || (me?.location ?? null);
     }
 
-    // text filter
-    const baseName: any = q
-        ? {
+    // ----- build Prisma where -----
+    const AND: any[] = [];
+
+    // name / username contains
+    if (q) {
+        AND.push({
             OR: [
                 { username: { contains: q, mode: "insensitive" } },
                 { name: { contains: q, mode: "insensitive" } },
             ],
-        }
-        : {};
+        });
+    }
 
-    // role blocks (+ goals/services + budget)
-    const roleBlocks = roles.map((r) => {
-        const block: any = { role: r };
-        if (goals.length) {
-            if (r === "TRAINEE") block.traineeProfile = { goals: { hasSome: goals } };
-            if (r === "TRAINER")
-                block.trainerProfile = { ...(block.trainerProfile || {}), services: { hasSome: goals } };
-        }
-        if (Number.isFinite(minBudget) || Number.isFinite(maxBudget)) {
-            if (r === "TRAINER") {
-                block.trainerProfile = {
-                    ...(block.trainerProfile || {}),
-                    hourlyRate: {
-                        gte: Number.isFinite(minBudget) ? minBudget : undefined,
-                        lte: Number.isFinite(maxBudget) ? maxBudget : undefined,
+    // privacy: allow public, or private only if follower (accepted)
+    AND.push(
+        viewerId
+            ? {
+                OR: [
+                    { isPrivate: false },
+                    {
+                        isPrivate: true,
+                        followers: { some: { followerId: viewerId, status: "ACCEPTED" } },
                     },
-                };
+                ],
             }
-            if (r === "GYM") {
-                block.gymProfile = {
-                    ...(block.gymProfile || {}),
-                    fee: {
-                        gte: Number.isFinite(minBudget) ? minBudget : undefined,
-                        lte: Number.isFinite(maxBudget) ? maxBudget : undefined,
-                    },
-                };
-            }
+            : { isPrivate: false }
+    );
+
+    // exclude myself
+    if (viewerId) AND.push({ NOT: { id: viewerId } });
+
+    // explicit role filter (only when role is not ALL)
+    if (roleParam !== "ALL") {
+        AND.push({ role: roleParam });
+    }
+
+    // goal filters (map to the right profile field per role)
+    if (goals.length) {
+        if (roleParam === "TRAINEE") {
+            AND.push({ traineeProfile: { goals: { hasSome: goals } } });
+        } else if (roleParam === "TRAINER") {
+            AND.push({ trainerProfile: { services: { hasSome: goals } } });
+        } else {
+            // ALL: allow either trainee goals or trainer services to match
+            AND.push({
+                OR: [
+                    { role: "TRAINEE", traineeProfile: { goals: { hasSome: goals } } },
+                    { role: "TRAINER", trainerProfile: { services: { hasSome: goals } } },
+                ],
+            });
         }
-        return block;
-    });
+    }
 
-    // PRIVACY: public OR (private AND followed by viewer with ACCEPTED)
-    const privacyWhere: any = viewerId
-        ? {
-            OR: [
-                { isPrivate: false },
-                {
-                    isPrivate: true,
-                    followers: { some: { followerId: viewerId, status: "ACCEPTED" } },
-                },
-            ],
+    // budget filters — ONLY if user actually set min or max
+    if (hasMin || hasMax) {
+        const priceCond = {
+            gte: hasMin ? minBudget! : undefined,
+            lte: hasMax ? maxBudget! : undefined,
+        };
+
+        if (roleParam === "TRAINER") {
+            AND.push({ trainerProfile: { hourlyRate: priceCond } });
+        } else if (roleParam === "GYM") {
+            AND.push({ gymProfile: { fee: priceCond } });
+        } else {
+            // ALL: price can apply to trainer or gym
+            AND.push({
+                OR: [
+                    { role: "TRAINER", trainerProfile: { hourlyRate: priceCond } },
+                    { role: "GYM", gymProfile: { fee: priceCond } },
+                ],
+            });
         }
-        : { isPrivate: false };
+    }
 
-    // EXCLUDE SELF when signed in
-    const notSelf = viewerId ? { NOT: { id: viewerId } } : {};
+    const where: any = AND.length ? { AND } : {};
+    // NOTE: We DO NOT add any role OR when role=ALL.
+    // That keeps users with role=null included (so you truly see everyone you’re allowed to).
 
-    const where: any = {
-        AND: [baseName, privacyWhere, notSelf],
-        ...(roleBlocks.length ? { OR: roleBlocks } : {}),
-    };
-
+    // ----- query -----
     const raw = await db.user.findMany({
         where,
-        take: 500,
+        take: 3000,
         orderBy: { username: "asc" },
         select: {
             id: true,
@@ -149,7 +186,7 @@ export async function GET(req: Request) {
             role: true,
             isPrivate: true,
             location: true,
-            bio: true, // <-- NEW: include user bio
+            bio: true,
             traineeProfile: {
                 select: { goals: true, city: true, state: true, country: true, lat: true, lng: true },
             },
@@ -182,8 +219,9 @@ export async function GET(req: Request) {
 
     const haveViewerPoint = viewerLat != null && viewerLng != null;
 
-    const processed = raw
-        .map((u) => {
+    // Build result objects (including gallery) asynchronously
+    const processed = await Promise.all(
+        raw.map(async (u) => {
             const p = u.traineeProfile || u.trainerProfile || u.gymProfile || ({} as any);
             const lat: number | undefined = p.lat ?? undefined;
             const lng: number | undefined = p.lng ?? undefined;
@@ -200,10 +238,6 @@ export async function GET(req: Request) {
                         ? u.gymProfile?.fee ?? null
                         : null;
 
-            const city = p.city || null;
-            const state = p.state || null;
-            const country = p.country || null;
-
             return {
                 id: u.id,
                 username: u.username,
@@ -213,28 +247,33 @@ export async function GET(req: Request) {
                 isPrivate: u.isPrivate,
                 location: u.location,
                 price,
-                city,
-                state,
-                country,
+                city: p.city || null,
+                state: p.state || null,
+                country: p.country || null,
                 goals: u.traineeProfile?.goals ?? null,
                 services: u.trainerProfile?.services ?? null,
                 rating: u.trainerProfile?.rating ?? null,
                 clients: u.trainerProfile?.clients ?? null,
                 amenities: u.gymProfile?.amenities ?? null,
                 distanceKm: distance,
-                about: u.bio ?? null, // <-- surface user bio as description
+                about: u.bio ?? null,
+                // NEW
+                gallery: await readSearchGallery(u.id),
             };
         })
-        .filter((r) => {
-            if (distanceKm > 0) {
-                if (r.distanceKm != null) return r.distanceKm <= distanceKm;
-                if (viewerCity && r.city) return viewerCity.toLowerCase() === r.city.toLowerCase();
-                return false;
-            }
-            return true;
-        });
+    );
 
-    processed.sort((a, b) => {
+    // distance filter (client provided)
+    const filtered = processed.filter((r) => {
+        if (distanceKm && distanceKm > 0) {
+            if (r.distanceKm != null) return r.distanceKm <= distanceKm;
+            return false;
+        }
+        return true;
+    });
+
+    // sort by distance if present, otherwise alphabetically
+    filtered.sort((a, b) => {
         if (a.distanceKm != null && b.distanceKm != null) return a.distanceKm - b.distanceKm;
         if (a.distanceKm != null) return -1;
         if (b.distanceKm != null) return 1;
@@ -243,9 +282,9 @@ export async function GET(req: Request) {
         return an.localeCompare(bn);
     });
 
-    const total = processed.length;
+    const total = filtered.length;
     const start = (page - 1) * pageSize;
-    const pageItems = processed.slice(start, start + pageSize);
+    const pageItems = filtered.slice(start, start + pageSize);
 
     return NextResponse.json({
         page,

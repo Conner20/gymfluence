@@ -1,494 +1,585 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-    MapPin,
-    MessageSquare,
-    Search,
-    Share2,
-    X,
-    ChevronDown,
-    Home,
-    DollarSign,
-    Target,
-    UserCircle2,
-} from "lucide-react";
-import clsx from "clsx";
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2 } from 'lucide-react';
+import clsx from 'clsx';
 import Navbar from "@/components/Navbar";
 
-type Role = "ALL" | "TRAINEE" | "TRAINER" | "GYM";
+type Role = 'TRAINEE' | 'TRAINER' | 'GYM';
 
-type ResultItem = {
+type SearchUser = {
     id: string;
     username: string | null;
     name: string | null;
     image: string | null;
-    role: "TRAINEE" | "TRAINER" | "GYM";
+    role: Role | null;
     isPrivate: boolean;
     location: string | null;
-    price: number | null; // trainer hourlyRate / gym fee
+
     city: string | null;
     state: string | null;
     country: string | null;
-    goals?: string[] | null;
-    services?: string[] | null;
-    rating?: number | null;
-    clients?: number | null;
-    amenities?: string[] | null;
     distanceKm: number | null;
+
+    price: number | null;
+
+    goals: string[] | null;
+    services: string[] | null;
+    amenities: string[] | null;
+    rating: number | null;
+    clients: number | null;
+
+    about?: string | null;
+    gallery?: string[];
 };
 
-const GOAL_OPTIONS = [
-    "weight loss",
-    "build strength",
-    "improve endurance",
-    "flexibility & mobility",
-    "sport performance",
-    "injury recovery",
-];
-
-const DISTANCE_OPTIONS = [
-    { label: "any distance", km: 0 },
-    { label: "5 mi", km: 8 },
-    { label: "10 mi", km: 16 },
-    { label: "25 mi", km: 40 },
-    { label: "50 mi", km: 80 },
-    { label: "100 mi", km: 160 },
-];
-
-const PAGE_SIZE = 10;
+type ApiResponse = {
+    page: number;
+    pageSize: number;
+    total: number;
+    results: SearchUser[];
+    viewerHasCoords: boolean;
+};
 
 export default function SearchPage() {
     const router = useRouter();
 
-    // --------- Filters ----------
-    const [q, setQ] = useState("");
-    const [role, setRole] = useState<Role>("ALL");
-    const [distanceKm, setDistanceKm] = useState<number>(0);
-    const [minBudget, setMinBudget] = useState<string>("");
-    const [maxBudget, setMaxBudget] = useState<string>("");
+    // ------- filters -------
+    const [q, setQ] = useState('');
+    const [role, setRole] = useState<'ALL' | Role>('ALL');
+    const [minBudget, setMinBudget] = useState('');
+    const [maxBudget, setMaxBudget] = useState('');
+    const [distanceKm, setDistanceKm] = useState('');
     const [goals, setGoals] = useState<string[]>([]);
 
-    const [page, setPage] = useState(1);
-
-    // --------- Data ----------
+    // data
     const [loading, setLoading] = useState(false);
-    const [results, setResults] = useState<ResultItem[]>([]);
-    const [total, setTotal] = useState(0);
-    const [viewerHasCoords, setViewerHasCoords] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+    const [data, setData] = useState<ApiResponse | null>(null);
 
-    const [selected, setSelected] = useState<ResultItem | null>(null);
-    const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
+    // selection for details panel
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const selected = useMemo(
+        () => data?.results.find((u) => u.id === selectedId) ?? null,
+        [data, selectedId]
+    );
 
-    // Debounced fetch
-    useEffect(() => {
-        const controller = new AbortController();
+    const fetchResults = async () => {
         setLoading(true);
+        setError(null);
+        try {
+            const params = new URLSearchParams();
+            if (q.trim()) params.set('q', q.trim());
+            if (role !== 'ALL') params.set('role', role);
+            if (minBudget) params.set('minBudget', minBudget);
+            if (maxBudget) params.set('maxBudget', maxBudget);
+            if (distanceKm) params.set('distanceKm', distanceKm);
+            if (goals.length) params.set('goals', goals.join(','));
+            params.set('page', '1');
+            params.set('pageSize', '1000');
 
-        const params = new URLSearchParams();
-        if (q.trim()) params.set("q", q.trim());
-        if (role !== "ALL") params.set("role", role);
-        if (distanceKm > 0) params.set("distanceKm", String(distanceKm));
-        if (minBudget.trim()) params.set("minBudget", String(Number(minBudget) || 0));
-        if (maxBudget.trim()) params.set("maxBudget", String(Number(maxBudget) || Number.POSITIVE_INFINITY));
-        if (goals.length) params.set("goals", goals.join(","));
-        params.set("page", String(page));
-        params.set("pageSize", String(PAGE_SIZE));
+            const res = await fetch(`/api/search?${params.toString()}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error();
+            const json: ApiResponse = await res.json();
+            setData(json);
 
-        const t = setTimeout(async () => {
-            try {
-                const res = await fetch(`/api/search?${params.toString()}`, {
-                    cache: "no-store",
-                    signal: controller.signal,
-                });
-                if (!res.ok) throw new Error();
-                const data = await res.json();
-                setResults(data.results || []);
-                setTotal(data.total || 0);
-                setViewerHasCoords(!!data.viewerHasCoords);
-                // keep selection in view if still present
-                if (selected) {
-                    const still = (data.results || []).find((r: ResultItem) => r.id === selected.id);
-                    setSelected(still || null);
-                }
-            } catch {
-                /* ignore */
-            } finally {
-                setLoading(false);
-            }
-        }, 250);
-
-        return () => {
-            controller.abort();
-            clearTimeout(t);
-        };
-    }, [q, role, distanceKm, minBudget, maxBudget, goals, page]);
-
-    // Reset to page 1 when filters change (except page itself)
-    useEffect(() => {
-        setPage(1);
-    }, [q, role, distanceKm, minBudget, maxBudget, goals]);
-
-    const resetAll = () => {
-        setQ("");
-        setRole("ALL");
-        setDistanceKm(0);
-        setMinBudget("");
-        setMaxBudget("");
-        setGoals([]);
-        setPage(1);
+            setSelectedId((prev) => (prev && json.results.some((r) => r.id === prev) ? prev : json.results[0]?.id ?? null));
+        } catch {
+            setError('Failed to load results.');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const roleLabel = (r: ResultItem["role"]) =>
-        r === "TRAINEE" ? "personal trainee" : r === "TRAINER" ? "personal trainer" : "gym";
+    useEffect(() => {
+        fetchResults();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    // ---------- UI ----------
+    useEffect(() => {
+        const t = setTimeout(fetchResults, 250);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [q, role, minBudget, maxBudget, distanceKm, goals]);
+
+    const resetFilters = () => {
+        setQ('');
+        setRole('ALL');
+        setMinBudget('');
+        setMaxBudget('');
+        setDistanceKm('');
+        setGoals([]);
+    };
+
+    const toggleGoal = (g: string) =>
+        setGoals((old) => (old.includes(g) ? old.filter((x) => x !== g) : [...old, g]));
+
+    const allGoals = [
+        'weight loss',
+        'build strength',
+        'improve endurance',
+        'flexibility & mobility',
+        'sport performance',
+        'injury recovery',
+    ];
+
+    // actions
+    const handleMessage = (u: SearchUser) => {
+        const to = u.username || u.id;
+        router.push(`/messages?to=${encodeURIComponent(to)}`);
+    };
+
+    const handleShareProfile = (u: SearchUser) => {
+        const pretty = u.username || u.id;
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const profileUrl = `${origin}/u/${pretty}`;
+        router.push(
+            `/messages?shareType=profile&shareUrl=${encodeURIComponent(profileUrl)}&shareLabel=${encodeURIComponent(u.username || u.name || 'User')}&shareUserId=${encodeURIComponent(u.id)}`
+        );
+    };
+
     return (
-        <div className="min-h-screen bg-[#f8f8f8] px-6 pb-8">
-            {/* Top bar */}
-            <header className="sticky top-0 z-10 bg-[#f8f8f8] pt-6 pb-4">
-                <div className="max-w-[1180px] mx-auto flex items-center gap-3">
-                    <div className="text-3xl text-green-700 font-medium mr-2">search</div>
+        <div className="min-h-screen bg-[#f8f8f8]">
+            {/* Messenger-style header with title at left + controls to the right */}
+            <header className="sticky top-0 z-20 w-full bg-white border-b">
+                <div className="mx-auto max-w-[1400px] w-full flex items-center gap-4 py-6 pl-[40px] pr-4">
+                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+                        <span>search</span>
+                    </h1>
 
-                    {/* Search input */}
-                    <div className="relative flex-1">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            className="w-full pl-9 pr-3 h-10 rounded-full border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
-                            placeholder="Search by name or username…"
-                            value={q}
-                            onChange={(e) => setQ(e.target.value)}
+                    <div className="flex items-center gap-3 flex-1 justify-end">
+                        <div className="flex items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2">
+                            <SearchIcon size={18} className="text-gray-500" />
+                            <input
+                                value={q}
+                                onChange={(e) => setQ(e.target.value)}
+                                className="flex-1 outline-none text-sm"
+                                placeholder="Search by name or @username…"
+                            />
+                        </div>
+
+                        <Chip
+                            label="Distance"
+                            value={distanceKm ? `${distanceKm} km` : 'Any'}
+                            menu={
+                                <div className="grid grid-cols-2 gap-2 p-2">
+                                    {['', '5', '10', '25', '50', '100'].map((d) => (
+                                        <button
+                                            key={d || 'any'}
+                                            onClick={() => setDistanceKm(d)}
+                                            className={clsx(
+                                                'px-2 py-1 rounded border text-sm',
+                                                (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
+                                            )}
+                                        >
+                                            {d ? `${d} km` : 'Any'}
+                                        </button>
+                                    ))}
+                                </div>
+                            }
                         />
-                    </div>
 
-                    {/* Distance */}
-                    <FilterPill icon={<MapPin size={16} />} label="distance">
-                        <div className="p-2 w-40">
-                            {DISTANCE_OPTIONS.map((opt) => (
-                                <button
-                                    key={opt.km}
-                                    className={clsx(
-                                        "w-full text-left text-sm px-2 py-1 rounded hover:bg-gray-100",
-                                        distanceKm === opt.km && "bg-gray-100"
-                                    )}
-                                    onClick={() => setDistanceKm(opt.km)}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
-                    </FilterPill>
+                        <Chip
+                            label="Entity"
+                            value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                            menu={
+                                <div className="grid grid-cols-2 gap-2 p-2">
+                                    {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
+                                        <button
+                                            key={r}
+                                            onClick={() => setRole(r)}
+                                            className={clsx(
+                                                'px-2 py-1 rounded border text-sm',
+                                                role === r ? 'bg-gray-900 text-white' : 'bg-white'
+                                            )}
+                                        >
+                                            {r.toLowerCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            }
+                        />
 
-                    {/* Entity */}
-                    <FilterPill icon={<UserCircle2 size={16} />} label="entity">
-                        <div className="p-2 w-40">
-                            {(["ALL", "TRAINEE", "TRAINER", "GYM"] as Role[]).map((r) => (
-                                <button
-                                    key={r}
-                                    className={clsx(
-                                        "w-full text-left text-sm px-2 py-1 rounded hover:bg-gray-100",
-                                        role === r && "bg-gray-100"
-                                    )}
-                                    onClick={() => setRole(r)}
-                                >
-                                    {r === "ALL" ? "all" : r.toLowerCase()}
-                                </button>
-                            ))}
-                        </div>
-                    </FilterPill>
-
-                    {/* Budget */}
-                    <FilterPill icon={<DollarSign size={16} />} label="budget">
-                        <div className="p-3 w-64">
-                            <div className="text-xs text-gray-500 mb-1">trainer hourly / gym monthly</div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    className="w-24 border rounded px-2 py-1 text-sm"
-                                    placeholder="min"
-                                    inputMode="numeric"
-                                    value={minBudget}
-                                    onChange={(e) => setMinBudget(e.target.value)}
-                                />
-                                <span className="text-gray-400">—</span>
-                                <input
-                                    className="w-24 border rounded px-2 py-1 text-sm"
-                                    placeholder="max"
-                                    inputMode="numeric"
-                                    value={maxBudget}
-                                    onChange={(e) => setMaxBudget(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                    </FilterPill>
-
-                    {/* Goals / Services */}
-                    <FilterPill icon={<Target size={16} />} label="goals">
-                        <div className="p-2 w-64 max-h-64 overflow-y-auto">
-                            {GOAL_OPTIONS.map((g) => {
-                                const checked = goals.includes(g);
-                                return (
-                                    <label key={g} className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer">
+                        <Chip
+                            label="Budget"
+                            value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                            menu={
+                                <div className="p-3 w-72">
+                                    <div className="text-xs text-gray-500 mb-2">
+                                        Trainers: hourly • Gyms: monthly fee
+                                    </div>
+                                    <div className="flex items-center gap-2">
                                         <input
-                                            type="checkbox"
-                                            checked={checked}
-                                            onChange={(e) =>
-                                                setGoals((prev) =>
-                                                    e.target.checked ? [...prev, g] : prev.filter((x) => x !== g)
-                                                )
-                                            }
+                                            type="number"
+                                            min={0}
+                                            className="w-28 border rounded px-2 py-1 text-sm"
+                                            placeholder="min"
+                                            value={minBudget}
+                                            onChange={(e) => setMinBudget(e.target.value)}
                                         />
-                                        <span>{g}</span>
-                                    </label>
-                                );
-                            })}
-                        </div>
-                    </FilterPill>
+                                        <span className="text-gray-400">—</span>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="w-28 border rounded px-2 py-1 text-sm"
+                                            placeholder="max"
+                                            value={maxBudget}
+                                            onChange={(e) => setMaxBudget(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="mt-3 flex justify-end">
+                                        <button
+                                            onClick={() => {
+                                                setMinBudget('');
+                                                setMaxBudget('');
+                                            }}
+                                            className="text-xs text-gray-600 underline"
+                                        >
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        />
 
-                    {/* Reset */}
-                    <button
-                        onClick={resetAll}
-                        className="ml-1 text-sm px-3 h-10 rounded-full border bg-white hover:bg-gray-50"
-                        title="Reset all filters"
-                    >
-                        Reset
-                    </button>
-                </div>
+                        <Chip
+                            label="Goals"
+                            value={goals.length ? `${goals.length} selected` : 'Any'}
+                            menu={
+                                <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
+                                    {allGoals.map((g) => (
+                                        <label key={g} className="text-sm flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={goals.includes(g)}
+                                                onChange={() => toggleGoal(g)}
+                                            />
+                                            <span>{g}</span>
+                                        </label>
+                                    ))}
+                                    <div className="flex justify-end mt-1">
+                                        <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        />
 
-                {!viewerHasCoords && distanceKm > 0 && (
-                    <div className="max-w-[1180px] mx-auto mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                        Distance filter works best when your profile has a city (or coordinates). Add your city in
                         <button
-                            className="underline ml-1 hover:text-amber-900"
-                            onClick={() => router.push("/settings")}
+                            onClick={resetFilters}
+                            className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50"
+                            title="Reset filters"
                         >
-                            Settings → Profile
+                            Reset
                         </button>
-                        .
                     </div>
-                )}
+                </div>
             </header>
 
-            {/* Body */}
-            <div className="max-w-[1180px] mx-auto grid grid-cols-[380px,1fr] gap-6">
-                {/* Left: results list */}
-                <aside className="bg-white rounded-xl border shadow-sm overflow-hidden">
-                    {/* rows */}
-                    <div className="divide-y">
-                        {loading && results.length === 0 ? (
-                            <div className="p-4 text-sm text-gray-500">Searching…</div>
-                        ) : results.length === 0 ? (
-                            <div className="p-4 text-sm text-gray-400">No results.</div>
-                        ) : (
-                            results.map((r) => {
-                                const active = selected?.id === r.id;
-                                return (
-                                    <button
-                                        key={r.id}
-                                        className={clsx(
-                                            "w-full p-3 flex items-center gap-3 hover:bg-gray-50",
-                                            active && "bg-gray-100"
-                                        )}
-                                        onClick={() => setSelected(r)}
-                                    >
-                                        <Avatar url={r.image} name={r.username || r.name || "User"} />
-                                        <div className="min-w-0 text-left">
-                                            <div className="text-sm font-medium truncate">
-                                                {r.username || r.name || "User"}
-                                                {r.isPrivate && <span className="ml-1 text-[11px] text-gray-500">(private)</span>}
-                                            </div>
-                                            <div className="text-xs text-gray-500 truncate">
-                                                {roleLabel(r)} • {r.city || r.location || "—"}
-                                            </div>
-                                            {r.price != null && (
-                                                <div className="text-xs text-gray-600">
-                                                    {r.role === "TRAINER" ? `$${r.price}/hr` : `$${r.price}/mo`}
+            {/* SIDE-BY-SIDE LAYOUT */}
+            <div className="mx-auto max-w-[1400px] px-4 py-4">
+                <div className="flex gap-6">
+                    {/* LEFT: list */}
+                    <aside className="w-[380px] shrink-0">
+                        <div className="bg-white border rounded-xl overflow-hidden">
+                            <div className="h-[calc(100vh-190px)] overflow-y-auto divide-y">
+                                {loading ? (
+                                    <div className="p-4 text-sm text-gray-500">Loading…</div>
+                                ) : error ? (
+                                    <div className="p-4 text-sm text-red-500">{error}</div>
+                                ) : !data || data.results.length === 0 ? (
+                                    <div className="p-4 text-sm text-gray-500">No results</div>
+                                ) : (
+                                    data.results.map((u) => {
+                                        const slug = u.username || u.id;
+                                        const display = u.username || u.name || 'User';
+
+                                        return (
+                                            <button
+                                                key={u.id}
+                                                onClick={() => setSelectedId(u.id)}
+                                                className={clsx(
+                                                    'w-full text-left p-3 hover:bg-gray-50 flex items-start gap-3',
+                                                    selectedId === u.id && 'bg-gray-50'
+                                                )}
+                                                title={display}
+                                            >
+                                                {/* avatar */}
+                                                {u.image ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={u.image}
+                                                        alt={display}
+                                                        className="w-10 h-10 rounded-full object-cover border"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-semibold">
+                                                        {(u.username || u.name || 'U').slice(0, 2)}
+                                                    </div>
+                                                )}
+
+                                                {/* text */}
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="min-w-0 flex items-center gap-2">
+                                                            <Link
+                                                                href={`/u/${encodeURIComponent(slug)}`}
+                                                                className="truncate font-medium hover:underline"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                title={display}
+                                                            >
+                                                                {display}
+                                                            </Link>
+                                                            <span className="text-xs text-gray-500">
+                                                                {u.role?.toLowerCase()}
+                                                            </span>
+                                                        </div>
+
+                                                        {u.isPrivate && (
+                                                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border whitespace-nowrap">
+                                                                private
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                                        {u.about?.trim()
+                                                            ? u.about
+                                                            : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
+                                                    </div>
+
+                                                    <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2">
+                                                        {u.city && <span>{u.city}</span>}
+                                                        {u.country && <span>· {u.country}</span>}
+                                                        {u.distanceKm != null && <span>· {u.distanceKm.toFixed(0)} km</span>}
+                                                        {u.price != null && (
+                                                            <span>
+                                                                · {u.role === 'TRAINER' ? `$${u.price}/hr` : `$${u.price}/mo`}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                        {r.distanceKm != null && (
-                                            <div className="ml-auto text-xs text-gray-500">{Math.round(r.distanceKm)} km</div>
-                                        )}
-                                    </button>
-                                );
-                            })
-                        )}
-                    </div>
-
-                    {/* Paging */}
-                    <div className="border-t px-3 py-2 flex items-center justify-between">
-                        <button
-                            className="text-sm px-2 py-1 rounded border bg-white disabled:opacity-40"
-                            disabled={page <= 1}
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        >
-                            ‹ Prev
-                        </button>
-                        <div className="text-xs text-gray-500">
-                            Page {page} / {totalPages}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
-                        <button
-                            className="text-sm px-2 py-1 rounded border bg-white disabled:opacity-40"
-                            disabled={page >= totalPages}
-                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        >
-                            Next ›
-                        </button>
-                    </div>
-                </aside>
+                    </aside>
 
-                {/* Right: detail */}
-                <section className="bg-white rounded-xl border shadow-sm p-6 min-h-[520px]">
-                    {!selected ? (
-                        <div className="text-gray-400 text-sm">Select a result to see details.</div>
-                    ) : (
-                        <DetailCard r={selected} onMessage={() => router.push(`/messages?to=${encodeURIComponent(selected.username || selected.id)}`)} />
-                    )}
-                </section>
+                    {/* RIGHT: details */}
+                    <section className="flex-1 min-w-0">
+                        <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)]">
+                            {!selected ? (
+                                <div className="text-gray-500">Select a result to see details.</div>
+                            ) : (
+                                <UserDetails
+                                    u={selected}
+                                    onMessage={handleMessage}
+                                    onShare={handleShareProfile}
+                                />
+                            )}
+                        </div>
+                    </section>
+                </div>
             </div>
+
             <Navbar />
         </div>
     );
 }
 
-/* ----------------- Pieces ----------------- */
-
-function Avatar({ url, name }: { url: string | null; name: string }) {
-    if (url) {
-        // eslint-disable-next-line @next/next/no-img-element
-        return <img src={url} alt={name} className="w-10 h-10 rounded-full object-cover border" />;
-    }
-    return (
-        <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-medium text-gray-700">
-            {(name || "U").slice(0, 2).toUpperCase()}
-        </div>
-    );
-}
-
-function FilterPill({
-    icon,
-    label,
-    children,
+function UserDetails({
+    u,
+    onMessage,
+    onShare,
 }: {
-    icon: React.ReactNode;
-    label: string;
-    children: React.ReactNode;
+    u: SearchUser;
+    onMessage: (u: SearchUser) => void;
+    onShare: (u: SearchUser) => void;
 }) {
-    const [open, setOpen] = useState(false);
+    const slug = u.username || u.id;
+    const display = u.username || u.name || 'User';
+
     return (
-        <div className="relative">
-            <button
-                onClick={() => setOpen((v) => !v)}
-                className="h-10 px-3 rounded-full border bg-white text-sm flex items-center gap-1 hover:bg-gray-50"
-                title={label}
-            >
-                {icon}
-                <span className="capitalize">{label}</span>
-                <ChevronDown size={16} className="opacity-60" />
-            </button>
-            {open && (
-                <div
-                    className="absolute z-20 mt-2 bg-white border rounded-xl shadow-lg"
-                    onMouseLeave={() => setOpen(false)}
-                >
-                    {children}
+        <div className="max-w-[820px]">
+            {/* Header: name + actions on the RIGHT */}
+            <div className="flex items-start gap-4">
+                {u.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={u.image} alt="" className="w-16 h-16 rounded-full object-cover border" />
+                ) : (
+                    <div className="w-16 h-16 rounded-full bg-gray-200 border flex items-center justify-center text-sm font-semibold">
+                        {(u.username || u.name || 'U').slice(0, 2)}
+                    </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-2xl font-semibold min-w-0">
+                            <Link
+                                href={`/u/${encodeURIComponent(slug)}`}
+                                className="hover:underline truncate align-middle"
+                                title={display}
+                            >
+                                {display}
+                            </Link>
+                            <span className="ml-3 text-base text-gray-500 align-middle">{u.role?.toLowerCase()}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                title="Message"
+                                onClick={() => onMessage(u)}
+                            >
+                                <span className="inline-flex items-center gap-1">
+                                    <MessageSquare size={16} />
+                                    Message
+                                </span>
+                            </button>
+                            <button
+                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                title="Share profile"
+                                onClick={() => onShare(u)}
+                            >
+                                <span className="inline-flex items-center gap-1">
+                                    <Share2 size={16} />
+                                    Share
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="text-sm text-gray-600 mt-1">
+                        {u.city}
+                        {u.state ? `, ${u.state}` : ''} {u.country ? `• ${u.country}` : ''}
+                        {u.distanceKm != null ? ` • ${u.distanceKm.toFixed(0)} km away` : ''}
+                    </div>
+                    {u.price != null && (
+                        <div className="text-sm text-gray-700 mt-1">
+                            {u.role === 'TRAINER' ? `Rate: $${u.price}/hr` : u.role === 'GYM' ? `Fee: $${u.price}/mo` : null}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <hr className="my-5" />
+
+            <div>
+                <h3 className="font-semibold mb-2">About</h3>
+                <p className="text-gray-800 whitespace-pre-wrap">
+                    {u.about?.trim() || 'No description provided.'}
+                </p>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+                {u.role === 'TRAINEE' && u.goals && (
+                    <div>
+                        <div className="font-semibold mb-1">Goals</div>
+                        <TagList items={u.goals} />
+                    </div>
+                )}
+
+                {u.role === 'TRAINER' && (
+                    <>
+                        {u.services && (
+                            <div>
+                                <div className="font-semibold mb-1">Services</div>
+                                <TagList items={u.services} />
+                            </div>
+                        )}
+                        <div>
+                            <div className="font-semibold mb-1">Clients</div>
+                            <div className="text-gray-700">{u.clients ?? 0}</div>
+                        </div>
+                        <div>
+                            <div className="font-semibold mb-1">Rating</div>
+                            <div className="text-gray-700">{u.rating?.toFixed(1) ?? 'N/A'}</div>
+                        </div>
+                    </>
+                )}
+
+                {u.role === 'GYM' && u.amenities && (
+                    <div className="col-span-2">
+                        <div className="font-semibold mb-1">Amenities</div>
+                        <TagList items={u.amenities} />
+                    </div>
+                )}
+            </div>
+
+            {/* NEW: Photos section (from uploaded search gallery) */}
+            {u.gallery && u.gallery.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="font-semibold mb-2">Photos</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        {u.gallery.map((src) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                key={src}
+                                src={src}
+                                alt=""
+                                className="w-full h-32 object-cover rounded-lg border"
+                            />
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
     );
 }
 
-function DetailCard({
-    r,
-    onMessage,
-}: {
-    r: ResultItem;
-    onMessage: () => void;
-}) {
-    const title = r.username || r.name || "User";
-    const sub = `${r.city || r.location || "Unknown"}${r.role === "TRAINER" && r.price != null ? ` • $${r.price}/hr` : ""}${r.role === "GYM" && r.price != null ? ` • $${r.price}/mo` : ""
-        }`;
-
+function TagList({ items }: { items: string[] }) {
+    if (!items.length) return <div className="text-gray-600">—</div>;
     return (
-        <>
-            <div className="flex items-start gap-4">
-                <Avatar url={r.image} name={title} />
-                <div className="min-w-0">
-                    <div className="text-2xl font-semibold">{title}</div>
-                    <div className="text-sm text-gray-500">{sub}</div>
-                    <div className="text-sm text-gray-500">{r.role === "TRAINEE" ? "Personal Trainee" : r.role === "TRAINER" ? "Personal Trainer" : "Gym"}</div>
-                </div>
-                <div className="ml-auto flex items-center gap-2">
-                    <button
-                        className="px-2.5 py-1.5 rounded-full border bg-white hover:bg-gray-50"
-                        title="Message"
-                        onClick={onMessage}
-                    >
-                        <MessageSquare size={18} />
-                    </button>
-                    <button
-                        className="px-2.5 py-1.5 rounded-full border bg-white hover:bg-gray-50"
-                        title="Copy profile link"
-                        onClick={async () => {
-                            const slug = r.username || r.id;
-                            const url = `${window.location.origin}/u/${encodeURIComponent(slug)}`;
-                            try {
-                                await navigator.clipboard.writeText(url);
-                                alert("Profile link copied!");
-                            } catch {
-                                alert(url);
-                            }
-                        }}
-                    >
-                        <Share2 size={18} />
-                    </button>
-                </div>
-            </div>
-
-            <hr className="my-4" />
-
-            {/* About */}
-            <div className="mb-4">
-                <div className="font-medium mb-1">About {title}</div>
-                <div className="text-sm text-gray-700">
-                    {r.role === "TRAINER" && r.services?.length ? (
-                        <>
-                            <span className="text-gray-500">Services:</span> {r.services.join(" • ")}
-                            {r.rating != null && (
-                                <span className="ml-3 text-gray-500">Rating:</span>
-                            )}
-                            {r.rating != null && <span className="ml-1">{r.rating.toFixed(1)}</span>}
-                            {r.clients != null && (
-                                <>
-                                    <span className="ml-3 text-gray-500">Clients:</span>
-                                    <span className="ml-1">{r.clients}</span>
-                                </>
-                            )}
-                        </>
-                    ) : r.role === "TRAINEE" && r.goals?.length ? (
-                        <>
-                            <span className="text-gray-500">Goals:</span> {r.goals.join(" • ")}
-                        </>
-                    ) : r.role === "GYM" && r.amenities?.length ? (
-                        <>
-                            <span className="text-gray-500">Amenities:</span> {r.amenities.join(" • ")}
-                        </>
-                    ) : (
-                        <span className="text-gray-500">No additional details provided.</span>
-                    )}
-                </div>
-            </div>
-
-            {/* Location & distance */}
-            <div className="text-sm text-gray-600 flex items-center gap-2">
-                <MapPin size={16} className="opacity-70" />
-                <span>
-                    {r.city || r.location || "Unknown"}
-                    {r.state ? `, ${r.state}` : ""}
-                    {r.country ? `, ${r.country}` : ""}
+        <div className="flex flex-wrap gap-1">
+            {items.map((x) => (
+                <span key={x} className="px-2 py-0.5 rounded-full border text-xs bg-gray-50">
+                    {x}
                 </span>
-                {r.distanceKm != null && <span className="ml-2 text-gray-400">• ~{Math.round(r.distanceKm)} km away</span>}
-            </div>
-        </>
+            ))}
+        </div>
+    );
+}
+
+function Chip({
+    label,
+    value,
+    menu,
+}: {
+    label: string;
+    value: string | number;
+    menu: React.ReactNode;
+}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setOpen((v) => !v)}
+                className="flex items-center gap-1 px-3 py-2 rounded-full border bg-white hover:bg-gray-50 text-sm"
+            >
+                {label}
+                <span className="px-1 text-gray-500">•</span>
+                <span className="text-gray-700">{value}</span>
+                <ChevronDown size={16} className="ml-1 text-gray-500" />
+            </button>
+            {open && (
+                <div className="absolute right-0 mt-2 bg-white border rounded-xl shadow-lg">
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setOpen(false)}
+                            className="p-2 text-gray-500 hover:text-black"
+                            title="Close"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                    {menu}
+                </div>
+            )}
+        </div>
     );
 }
