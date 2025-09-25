@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2 } from 'lucide-react';
 import clsx from 'clsx';
 import Navbar from "@/components/Navbar";
+import { createPortal } from 'react-dom';
 
 type Role = 'TRAINEE' | 'TRAINER' | 'GYM';
 
@@ -65,6 +66,13 @@ export default function SearchPage() {
         () => data?.results.find((u) => u.id === selectedId) ?? null,
         [data, selectedId]
     );
+
+    // lightbox (image enlarge)
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+    // ensure portal only runs client-side
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
 
     const fetchResults = async () => {
         setLoading(true);
@@ -139,6 +147,16 @@ export default function SearchPage() {
             `/messages?shareType=profile&shareUrl=${encodeURIComponent(profileUrl)}&shareLabel=${encodeURIComponent(u.username || u.name || 'User')}&shareUserId=${encodeURIComponent(u.id)}`
         );
     };
+
+    // close lightbox on ESC
+    useEffect(() => {
+        if (!lightboxUrl) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setLightboxUrl(null);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [lightboxUrl]);
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
@@ -380,12 +398,46 @@ export default function SearchPage() {
                                     u={selected}
                                     onMessage={handleMessage}
                                     onShare={handleShareProfile}
+                                    onOpenImage={(url) => setLightboxUrl(url)}
                                 />
                             )}
                         </div>
                     </section>
                 </div>
             </div>
+
+            {/* LIGHTBOX MODAL — portal so it covers Navbar too */}
+            {mounted && lightboxUrl && createPortal(
+                <div
+                    className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center"
+                    onClick={() => setLightboxUrl(null)}
+                    aria-modal="true"
+                    role="dialog"
+                >
+                    <div
+                        className="bg-white p-6 rounded-xl shadow-lg relative max-w-[90vw] max-h-[90vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setLightboxUrl(null)}
+                            className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition"
+                            aria-label="Close"
+                            type="button"
+                            title="Close"
+                        >
+                            <X size={24} />
+                        </button>
+
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={lightboxUrl}
+                            alt="Preview"
+                            className="max-h-[80vh] max-w-[82vw] w-full h-auto object-contain rounded-md"
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
 
             <Navbar />
         </div>
@@ -396,10 +448,12 @@ function UserDetails({
     u,
     onMessage,
     onShare,
+    onOpenImage,
 }: {
     u: SearchUser;
     onMessage: (u: SearchUser) => void;
     onShare: (u: SearchUser) => void;
+    onOpenImage: (url: string) => void;
 }) {
     const slug = u.username || u.id;
     const display = u.username || u.name || 'User';
@@ -469,6 +523,7 @@ function UserDetails({
 
             <hr className="my-5" />
 
+            {/* About */}
             <div>
                 <h3 className="font-semibold mb-2">About</h3>
                 <p className="text-gray-800 whitespace-pre-wrap">
@@ -476,6 +531,32 @@ function UserDetails({
                 </p>
             </div>
 
+            {/* Photos (click to enlarge in modal) */}
+            {!!u.gallery?.length && (
+                <div className="mt-6">
+                    <h3 className="font-semibold mb-2">Photos</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        {u.gallery.map((url) => (
+                            <button
+                                key={url}
+                                type="button"
+                                className="group relative aspect-square overflow-hidden rounded-lg border bg-black"
+                                onClick={() => onOpenImage(url)}
+                                title="View photo"
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={url}
+                                    alt=""
+                                    className="w-full h-full object-cover transition-opacity group-hover:opacity-90"
+                                />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Other attributes */}
             <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
                 {u.role === 'TRAINEE' && u.goals && (
                     <div>
@@ -510,24 +591,6 @@ function UserDetails({
                     </div>
                 )}
             </div>
-
-            {/* NEW: Photos section (from uploaded search gallery) */}
-            {u.gallery && u.gallery.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="font-semibold mb-2">Photos</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                        {u.gallery.map((src) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                key={src}
-                                src={src}
-                                alt=""
-                                className="w-full h-32 object-cover rounded-lg border"
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
