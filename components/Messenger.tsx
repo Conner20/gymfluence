@@ -882,7 +882,7 @@ export default function Messenger() {
         <>
             <div
                 className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex"
-                style={{ height: '85vh' }}
+                style={{ height: '83vh' }}
             >
                 {/* Left column */}
                 <aside className="border-r w-[340px] flex-shrink-0 flex flex-col h-full">

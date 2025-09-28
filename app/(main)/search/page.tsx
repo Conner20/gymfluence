@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2 } from 'lucide-react';
+import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
 import clsx from 'clsx';
 import Navbar from "@/components/Navbar";
 import { createPortal } from 'react-dom';
@@ -29,6 +29,7 @@ type SearchUser = {
     goals: string[] | null;
     services: string[] | null;
     amenities: string[] | null;
+    amenitiesText?: string | null; // NEW: free-form amenities description
     rating: number | null;
     clients: number | null;
 
@@ -432,7 +433,7 @@ export default function SearchPage() {
                         <img
                             src={lightboxUrl}
                             alt="Preview"
-                            className="max-h-[80vh] max-w-[82vw] w-full h-auto object-contain rounded-md"
+                            className="max-h:[80vh] max-w-[82vw] w-full h-auto object-contain rounded-md"
                         />
                     </div>
                 </div>,
@@ -505,6 +506,20 @@ function UserDetails({
                                     Share
                                 </span>
                             </button>
+
+                            {/* NEW: Deep-link to the profile's rating modal */}
+                            {(u.role === 'TRAINER' || u.role === 'GYM') && (
+                                <Link
+                                    href={`/u/${encodeURIComponent(slug)}?rate=1`}
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                    title={`Rate this ${u.role.toLowerCase()}`}
+                                >
+                                    <span className="inline-flex items-center gap-1">
+                                        <Star size={16}/>
+                                        Rate
+                                    </span>
+                                </Link>
+                            )}
                         </div>
                     </div>
 
@@ -531,9 +546,49 @@ function UserDetails({
                 </p>
             </div>
 
-            {/* Photos (click to enlarge in modal) */}
+            {/* TRAINEE — Goals on its own line */}
+            {u.role === 'TRAINEE' && u.goals && (
+                <section className="mt-6">
+                    <h3 className="font-semibold mb-2">Goals</h3>
+                    <TagList items={u.goals} />
+                </section>
+            )}
+
+            {/* TRAINER — Services, Clients, Rating all on the same line */}
+            {u.role === 'TRAINER' && (
+                <section className="mt-6 grid grid-cols-3 gap-4 text-sm items-start">
+                    <div className="min-w-0">
+                        <div className="font-semibold mb-1">Services</div>
+                        <TagList items={u.services ?? []} />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="font-semibold mb-1">Clients</div>
+                        <div className="text-gray-700">{u.clients ?? 0}</div>
+                    </div>
+                    <div className="min-w-0">
+                        <div className="font-semibold mb-1">Rating</div>
+                        <div className="text-gray-700">{u.rating?.toFixed(1) ?? 'N/A'}</div>
+                    </div>
+                </section>
+            )}
+
+            {/* GYM — Amenities on its own line (description preferred) */}
+            {u.role === 'GYM' && (
+                <section className="mt-6">
+                    <h3 className="font-semibold mb-2">Amenities</h3>
+                    {u.amenitiesText?.trim() ? (
+                        <p className="text-gray-800 whitespace-pre-wrap">{u.amenitiesText}</p>
+                    ) : u.amenities?.length ? (
+                        <TagList items={u.amenities} />
+                    ) : (
+                        <div className="text-gray-600">—</div>
+                    )}
+                </section>
+            )}
+
+            {/* Photos (click to enlarge in modal) — on its own line */}
             {!!u.gallery?.length && (
-                <div className="mt-6">
+                <section className="mt-6">
                     <h3 className="font-semibold mb-2">Photos</h3>
                     <div className="grid grid-cols-3 gap-2">
                         {u.gallery.map((url) => (
@@ -553,44 +608,9 @@ function UserDetails({
                             </button>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* Other attributes */}
-            <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-                {u.role === 'TRAINEE' && u.goals && (
-                    <div>
-                        <div className="font-semibold mb-1">Goals</div>
-                        <TagList items={u.goals} />
-                    </div>
-                )}
-
-                {u.role === 'TRAINER' && (
-                    <>
-                        {u.services && (
-                            <div>
-                                <div className="font-semibold mb-1">Services</div>
-                                <TagList items={u.services} />
-                            </div>
-                        )}
-                        <div>
-                            <div className="font-semibold mb-1">Clients</div>
-                            <div className="text-gray-700">{u.clients ?? 0}</div>
-                        </div>
-                        <div>
-                            <div className="font-semibold mb-1">Rating</div>
-                            <div className="text-gray-700">{u.rating?.toFixed(1) ?? 'N/A'}</div>
-                        </div>
-                    </>
-                )}
-
-                {u.role === 'GYM' && u.amenities && (
-                    <div className="col-span-2">
-                        <div className="font-semibold mb-1">Amenities</div>
-                        <TagList items={u.amenities} />
-                    </div>
-                )}
-            </div>
         </div>
     );
 }

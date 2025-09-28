@@ -3,155 +3,221 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
-/**
- * GET: return the viewer's search-profile data
- *  - role
- *  - about (User.bio)
- *  - goals (TraineeProfile.goals)
- *  - services + hourlyRate (TrainerProfile)
- *  - gymFee (GymProfile.fee)
- */
+type Role = "TRAINEE" | "TRAINER" | "GYM";
+
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const me = await db.user.findUnique({
+            where: { email: session.user.email },
+            select: {
+                id: true,
+                role: true,
+                bio: true,
+                username: true,
+                name: true,
+                traineeProfile: { select: { goals: true } },
+                trainerProfile: { select: { services: true, hourlyRate: true } },
+                gymProfile: {
+                    select: {
+                        name: true,
+                        fee: true,
+                        amenities: true,
+                        address: true,
+                        phone: true,
+                        website: true,
+                    },
+                },
+            },
+        });
+
+        if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const payload: any = {
+            role: me.role,
+            about: me.bio ?? "",
+        };
+
+        if (me.role === "TRAINEE") {
+            payload.goals = me.traineeProfile?.goals ?? [];
+        } else if (me.role === "TRAINER") {
+            payload.services = me.trainerProfile?.services ?? [];
+            payload.hourlyRate = me.trainerProfile?.hourlyRate ?? null;
+        } else if (me.role === "GYM") {
+            payload.gymFee = me.gymProfile?.fee ?? null;
+            payload.amenitiesText = me.gymProfile?.amenities?.[0] ?? "";
+            payload.gymName = me.gymProfile?.name ?? me.name ?? me.username ?? "Gym";
+            payload.gymAddress = me.gymProfile?.address ?? "";
+            payload.gymPhone = me.gymProfile?.phone ?? "";
+            payload.gymWebsite = me.gymProfile?.website ?? "";
+        }
+
+        return NextResponse.json(payload);
+    } catch (err) {
+        console.error(err);
+        return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
-
-    const me = await db.user.findUnique({
-        where: { email: session.user.email },
-        select: {
-            id: true,
-            role: true,
-            bio: true,
-            traineeProfile: { select: { goals: true } },
-            trainerProfile: { select: { services: true, hourlyRate: true } },
-            gymProfile: { select: { fee: true } },
-        },
-    });
-
-    if (!me) {
-        return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({
-        role: me.role,
-        about: me.bio ?? "",
-        goals: me.traineeProfile?.goals ?? [],
-        services: me.trainerProfile?.services ?? [],
-        hourlyRate: me.trainerProfile?.hourlyRate ?? null,
-        gymFee: me.gymProfile?.fee ?? null,
-    });
 }
 
-/**
- * PATCH: update the viewer's search-profile data
- * Body:
- *  {
- *    about?: string,
- *    goals?: string[],          // if role=TRAINEE
- *    services?: string[],       // if role=TRAINER
- *    hourlyRate?: number | null // if role=TRAINER
- *    gymFee?: number | null     // if role=GYM
- *  }
- */
 export async function PATCH(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-    const me = await db.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true, role: true },
-    });
+        const me = await db.user.findUnique({
+            where: { email: session.user.email },
+            select: {
+                id: true,
+                role: true,
+                username: true,
+                name: true,
+                bio: true,
+                traineeProfile: { select: { goals: true } },
+                trainerProfile: { select: { services: true, hourlyRate: true } },
+                gymProfile: {
+                    select: {
+                        name: true,
+                        fee: true,
+                        amenities: true,
+                        address: true,
+                        phone: true,
+                        website: true,
+                    },
+                },
+            },
+        });
 
-    if (!me) {
-        return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
+        if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await req.json().catch(() => ({} as any));
-    const about: string | undefined =
-        typeof body?.about === "string" ? body.about : undefined;
+        const body = await req.json().catch(() => ({} as any));
 
-    const goals: string[] | undefined = Array.isArray(body?.goals)
-        ? body.goals
-            .map((s: any) => (typeof s === "string" ? s.trim() : ""))
-            .filter(Boolean)
-        : undefined;
+        const {
+            about,
+            goals,
+            services,
+            hourlyRate,
+            gymFee,
+            amenitiesText,
+            gymName,
+            gymAddress,
+            gymPhone,
+            gymWebsite,
+        }: {
+            about?: string;
+            goals?: string[];
+            services?: string[];
+            hourlyRate?: number | null;
+            gymFee?: number | null;
+            amenitiesText?: string;
+            gymName?: string;
+            gymAddress?: string;
+            gymPhone?: string;
+            gymWebsite?: string;
+        } = body ?? {};
 
-    const services: string[] | undefined = Array.isArray(body?.services)
-        ? body.services
-            .map((s: any) => (typeof s === "string" ? s.trim() : ""))
-            .filter(Boolean)
-        : undefined;
-
-    const hourlyRateRaw = body?.hourlyRate;
-    const hourlyRate: number | null | undefined =
-        hourlyRateRaw === null
-            ? null
-            : typeof hourlyRateRaw === "number"
-                ? Number.isFinite(hourlyRateRaw)
-                    ? hourlyRateRaw
-                    : undefined
-                : undefined;
-
-    const gymFeeRaw = body?.gymFee;
-    const gymFee: number | null | undefined =
-        gymFeeRaw === null
-            ? null
-            : typeof gymFeeRaw === "number"
-                ? Number.isFinite(gymFeeRaw)
-                    ? gymFeeRaw
-                    : undefined
-                : undefined;
-
-    // Build updates
-    const userData: any = {};
-    if (about !== undefined) userData.bio = about;
-
-    // Apply role-specific updates
-    if (me.role === "TRAINEE") {
-        if (goals !== undefined) {
-            // upsert trainee profile
-            await db.traineeProfile.upsert({
-                where: { userId: me.id },
-                update: { goals },
-                create: { userId: me.id, goals },
+        // Bio update is independent of role
+        if (typeof about === "string") {
+            await db.user.update({
+                where: { id: me.id },
+                data: { bio: about },
             });
         }
-    } else if (me.role === "TRAINER") {
-        const updateData: any = {};
-        if (services !== undefined) updateData.services = services;
-        if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate;
 
-        if (Object.keys(updateData).length) {
-            await db.trainerProfile.upsert({
-                where: { userId: me.id },
-                update: updateData,
-                create: { userId: me.id, services: updateData.services ?? [], hourlyRate: updateData.hourlyRate ?? null },
-            });
-        }
-    } else if (me.role === "GYM") {
-        if (gymFee !== undefined) {
+        if (me.role === "TRAINEE") {
+            if (Array.isArray(goals)) {
+                await db.traineeProfile.upsert({
+                    where: { userId: me.id },
+                    create: { userId: me.id, goals },
+                    update: { goals },
+                });
+            }
+        } else if (me.role === "TRAINER") {
+            const servicesData = Array.isArray(services) ? services : undefined;
+            const hourlyRateData =
+                hourlyRate === null || typeof hourlyRate === "number"
+                    ? hourlyRate
+                    : undefined;
+
+            if (servicesData !== undefined || hourlyRateData !== undefined) {
+                await db.trainerProfile.upsert({
+                    where: { userId: me.id },
+                    create: {
+                        userId: me.id,
+                        services: servicesData ?? [],
+                        hourlyRate: hourlyRateData ?? null,
+                    },
+                    update: {
+                        ...(servicesData !== undefined ? { services: servicesData } : {}),
+                        ...(hourlyRateData !== undefined ? { hourlyRate: hourlyRateData } : {}),
+                    },
+                });
+            }
+        } else if (me.role === "GYM") {
+            // --- Derive type-safe values for required fields and updates ---
+            const nameValue: string =
+                (typeof gymName === "string" && gymName.trim()) ||
+                me.gymProfile?.name ||
+                me.name ||
+                me.username ||
+                "Gym";
+
+            const addressValue: string =
+                (typeof gymAddress === "string" && gymAddress) ||
+                me.gymProfile?.address ||
+                "";
+
+            const phoneValue: string =
+                (typeof gymPhone === "string" && gymPhone) ||
+                me.gymProfile?.phone ||
+                "";
+
+            const websiteValue: string =
+                (typeof gymWebsite === "string" && gymWebsite) ||
+                me.gymProfile?.website ||
+                "";
+
+            const feeValue: number =
+                typeof gymFee === "number"
+                    ? gymFee
+                    : typeof me.gymProfile?.fee === "number"
+                        ? me.gymProfile.fee
+                        : 0;
+
+            const amenitiesArray: string[] =
+                typeof amenitiesText === "string" ? [amenitiesText] : me.gymProfile?.amenities ?? [];
+
+            // --- Upsert with all required create fields present ---
             await db.gymProfile.upsert({
                 where: { userId: me.id },
-                update: { fee: gymFee },
                 create: {
                     userId: me.id,
-                    name: "Gym", // required field in your schema; adjust if you capture an actual name elsewhere
-                    address: "",
-                    phone: "",
-                    website: "",
-                    fee: gymFee ?? 0,
-                    amenities: [],
+                    name: nameValue,
+                    address: addressValue,
+                    phone: phoneValue,
+                    website: websiteValue,
+                    fee: feeValue,
+                    amenities: amenitiesArray,
+                },
+                update: {
+                    ...(typeof gymName === "string" && gymName.trim() ? { name: gymName.trim() } : {}),
+                    ...(typeof gymAddress === "string" ? { address: gymAddress } : {}),
+                    ...(typeof gymPhone === "string" ? { phone: gymPhone } : {}),
+                    ...(typeof gymWebsite === "string" ? { website: gymWebsite } : {}),
+                    ...(typeof gymFee === "number" || gymFee === null ? { fee: feeValue } : {}),
+                    ...(typeof amenitiesText === "string" ? { amenities: [amenitiesText] } : {}),
                 },
             });
         }
-    }
 
-    if (Object.keys(userData).length) {
-        await db.user.update({ where: { id: me.id }, data: userData });
+        return NextResponse.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        return NextResponse.json({ error: "Failed to save" }, { status: 500 });
     }
-
-    return NextResponse.json({ ok: true });
 }

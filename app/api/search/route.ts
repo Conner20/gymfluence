@@ -255,6 +255,7 @@ export async function GET(req: Request) {
                 rating: u.trainerProfile?.rating ?? null,
                 clients: u.trainerProfile?.clients ?? null,
                 amenities: u.gymProfile?.amenities ?? null,
+                amenitiesText: u.gymProfile?.amenities?.[0] ?? null, // NEW: free-form description
                 distanceKm: distance,
                 about: u.bio ?? null,
                 // NEW

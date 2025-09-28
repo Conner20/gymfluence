@@ -52,6 +52,12 @@ enum NotificationType {
   REQUEST_ACCEPTED
 }
 
+enum RatingStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String?   @unique
@@ -85,6 +91,8 @@ model User {
 
   // Inverse side of Message.sharedUser
   sharedInMessages Message[] @relation("SharedUser")
+
+  ratingsAuthored Rating[] @relation("RatingsByUser")
 }
 
 model TraineeProfile {
@@ -114,8 +122,10 @@ model TrainerProfile {
   lng        Float?
   hourlyRate Float?
   rating     Float?
-  clients    Int?
-  bio     String?
+  clients    Int?      @default(0)
+  bio        String?
+
+  ratingsReceived Rating[] @relation("RatingsToTrainer")
 }
 
 model GymProfile {
@@ -134,7 +144,12 @@ model GymProfile {
   lat       Float?
   lng       Float?
   amenities String[]
-  bio     String?
+  bio       String?
+
+  rating   Float?
+  clients  Int      @default(0)
+
+  ratingsReceived Rating[] @relation("RatingsToGym")
 }
 
 model VerificationToken {
@@ -267,4 +282,31 @@ model Message {
   sharedPostId String?
 
   @@index([conversationId, createdAt])
+}
+
+model Rating {
+  id        String       @id @default(cuid())
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // who left the rating (backed by User.ratingsAuthored)
+  rater     User         @relation("RatingsByUser", fields: [raterId], references: [id], onDelete: Cascade)
+  raterId   String
+
+  // target (exactly one of these should be set; enforce in your API)
+  trainer   TrainerProfile? @relation("RatingsToTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  trainerId String?
+
+  gym       GymProfile?     @relation("RatingsToGym", fields: [gymId], references: [id], onDelete: Cascade)
+  gymId     String?
+
+  stars     Int           // validate 1..5 in your API
+  comment   String?
+  status    RatingStatus  @default(PENDING)
+
+  @@index([raterId])
+  @@index([trainerId, status])
+  @@index([gymId, status])
+  @@unique([raterId, trainerId])
+  @@unique([raterId, gymId])
 }

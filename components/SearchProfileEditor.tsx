@@ -16,6 +16,7 @@ export default function SearchProfileEditor() {
     const [services, setServices] = useState<string[]>([]);
     const [hourlyRate, setHourlyRate] = useState<string>("");
     const [gymFee, setGymFee] = useState<string>("");
+    const [amenitiesText, setAmenitiesText] = useState<string>(""); // NEW: free-form amenities
 
     // gallery
     const [gallery, setGallery] = useState<string[]>([]);
@@ -71,6 +72,7 @@ export default function SearchProfileEditor() {
                     );
                 } else if (prof.role === "GYM") {
                     setGymFee(prof.gymFee == null ? "" : String(prof.gymFee));
+                    setAmenitiesText(prof.amenitiesText ?? ""); // NEW
                 }
 
                 if (galRes.ok) {
@@ -111,6 +113,7 @@ export default function SearchProfileEditor() {
             }
             if (role === "GYM") {
                 payload.gymFee = gymFee === "" ? null : Number(gymFee);
+                payload.amenitiesText = amenitiesText; // NEW
             }
 
             const res = await fetch("/api/user/search-profile", {
@@ -321,18 +324,33 @@ export default function SearchProfileEditor() {
                     )}
 
                     {role === "GYM" && (
-                        <div className="mb-6 max-w-xs">
-                            <label className="block text-sm font-medium mb-1">Membership fee ($/mo)</label>
-                            <input
-                                type="number"
-                                min={0}
-                                step="1"
-                                className="w-full border rounded-md px-3 py-2 text-sm"
-                                placeholder="e.g., 30"
-                                value={gymFee}
-                                onChange={(e) => setGymFee(e.target.value)}
-                            />
-                        </div>
+                        <>
+                            <div className="mb-6 max-w-xs">
+                                <label className="block text-sm font-medium mb-1">Membership fee ($/mo)</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step="1"
+                                    className="w-full border rounded-md px-3 py-2 text-sm"
+                                    placeholder="e.g., 30"
+                                    value={gymFee}
+                                    onChange={(e) => setGymFee(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium mb-1">Amenities (description)</label>
+                                <textarea
+                                    className="w-full min-h-[100px] border rounded-md px-3 py-2 text-sm"
+                                    placeholder="Describe your amenities (equipment, classes, locker rooms, parking, etc.)"
+                                    value={amenitiesText}
+                                    onChange={(e) => setAmenitiesText(e.target.value)}
+                                />
+                                <div className="text-xs text-gray-500 mt-1">
+                                    Shown on your Search details card under “Amenities”.
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     {/* Uploaded Images */}
