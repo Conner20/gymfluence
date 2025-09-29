@@ -5,12 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
 function extractUserId(session: any): string | null {
-    return (
-        session?.user?.id ??
-        session?.user?.sub ??
-        session?.sub ??
-        null
-    );
+    return session?.user?.id ?? session?.user?.sub ?? session?.sub ?? null;
 }
 
 export async function POST(req: Request) {
@@ -120,6 +115,7 @@ export async function POST(req: Request) {
                 trainerId: true,
                 gymId: true,
                 createdAt: true,
+                rater: { select: { username: true, name: true } }, // useful for immediate UI
             },
         });
 
@@ -148,6 +144,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const authored = searchParams.get("authored");
         const pendingFor = searchParams.get("pendingFor"); // "trainer" | "gym"
+        const historyFor = searchParams.get("historyFor"); // "trainer" | "gym"
 
         if (authored) {
             const ratings = await db.rating.findMany({
@@ -167,6 +164,11 @@ export async function GET(req: Request) {
             const ratings = await db.rating.findMany({
                 where: { trainerId: myTrainer.id, status: "PENDING" },
                 orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    createdAt: true,
+                    rater: { select: { username: true, name: true } },
+                },
             });
             return NextResponse.json(ratings);
         }
@@ -181,8 +183,56 @@ export async function GET(req: Request) {
             const ratings = await db.rating.findMany({
                 where: { gymId: myGym.id, status: "PENDING" },
                 orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    createdAt: true,
+                    rater: { select: { username: true, name: true } },
+                },
             });
             return NextResponse.json(ratings);
+        }
+
+        // HISTORY: approved ratings (with stars/comments)
+        if (historyFor === "trainer") {
+            const myTrainer = await db.trainerProfile.findUnique({
+                where: { userId },
+                select: { id: true },
+            });
+            if (!myTrainer) return NextResponse.json([], { status: 200 });
+
+            const rows = await db.rating.findMany({
+                where: { trainerId: myTrainer.id, status: "APPROVED" },
+                orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    createdAt: true,
+                    stars: true,
+                    comment: true,
+                    rater: { select: { username: true, name: true } },
+                },
+            });
+            return NextResponse.json(rows);
+        }
+
+        if (historyFor === "gym") {
+            const myGym = await db.gymProfile.findUnique({
+                where: { userId },
+                select: { id: true },
+            });
+            if (!myGym) return NextResponse.json([], { status: 200 });
+
+            const rows = await db.rating.findMany({
+                where: { gymId: myGym.id, status: "APPROVED" },
+                orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    createdAt: true,
+                    stars: true,
+                    comment: true,
+                    rater: { select: { username: true, name: true } },
+                },
+            });
+            return NextResponse.json(rows);
         }
 
         return NextResponse.json({ error: "Unsupported query" }, { status: 400 });

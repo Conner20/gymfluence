@@ -8,6 +8,82 @@ function extractUserId(session: any): string | null {
     return session?.user?.id ?? session?.user?.sub ?? session?.sub ?? null;
 }
 
+// GET single rating — used after approval to reveal stars/comment to the ratee
+export async function GET(req: Request, ctx: { params: { id: string } }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        let userId = extractUserId(session);
+        if (!userId && session?.user?.email) {
+            const user = await db.user.findUnique({
+                where: { email: session.user.email! },
+                select: { id: true },
+            });
+            userId = user?.id ?? null;
+        }
+        if (!userId) return NextResponse.json({ error: "Cannot resolve current user id" }, { status: 401 });
+
+        const { id } = ctx.params;
+
+        const rating = await db.rating.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                status: true,
+                stars: true,
+                comment: true,
+                createdAt: true,
+                rater: { select: { username: true, name: true } },
+                trainerId: true,
+                gymId: true,
+            },
+        });
+        if (!rating) return NextResponse.json({ error: "Rating not found" }, { status: 404 });
+
+        // Authorization: rater can see their own rating, and the owner of the profile (trainer/gym) can see it.
+        let isOwner = false;
+        if (rating.trainerId) {
+            const trainer = await db.trainerProfile.findUnique({
+                where: { id: rating.trainerId },
+                select: { userId: true },
+            });
+            isOwner = trainer?.userId === userId;
+        } else if (rating.gymId) {
+            const gym = await db.gymProfile.findUnique({
+                where: { id: rating.gymId },
+                select: { userId: true },
+            });
+            isOwner = gym?.userId === userId;
+        }
+
+        const isRater = await db.rating.findFirst({
+            where: { id, raterId: userId },
+            select: { id: true },
+        });
+
+        if (!isOwner && !isRater) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // If still pending and the requester is the rater (not the owner), let them see their own stars/comment.
+        // If the requester is the owner and the rating is still pending, we hide stars/comment.
+        const hideContentForOwnerPending = rating.status === "PENDING" && isOwner && !isRater;
+
+        return NextResponse.json({
+            id: rating.id,
+            status: rating.status,
+            createdAt: rating.createdAt,
+            rater: rating.rater,
+            stars: hideContentForOwnerPending ? undefined : rating.stars,
+            comment: hideContentForOwnerPending ? undefined : rating.comment,
+        });
+    } catch (err) {
+        console.error("GET /api/ratings/[id] error:", err);
+        return NextResponse.json({ error: "Failed to load rating" }, { status: 500 });
+    }
+}
+
 // PATCH { action: "APPROVE" | "DECLINE" }
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     try {
@@ -35,7 +111,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
         // Fetch rating (must be pending)
         const rating = await db.rating.findUnique({
             where: { id },
-            select: { id: true, status: true, trainerId: true, gymId: true, stars: true },
+            select: { id: true, status: true, trainerId: true, gymId: true },
         });
         if (!rating) return NextResponse.json({ error: "Rating not found" }, { status: 404 });
         if (rating.status !== "PENDING") {
