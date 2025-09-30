@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import PrivacyToggle from "./privacy-toggle";
 import Navbar from "@/components/Navbar";
 import SearchProfileEditor from "@/components/SearchProfileEditor";
@@ -202,6 +202,21 @@ export default function SettingsPage() {
                 {/* Search Profile card (this was missing a white container) */}
                 <div className="bg-white rounded-xl shadow p-6 space-y-6">
                     <SearchProfileEditor />
+                </div>
+
+                {/* Log Out */}
+                <div className="bg-white rounded-xl shadow p-6">
+                    <h2 className="font-semibold mb-3">Log Out</h2>
+                    <p className="text-sm text-gray-600 mb-4">
+                        You are currently signed in as <span className="font-medium">{session?.user?.email || session?.user?.name || "your account"}</span>.
+                    </p>
+                    <button
+                        onClick={() => signOut({ callbackUrl: "/" })}
+                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                        aria-label="Log out"
+                    >
+                        Log Out
+                    </button>
                 </div>
             </main>
 
