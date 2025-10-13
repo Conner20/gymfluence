@@ -95,11 +95,9 @@ function SleepLine({
     );
 
     const pathD = useMemo(() => {
-        if (nonNull.length < 2) return ''; // less than 2 points => no visible line
+        if (nonNull.length < 2) return '';
         let d = `M ${x(nonNull[0].i)} ${y(nonNull[0].hours)}`;
-        for (let k = 1; k < nonNull.length; k++) {
-            d += ` L ${x(nonNull[k].i)} ${y(nonNull[k].hours)}`;
-        }
+        for (let k = 1; k < nonNull.length; k++) d += ` L ${x(nonNull[k].i)} ${y(nonNull[k].hours)}`;
         return d;
     }, [nonNull]);
 
@@ -232,14 +230,7 @@ function SleepLine({
                     {/* hover guide */}
                     {hover && (
                         <>
-                            <line
-                                x1={hover.cx}
-                                x2={hover.cx}
-                                y1={pad.top}
-                                y2={pad.top + innerH}
-                                stroke="#d1d5db"
-                                strokeDasharray="4 4"
-                            />
+                            <line x1={hover.cx} x2={hover.cx} y1={pad.top} y2={pad.top + innerH} stroke="#d1d5db" strokeDasharray="4 4" />
                             {xs[hover.i].hours != null && <Dot cx={hover.cx} cy={y(xs[hover.i].hours!)} r={4} color="#7c3aed" />}
                         </>
                     )}
@@ -290,20 +281,18 @@ function TooltipFlip({
     pad: { top: number; right: number; bottom: number; left: number };
     content: React.ReactNode;
 }) {
-    const approxW = 160; // tooltip width estimate
-    const approxH = 56;  // tooltip height estimate
+    const approxW = 160;
+    const approxH = 56;
     const xInside = cx - pad.left;
     const usableW = chartW - pad.left - pad.right;
 
     const nearRight = xInside > usableW - approxW - 12;
     const nearBottom = cy > chartH - pad.bottom - approxH - 8;
 
-    // base x (flip if near right)
     let left = cx + (nearRight ? -12 : 12);
-    if (nearRight) left = Math.max(pad.left + 8, left - approxW); // ensure inside when flipped
+    if (nearRight) left = Math.max(pad.left + 8, left - approxW);
     left = clamp(left, pad.left + 8, chartW - pad.right - 8);
 
-    // base y (nudge up if near bottom)
     let top = cy - (nearBottom ? approxH + 12 : 12);
     top = clamp(top, pad.top + 8, chartH - pad.bottom - approxH - 8);
 
@@ -359,7 +348,6 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
                 <span className="text-xs text-neutral-500">last 7 days</span>
             </div>
 
-            {/* shorter chart so Sleep is visually dominant */}
             <div
                 ref={wrapRef}
                 onMouseMove={onMove}
@@ -368,10 +356,7 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
             >
                 {xs.map((d) => (
                     <div key={d.date} className="flex h-full flex-col items-center justify-end">
-                        <div
-                            className="w-7 rounded-t bg-blue-400/40"
-                            style={{ height: `${(d.liters / max) * 100}%` }}
-                        />
+                        <div className="w-7 rounded-t bg-blue-400/40" style={{ height: `${(d.liters / max) * 100}%` }} />
                         <div className="mt-1 text-[10px] text-neutral-500">{d.date.slice(5)}</div>
                     </div>
                 ))}
@@ -457,12 +442,10 @@ function WaterToday({
                 </button>
             </div>
 
-            {/* Middle area — now centers the gauge vertically; gauge +20px height */}
+            {/* Middle area — centers the gauge; +20px height */}
             <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white/70 p-4">
                 <div className="text-sm text-blue-900/80">Remaining: {remaining.toFixed(1)} L</div>
-
                 <div className="flex flex-1 items-center justify-center">
-                    {/* white oval + water fill */}
                     <div className="relative mx-auto mt-4 flex h-60 w-20 items-end rounded-full bg-blue-50 sm:h-[21rem]">
                         {(() => {
                             const isFull = pct >= 0.999;
@@ -515,14 +498,7 @@ export default function Wellness() {
     const [water, setWater] = useLocalArray<WaterPoint>('w_water', []);
     const [range, setRange] = useState<'1W' | '1M' | '3M' | '1Y'>('1W');
 
-    const todayISO = fmtISO(new Date());
-    const addSleep = (pt: SleepPoint) =>
-        setSleep((cur) => {
-            const others = cur.filter((x) => x.date !== pt.date);
-            return [...others, pt].sort((a, b) => a.date.localeCompare(b.date));
-        });
-    const addWater = (liters: number) => setWater((cur) => [...cur, { date: todayISO, liters }]);
-
+    // ✅ Water goal state + persistence
     const [waterGoal, setWaterGoal] = useState<number>(() => {
         if (typeof window === 'undefined') return 3.2;
         const raw = localStorage.getItem('w_goal');
@@ -533,6 +509,14 @@ export default function Wellness() {
             localStorage.setItem('w_goal', String(waterGoal));
         } catch { }
     }, [waterGoal]);
+
+    const todayISO = fmtISO(new Date());
+    const addSleep = (pt: SleepPoint) =>
+        setSleep((cur) => {
+            const others = cur.filter((x) => x.date !== pt.date);
+            return [...others, pt].sort((a, b) => a.date.localeCompare(b.date));
+        });
+    const addWater = (liters: number) => setWater((cur) => [...cur, { date: todayISO, liters }]);
 
     const last7 = useMemo(() => {
         const out: string[] = [];
@@ -562,6 +546,7 @@ export default function Wellness() {
         return vals.reduce((a, b) => a + b, 0) / vals.length;
     }, [water, last7]);
 
+    // ✅ Use current waterGoal in the streak rule
     const streakDays = useMemo(() => {
         const mapWater = new Map<string, number>();
         water.forEach((w) => mapWater.set(w.date, (mapWater.get(w.date) ?? 0) + w.liters));
@@ -577,13 +562,13 @@ export default function Wellness() {
             const key = fmtISO(d);
             const w = mapWater.get(key) ?? 0;
             const s = mapSleep.get(key);
-            const met = s != null && s >= 7 && w >= Math.max(0.1, 3.2) * 0.5;
+            const met = s != null && s >= 7 && w >= Math.max(0.1, waterGoal) * 0.5;
             if (met) streak += 1;
             else break;
             if (i > 365) break;
         }
         return streak;
-    }, [water, sleep]);
+    }, [water, sleep, waterGoal]);
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
@@ -624,22 +609,13 @@ export default function Wellness() {
                         color="blue"
                         icon={<Droplet size={18} className="text-blue-700" />}
                     />
-                    <KPI
-                        title="Days in a row goals met"
-                        value={streakDays}
-                        color="orange"
-                        icon={<Flame size={18} className="text-amber-700" />}
-                    />
+                    <KPI title="Days in a row goals met" value={streakDays} color="orange" icon={<Flame size={18} className="text-amber-700" />} />
                 </section>
 
                 {/* Right column */}
                 <section className="col-span-12 lg:col-span-2">
-                    <WaterToday
-                        goal={3.2}
-                        setGoal={() => { }}
-                        entries={water}
-                        addWater={(l) => setWater((cur) => [...cur, { date: fmtISO(new Date()), liters: l }])}
-                    />
+                    {/* ✅ Pass live goal and setter */}
+                    <WaterToday goal={waterGoal} setGoal={setWaterGoal} entries={water} addWater={(l) => addWater(l)} />
                 </section>
             </main>
 
