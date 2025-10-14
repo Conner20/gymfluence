@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { Trash2 } from 'lucide-react';
 
 /** ------------------------------ Types ------------------------------ */
 type SetEntry = {
@@ -122,7 +123,6 @@ function LineChartDual({
     const leftTicks = Array.from({ length: ticks + 1 }, (_, i) => minW + ((maxW - minW) * i) / ticks);
     const rightTicks = Array.from({ length: ticks + 1 }, (_, i) => minR + ((maxR - minR) * i) / ticks);
 
-    // ---- FIX 1: robust path builder (starts at first valid point) ----
     const mkPath = (arr: number[], yScale: (v: number) => number) => {
         let started = false;
         let d = '';
@@ -142,12 +142,12 @@ function LineChartDual({
     const [hover, setHover] = useState<{ i: number; cx: number; cyW: number | null; cyR: number | null } | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
 
-    // ---- FIX 2: convert mouse to viewBox coords to remove offset ----
+    // mouse -> viewBox coords
     const onMove = (e: React.MouseEvent) => {
         const svg = svgRef.current;
         if (!svg) return;
         const rect = svg.getBoundingClientRect();
-        const scaleX = width / rect.width; // viewBox units per CSS pixel
+        const scaleX = width / rect.width;
         const mxView = (e.clientX - rect.left) * scaleX;
 
         const clamped = Math.max(left, Math.min(left + w, mxView));
@@ -204,14 +204,25 @@ function LineChartDual({
                     reps (avg)
                 </text>
 
-                {/* x labels */}
-                {labels.map((lb, i) => (
-                    <text key={i} x={x(i)} y={top + h + 14} fontSize="9" textAnchor="middle" fill="#6b7280">
-                        {lb.slice(5).replace('-', '/')}
-                    </text>
-                ))}
+                {/* x labels: endpoints only */}
+                {labels.length > 0 && (
+                    <>
+                        <text x={x(0)} y={top + h + 14} fontSize="9" textAnchor="start" fill="#6b7280">
+                            {labels[0].slice(5).replace('-', '/')}
+                        </text>
+                        <text
+                            x={x(labels.length - 1)}
+                            y={top + h + 14}
+                            fontSize="9"
+                            textAnchor="end"
+                            fill="#6b7280"
+                        >
+                            {labels[labels.length - 1].slice(5).replace('-', '/')}
+                        </text>
+                    </>
+                )}
 
-                {/* series (now continuous lines) */}
+                {/* series */}
                 {weightPath && <path d={weightPath} fill="none" stroke="#16a34a" strokeWidth={2} />}
                 {repsPath && <path d={repsPath} fill="none" stroke="#111827" strokeWidth={2} />}
 
@@ -219,7 +230,7 @@ function LineChartDual({
                 {weight.map((v, i) => (v > 0 ? <circle key={`pw${i}`} cx={x(i)} cy={yW(v)} r={2.6} fill="#16a34a" /> : null))}
                 {reps.map((v, i) => (v > 0 ? <circle key={`pr${i}`} cx={x(i)} cy={yR(v)} r={2.6} fill="#111827" /> : null))}
 
-                {/* hover vertical guide and markers */}
+                {/* hover */}
                 {hover && (
                     <>
                         <line x1={hover.cx} y1={top} x2={hover.cx} y2={top + h} stroke="#e5e7eb" />
@@ -227,8 +238,6 @@ function LineChartDual({
                         {hover.cyR != null && <circle cx={hover.cx} cy={hover.cyR} r={4} fill="white" stroke="#111827" strokeWidth={2} />}
                     </>
                 )}
-
-                {/* transparent hit area limited to the plot bounds */}
                 <rect x={left} y={top} width={w} height={h} fill="transparent" />
             </svg>
 
@@ -355,6 +364,8 @@ function YearHeatmap({
 }
 
 /** ------------------------------ Page ------------------------------- */
+type RangeKey = '1W' | '1M' | '3M' | '1Y';
+
 export default function Dashboard() {
     const [sets, setSets] = useState<SetEntry[]>([]);
     const [exercises, setExercises] = useState<string[]>([]);
@@ -366,13 +377,18 @@ export default function Dashboard() {
     const [setsNum, setSetsNum] = useState('');
     const [reps, setReps] = useState('');
     const [date, setDate] = useState(fmtDate(new Date()));
+    const [showRequired, setShowRequired] = useState(false);
 
-    // timer
+    // chart range
+    const [range, setRange] = useState<RangeKey>('1W');
+
+    // timer (smooth)
     const [mm, setMm] = useState(0);
     const [ss, setSs] = useState(30);
-    const [remaining, setRemaining] = useState(30);
+    const [total, setTotal] = useState(30);            // seconds total
+    const [msLeft, setMsLeft] = useState(30_000);      // ms remaining (smooth)
     const [running, setRunning] = useState(false);
-    const timerRef = useRef<number | null>(null);
+    const [endAt, setEndAt] = useState<number | null>(null); // epoch ms when it ends
 
     useEffect(() => {
         const s = loadSets();
@@ -386,15 +402,30 @@ export default function Dashboard() {
     useEffect(() => saveExercises(exercises), [exercises]);
     useEffect(() => saveSplit(split), [split]);
 
-    const recentLabels = useMemo(
-        () => Array.from({ length: 14 }).map((_, i) => fmtDate(daysAgo(13 - i))),
-        []
-    );
+    // ---- Range helpers ----
+    const daysForRange = (r: RangeKey) => {
+        switch (r) {
+            case '1W':
+                return 7;
+            case '1M':
+                return 30;
+            case '3M':
+                return 90;
+            case '1Y':
+                return 365;
+        }
+    };
+    const labels = useMemo(() => {
+        const n = daysForRange(range);
+        return Array.from({ length: n }).map((_, i) => fmtDate(daysAgo(n - 1 - i)));
+    }, [range]);
+
     const filtered = useMemo(() => sets.filter((s) => s.exercise === exercise), [sets, exercise]);
+
     const perDay = useMemo(() => {
         const g = groupBy(filtered, (r) => r.date);
-        return recentLabels.map((d) => g[d] || []);
-    }, [filtered, recentLabels]);
+        return labels.map((d) => g[d] || []);
+    }, [filtered, labels]);
 
     const weightSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.weight)) : 0));
     const repsSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.reps)) : 0));
@@ -412,7 +443,7 @@ export default function Dashboard() {
         const cycleLen = Math.max(1, split.length || 1);
         return daysSinceEpochUTC() % cycleLen;
     }, [split]);
-    const splitToday = split.length ? split[splitTodayIndex] : '—';
+    const splitToday = split.length ? (splitTodayIndex >= 0 ? split[splitTodayIndex] : '—') : '—';
     const splitProgress = useMemo(() => (split.length ? (splitTodayIndex + 1) / split.length : 0), [split, splitTodayIndex]);
 
     const addExercise = () => {
@@ -422,20 +453,8 @@ export default function Dashboard() {
         setExercises((x) => [...x, name]);
         setExercise(name);
     };
-    const recordSet = () => {
-        if (!exercise) return alert('Pick an exercise first.');
-        const w = Number(weight),
-            s = Number(setsNum),
-            r = Number(reps);
-        if (!Number.isFinite(w) || !Number.isFinite(s) || !Number.isFinite(r)) return alert('Enter numeric weight/sets/reps.');
-        const entry: SetEntry = { id: crypto.randomUUID(), exercise, weight: w, sets: s, reps: r, date };
-        setSets((prev) => [entry, ...prev]);
-        setWeight('');
-        setSetsNum('');
-        setReps('');
-    };
-    const applyTimer = () => setRemaining(mm * 60 + ss);
 
+    // customize split (inside component)
     const customizeSplit = () => {
         const current = split.join(', ');
         const input = prompt(
@@ -443,25 +462,106 @@ export default function Dashboard() {
             current || 'push, pull, legs, rest'
         );
         if (!input) return;
+
         const parts = input
             .split(',')
             .map((s) => s.trim().toLowerCase())
             .filter(Boolean);
+
         if (!parts.length) return;
         setSplit(parts);
     };
 
-    useEffect(() => {
-        if (!running) return;
-        if (remaining <= 0) {
-            setRunning(false);
+    // ---- Validation + Save ----
+    const recordSet = () => {
+        if (!exercise) return alert('Pick an exercise first.');
+
+        const missing = {
+            w: weight.trim() === '',
+            s: setsNum.trim() === '',
+            r: reps.trim() === '',
+        };
+        if (missing.w || missing.s || missing.r) {
+            setShowRequired(true);
             return;
         }
-        timerRef.current = window.setTimeout(() => setRemaining((t) => t - 1), 1000);
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
+
+        const w = Number(weight),
+            s = Number(setsNum),
+            r = Number(reps);
+        if (!Number.isFinite(w) || !Number.isFinite(s) || !Number.isFinite(r)) {
+            alert('Enter numeric weight/sets/reps.');
+            return;
+        }
+
+        const entry: SetEntry = { id: crypto.randomUUID(), exercise, weight: w, sets: s, reps: r, date };
+        setSets((prev) => [entry, ...prev]);
+        setWeight('');
+        setSetsNum('');
+        setReps('');
+        setShowRequired(false);
+    };
+
+    // delete entry
+    const deleteSet = (id: string) => {
+        setSets((prev) => prev.filter((x) => x.id !== id));
+    };
+
+    // ----- Timer controls (smooth) -----
+    const applyTimer = () => {
+        const t = Math.max(0, mm * 60 + ss);
+        setTotal(t);
+        setMsLeft(t * 1000);
+        setRunning(false);
+        setEndAt(null);
+    };
+
+    const startTimer = () => {
+        if (total <= 0) return;
+        const base = Math.max(0, msLeft);
+        setEndAt(Date.now() + base);
+        setRunning(true);
+    };
+
+    const pauseTimer = () => {
+        setRunning(false);
+        if (endAt) setMsLeft(Math.max(0, endAt - Date.now()));
+        setEndAt(null);
+    };
+
+    const resetTimer = () => {
+        setRunning(false);
+        const t = Math.max(0, mm * 60 + ss);
+        setTotal(t);
+        setMsLeft(t * 1000);
+        setEndAt(null);
+    };
+
+    // animation loop
+    useEffect(() => {
+        if (!running || !endAt) return;
+        let raf = 0;
+
+        const tick = () => {
+            const left = Math.max(0, endAt - Date.now());
+            setMsLeft(left);
+            if (left <= 0) {
+                setRunning(false);
+                setEndAt(null);
+                return;
+            }
+            raf = requestAnimationFrame(tick);
         };
-    }, [running, remaining]);
+
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [running, endAt]);
+
+    const onRange = (r: RangeKey) => setRange(r);
+
+    // input classes for required highlight
+    const reqClass = (empty: boolean) =>
+        `w-full border rounded px-2 py-1 text-sm mt-1 ${showRequired && empty ? 'text-red-600 placeholder-red-400' : ''}`;
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
@@ -525,7 +625,8 @@ export default function Dashboard() {
                                             <input
                                                 value={weight}
                                                 onChange={(e) => setWeight(e.target.value)}
-                                                className="w-full border rounded px-2 py-1 text-sm mt-1"
+                                                placeholder="required"
+                                                className={reqClass(weight.trim() === '')}
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
@@ -534,7 +635,8 @@ export default function Dashboard() {
                                                 <input
                                                     value={setsNum}
                                                     onChange={(e) => setSetsNum(e.target.value)}
-                                                    className="w-full border rounded px-2 py-1 text-sm mt-1"
+                                                    placeholder="required"
+                                                    className={reqClass(setsNum.trim() === '')}
                                                 />
                                             </div>
                                             <div>
@@ -542,7 +644,8 @@ export default function Dashboard() {
                                                 <input
                                                     value={reps}
                                                     onChange={(e) => setReps(e.target.value)}
-                                                    className="w-full border rounded px-2 py-1 text-sm mt-1"
+                                                    placeholder="required"
+                                                    className={reqClass(reps.trim() === '')}
                                                 />
                                             </div>
                                         </div>
@@ -588,34 +691,27 @@ export default function Dashboard() {
                                         className="w-14 border rounded px-2 py-1 text-sm"
                                     />
                                     <span className="text-xs text-zinc-500">sec</span>
-                                    <button onClick={() => setRemaining(mm * 60 + ss)} className="ml-auto text-xs px-2 py-1 rounded border">
+                                    <button onClick={applyTimer} className="ml-auto text-xs px-2 py-1 rounded border">
                                         Set
                                     </button>
                                 </div>
+
+                                {/* Circular progress (smooth fraction of time LEFT) */}
                                 <div className="mt-3 flex-1 flex items-center justify-center min-h-0">
-                                    <div className="w-28 h-28 rounded-full border-[6px] border-yellow-400 flex items-center justify-center">
-                                        <div className="text-xl font-semibold tabular-nums">
-                                            {String(Math.floor(remaining / 60)).padStart(2, '0')}:{String(remaining % 60).padStart(2, '0')}
-                                        </div>
-                                    </div>
+                                    <TimerRing msLeft={msLeft} total={total} />
                                 </div>
+
                                 <div className="mt-2 flex gap-2 justify-center">
                                     {!running ? (
-                                        <button onClick={() => setRunning(true)} className="px-3 py-1.5 rounded bg-black text-white">
+                                        <button onClick={startTimer} className="px-3 py-1.5 rounded bg-black text-white">
                                             start
                                         </button>
                                     ) : (
-                                        <button onClick={() => setRunning(false)} className="px-3 py-1.5 rounded border">
+                                        <button onClick={pauseTimer} className="px-3 py-1.5 rounded border">
                                             pause
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => {
-                                            setRunning(false);
-                                            setRemaining(mm * 60 + ss);
-                                        }}
-                                        className="px-3 py-1.5 rounded border"
-                                    >
+                                    <button onClick={resetTimer} className="px-3 py-1.5 rounded border">
                                         reset
                                     </button>
                                 </div>
@@ -630,11 +726,28 @@ export default function Dashboard() {
                                 <h3 className="font-semibold">Today’s lifts</h3>
                                 <div className="text-xs text-zinc-600 truncate max-w-[55%]">{exercise || '—'}</div>
                             </div>
-                            <div className="h-[calc(100%-34px)]">
+
+                            {/* Range controls */}
+                            <div className="mb-2">
+                                <div className="flex items-center gap-2">
+                                    {(['1W', '1M', '3M', '1Y'] as const).map((r) => (
+                                        <button
+                                            key={r}
+                                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'
+                                                }`}
+                                            onClick={() => onRange(r)}
+                                        >
+                                            {r}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="h-[calc(100%-58px)]">
                                 <LineChartDual
                                     width={860}
                                     height={300}
-                                    labels={recentLabels}
+                                    labels={labels}
                                     weight={weightSeries.map((x) => Number(x.toFixed(1)))}
                                     reps={repsSeries.map((x) => Number(x.toFixed(1)))}
                                     dayEntries={perDay}
@@ -671,16 +784,29 @@ export default function Dashboard() {
                                     ) : (
                                         <ul className="text-sm space-y-1.5">
                                             {sets.slice(0, 100).map((r) => (
-                                                <li key={r.id} className="flex items-center justify-between border rounded-lg px-2 py-1">
+                                                <li
+                                                    key={r.id}
+                                                    className="flex items-center justify-between border rounded-lg px-2 py-1"
+                                                >
                                                     <div className="min-w-0">
                                                         <div className="font-medium truncate">{r.exercise}</div>
                                                         <div className="text-[11px] text-zinc-500">{r.date}</div>
                                                     </div>
-                                                    <div className="text-right text-[11px]">
-                                                        <div>{r.weight} lbs</div>
-                                                        <div>
-                                                            {r.sets} x {r.reps}
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="text-right text-[11px]">
+                                                            <div>{r.weight} lbs</div>
+                                                            <div>
+                                                                {r.sets} x {r.reps}
+                                                            </div>
                                                         </div>
+                                                        <button
+                                                            aria-label="Delete"
+                                                            className="p-1 text-zinc-500 hover:text-red-600"
+                                                            onClick={() => deleteSet(r.id)}
+                                                            title="Delete entry"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </div>
                                                 </li>
                                             ))}
@@ -768,7 +894,9 @@ function SplitRing({
 
     return (
         <svg viewBox="0 0 120 120" className="w-32 h-32">
+            {/* faint outline */}
             <circle cx={cx} cy={cy} r={radius} stroke="#e5e7eb" strokeWidth="10" fill="none" />
+            {/* progress around ring */}
             <circle
                 cx={cx}
                 cy={cy}
@@ -776,8 +904,7 @@ function SplitRing({
                 stroke="#16a34a"
                 strokeWidth="10"
                 fill="none"
-                strokeDasharray={`${full} ${full}`}
-                strokeDashoffset={(1 - progress) * full}
+                strokeDasharray={`${(progress * full).toFixed(2)} ${(full - progress * full).toFixed(2)}`}
                 transform="rotate(-90 60 60)"
                 strokeLinecap="round"
             />
@@ -796,5 +923,46 @@ function SplitRing({
                 </g>
             )}
         </svg>
+    );
+}
+
+/** --------------------------- Timer Ring ---------------------------- */
+function TimerRing({ msLeft, total }: { msLeft: number; total: number }) {
+    const r = 56;
+    const cx = 64;
+    const cy = 64;
+    const c = 2 * Math.PI * r;
+    const frac = total > 0 ? Math.max(0, Math.min(1, msLeft / (total * 1000))) : 0;
+
+    const secondsLeft = Math.floor(msLeft / 1000);
+    const mm = Math.floor(secondsLeft / 60);
+    const ss = secondsLeft % 60;
+
+    return (
+        <div className="relative">
+            <svg viewBox="0 0 128 128" className="w-28 h-28">
+                {/* subtle outline so the white remainder is visible */}
+                <circle cx={cx} cy={cy} r={r} stroke="#e5e7eb" strokeWidth="10" fill="none" />
+                {/* white remainder background */}
+                <circle cx={cx} cy={cy} r={r} stroke="#ffffff" strokeWidth="10" fill="none" />
+                {/* yellow arc for time left (smooth) */}
+                <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    stroke="#facc15"
+                    strokeWidth="10"
+                    fill="none"
+                    strokeDasharray={`${(c * frac).toFixed(2)} ${(c * (1 - frac)).toFixed(2)}`}
+                    transform="rotate(-90 64 64)"
+                    strokeLinecap="butt"
+                />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-xl font-semibold tabular-nums">
+                    {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}
+                </div>
+            </div>
+        </div>
     );
 }

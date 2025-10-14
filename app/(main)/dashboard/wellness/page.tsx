@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { Moon, Droplet, Flame, Plus, X } from 'lucide-react';
@@ -493,7 +494,7 @@ function WaterToday({
 }
 
 /* ----------------------------------- Page --------------------------------- */
-export default function Wellness() {
+function WellnessPage() {
     const [sleep, setSleep] = useLocalArray<SleepPoint>('w_sleep', []);
     const [water, setWater] = useLocalArray<WaterPoint>('w_water', []);
     const [range, setRange] = useState<'1W' | '1M' | '3M' | '1Y'>('1W');
@@ -623,3 +624,6 @@ export default function Wellness() {
         </div>
     );
 }
+
+/* Export client-only to avoid SSR hydration mismatches */
+export default dynamic(() => Promise.resolve(WellnessPage), { ssr: false });
