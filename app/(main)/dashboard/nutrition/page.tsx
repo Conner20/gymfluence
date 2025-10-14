@@ -102,12 +102,18 @@ export default function Nutrition() {
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="w-full bg-white py-6 flex items-center gap-6 pl-[40px] pr-6 z-20 border-b">
-                <h1 className="font-roboto text-3xl text-black tracking-tight select-none">nutrition log</h1>
-                <nav className="ml-auto">
-                    <Link href="/dashboard" className="px-10 py-3 rounded-md font-medium hover:underline text-black">workouts</Link>
-                    <Link href="/dashboard/wellness" className="px-10 py-3 rounded-md font-medium hover:underline text-black ml-1">wellness</Link>
-                    <Link href="/dashboard/nutrition" className="px-10 py-3 rounded-md bg-black text-white font-medium ml-1">nutrition</Link>
+            <header className="flex w-full items-center justify-between bg-white px-[40px] py-6">
+                <h1 className="select-none font-roboto text-3xl text-black tracking-tight">nutrition log</h1>
+                <nav className="flex gap-2">
+                    <Link href="/dashboard" className="px-6 py-2 text-black hover:underline">
+                        workouts
+                    </Link>
+                    <Link href="/dashboard/wellness" className="px-6 py-2 text-black hover:underline">
+                        wellness
+                    </Link>
+                    <Link href="/dashboard/nutrition" className="bg-black px-6 py-2 text-white">
+                        nutrition
+                    </Link>
                 </nav>
             </header>
 

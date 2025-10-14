@@ -85,7 +85,6 @@ function daysSinceEpochUTC(date = new Date()) {
 }
 
 /** ------------------------------ SVG UI ----------------------------- */
-/** Dual-axis line chart with fixed hover/paths */
 function LineChartDual({
     width,
     height,
@@ -103,7 +102,7 @@ function LineChartDual({
 }) {
     const left = 40;
     const right = 40;
-    const top = 18;
+    const top = 28;     // +10px to push the chart down
     const bottom = 22;
     const w = width - left - right;
     const h = height - top - bottom;
@@ -118,7 +117,6 @@ function LineChartDual({
 
     const x = (i: number) => left + (i / Math.max(1, labels.length - 1)) * w;
 
-    // ticks
     const ticks = 4;
     const leftTicks = Array.from({ length: ticks + 1 }, (_, i) => minW + ((maxW - minW) * i) / ticks);
     const rightTicks = Array.from({ length: ticks + 1 }, (_, i) => minR + ((maxR - minR) * i) / ticks);
@@ -138,11 +136,9 @@ function LineChartDual({
     const weightPath = mkPath(weight, yW);
     const repsPath = mkPath(reps, yR);
 
-    // hover
     const [hover, setHover] = useState<{ i: number; cx: number; cyW: number | null; cyR: number | null } | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
 
-    // mouse -> viewBox coords
     const onMove = (e: React.MouseEvent) => {
         const svg = svgRef.current;
         if (!svg) return;
@@ -196,11 +192,11 @@ function LineChartDual({
                     </text>
                 ))}
 
-                {/* axis titles */}
-                <text x={left - 30} y={top - 6} fontSize="10" fill="#111827">
+                {/* axis titles (nudged ~5px closer to chart) */}
+                <text x={left - 30} y={top - 1} fontSize="10" fill="#111827">
                     weight (lbs)
                 </text>
-                <text x={left + w + 30} y={top - 6} fontSize="10" textAnchor="end" fill="#111827">
+                <text x={left + w + 30} y={top - 1} fontSize="10" textAnchor="end" fill="#111827">
                     reps (avg)
                 </text>
 
@@ -227,15 +223,15 @@ function LineChartDual({
                 {repsPath && <path d={repsPath} fill="none" stroke="#111827" strokeWidth={2} />}
 
                 {/* points */}
-                {weight.map((v, i) => (v > 0 ? <circle key={`pw${i}`} cx={x(i)} cy={yW(v)} r={2.6} fill="#16a34a" /> : null))}
-                {reps.map((v, i) => (v > 0 ? <circle key={`pr${i}`} cx={x(i)} cy={yR(v)} r={2.6} fill="#111827" /> : null))}
+                {weight.map((v, i) => (v > 0 ? <circle key={`pw${i}`} cx={x(i)} cy={yW(v)} r={2.4} fill="#16a34a" /> : null))}
+                {reps.map((v, i) => (v > 0 ? <circle key={`pr${i}`} cx={x(i)} cy={yR(v)} r={2.4} fill="#111827" /> : null))}
 
                 {/* hover */}
                 {hover && (
                     <>
                         <line x1={hover.cx} y1={top} x2={hover.cx} y2={top + h} stroke="#e5e7eb" />
-                        {hover.cyW != null && <circle cx={hover.cx} cy={hover.cyW} r={4} fill="white" stroke="#16a34a" strokeWidth={2} />}
-                        {hover.cyR != null && <circle cx={hover.cx} cy={hover.cyR} r={4} fill="white" stroke="#111827" strokeWidth={2} />}
+                        {hover.cyW != null && <circle cx={hover.cx} cy={hover.cyW} r={3.8} fill="white" stroke="#16a34a" strokeWidth={2} />}
+                        {hover.cyR != null && <circle cx={hover.cx} cy={hover.cyR} r={3.8} fill="white" stroke="#111827" strokeWidth={2} />}
                     </>
                 )}
                 <rect x={left} y={top} width={w} height={h} fill="transparent" />
@@ -244,11 +240,11 @@ function LineChartDual({
             {/* legend */}
             <div className="absolute left-2 top-2 flex items-center gap-4 text-[12px]">
                 <span className="inline-flex items-center gap-1 text-zinc-700">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: '#16a34a' }} />
+                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
                     <span className="font-medium">Weight (avg)</span>
                 </span>
                 <span className="inline-flex items-center gap-1 text-zinc-700">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: '#111827' }} />
+                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#111827' }} />
                     <span className="font-medium">Reps (avg)</span>
                 </span>
             </div>
@@ -256,7 +252,7 @@ function LineChartDual({
             {/* tooltip */}
             {hover && (
                 <div
-                    className="absolute pointer-events-none rounded-lg border bg-white shadow px-3 py-2 text-[12px]"
+                    className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow"
                     style={{
                         left: Math.min(Math.max(hover.cx - 70, 4), width - 140),
                         top: 8,
@@ -265,11 +261,11 @@ function LineChartDual({
                     <div className="text-[11px] text-zinc-500">{hoverDate}</div>
                     <div className="mt-1 flex items-center gap-3">
                         <span className="inline-flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#16a34a' }} />
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
                             <span className="font-medium">{hoverAvgW ? `${hoverAvgW.toFixed(1)} lbs` : '—'}</span>
                         </span>
                         <span className="inline-flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#111827' }} />
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#111827' }} />
                             <span className="font-medium">{hoverAvgR ? `${hoverAvgR.toFixed(1)} reps` : '—'}</span>
                         </span>
                     </div>
@@ -332,7 +328,7 @@ function YearHeatmap({
     const colors = ['#e5e7eb', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399'];
 
     return (
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
             {data.map((item, idx) => {
                 const c = Math.floor(idx / 7);
                 const r = idx % 7;
@@ -352,7 +348,7 @@ function YearHeatmap({
             })}
             {dayLabels.map((lb, r) => {
                 const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
-                const x = width - 26 + 12;
+                const x = width - 26; // previously shifted left to avoid clipping
                 return (
                     <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill="#6b7280">
                         {lb}
@@ -390,6 +386,9 @@ export default function Dashboard() {
     const [running, setRunning] = useState(false);
     const [endAt, setEndAt] = useState<number | null>(null); // epoch ms when it ends
 
+    // split manual offset for arrows
+    const [splitOffset, setSplitOffset] = useState(0);
+
     useEffect(() => {
         const s = loadSets();
         setSets(s);
@@ -402,7 +401,6 @@ export default function Dashboard() {
     useEffect(() => saveExercises(exercises), [exercises]);
     useEffect(() => saveSplit(split), [split]);
 
-    // ---- Range helpers ----
     const daysForRange = (r: RangeKey) => {
         switch (r) {
             case '1W':
@@ -439,12 +437,21 @@ export default function Dashboard() {
         return out;
     }, [sets]);
 
-    const splitTodayIndex = useMemo(() => {
+    // base index from "today"
+    const baseIndex = useMemo(() => {
         const cycleLen = Math.max(1, split.length || 1);
         return daysSinceEpochUTC() % cycleLen;
     }, [split]);
-    const splitToday = split.length ? (splitTodayIndex >= 0 ? split[splitTodayIndex] : '—') : '—';
-    const splitProgress = useMemo(() => (split.length ? (splitTodayIndex + 1) / split.length : 0), [split, splitTodayIndex]);
+
+    // apply manual offset (wrap when split has items)
+    const activeIndex = useMemo(() => {
+        if (!split.length) return 0;
+        const L = split.length;
+        return ((baseIndex + ((splitOffset % L) + L) % L) + L) % L;
+    }, [baseIndex, split, splitOffset]);
+
+    const splitToday = split.length ? split[activeIndex] : '—';
+    const splitProgress = useMemo(() => (split.length ? (activeIndex + 1) / split.length : 0), [split, activeIndex]);
 
     const addExercise = () => {
         const name = prompt('New exercise name');
@@ -454,7 +461,6 @@ export default function Dashboard() {
         setExercise(name);
     };
 
-    // customize split (inside component)
     const customizeSplit = () => {
         const current = split.join(', ');
         const input = prompt(
@@ -470,9 +476,9 @@ export default function Dashboard() {
 
         if (!parts.length) return;
         setSplit(parts);
+        setSplitOffset(0);
     };
 
-    // ---- Validation + Save ----
     const recordSet = () => {
         if (!exercise) return alert('Pick an exercise first.');
 
@@ -502,7 +508,6 @@ export default function Dashboard() {
         setShowRequired(false);
     };
 
-    // delete entry
     const deleteSet = (id: string) => {
         setSets((prev) => prev.filter((x) => x.id !== id));
     };
@@ -537,7 +542,6 @@ export default function Dashboard() {
         setEndAt(null);
     };
 
-    // animation loop
     useEffect(() => {
         if (!running || !endAt) return;
         let raf = 0;
@@ -559,41 +563,47 @@ export default function Dashboard() {
 
     const onRange = (r: RangeKey) => setRange(r);
 
-    // input classes for required highlight
     const reqClass = (empty: boolean) =>
         `w-full border rounded px-2 py-1 text-sm mt-1 ${showRequired && empty ? 'text-red-600 placeholder-red-400' : ''}`;
 
+    const prevSplitDay = () => {
+        if (!split.length) return;
+        setSplitOffset((o) => o - 1);
+    };
+    const nextSplitDay = () => {
+        if (!split.length) return;
+        setSplitOffset((o) => o + 1);
+    };
+
     return (
-        <div className="min-h-screen bg-[#f8f8f8]">
-            {/* Header */}
-            <header className="w-full bg-white py-4 flex justify-start items-center pl-[40px] pr-6 z-20 border-b">
-                <h1 className="font-roboto text-3xl text-black tracking-tight select-none">
-                    <span>workout log</span>
-                </h1>
-                <nav className="ml-auto">
-                    <Link href="/dashboard" className="px-8 py-3 bg-black text-white font-medium">
+        <div className="flex h-screen flex-col overflow-hidden bg-[#f8f8f8]">
+            {/* Header (fixed height) */}
+            <header className="flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
+                <h1 className="select-none font-roboto text-3xl tracking-tight text-black">workouts log</h1>
+                <nav className="flex gap-2">
+                    <Link href="/dashboard" className="bg-black px-6 py-2 text-white">
                         workouts
                     </Link>
-                    <Link href="/dashboard/wellness" className="px-8 py-3 text-black font-medium hover:underline">
+                    <Link href="/dashboard/wellness" className="px-6 py-2 text-black hover:underline">
                         wellness
                     </Link>
-                    <Link href="/dashboard/nutrition" className="px-8 py-3 text-black font-medium hover:underline">
+                    <Link href="/dashboard/nutrition" className="px-6 py-2 text-black hover:underline">
                         nutrition
                     </Link>
                 </nav>
             </header>
 
-            {/* Content (no vertical scroll) */}
-            <div className="mx-auto max-w-[1400px] px-3 pt-3 pb-2 h-[calc(100vh-72px)]">
-                <div className="grid grid-cols-12 gap-3 h-full">
+            {/* Content (fills remaining viewport, no body scroll) */}
+            <div className="mx-auto h-full max-w-[1400px] flex-1 overflow-hidden px-3 pb-2 pt-3">
+                <div className="grid h-full grid-cols-12 gap-3">
                     {/* Left Column */}
                     <div className="col-span-3 min-h-0">
-                        <div className="flex flex-col gap-3 h-full min-h-0">
+                        <div className="flex h-full min-h-0 flex-col gap-3">
                             {/* Record Set */}
-                            <section className="bg-white rounded-xl border shadow-sm p-3 flex flex-col flex-[58] min-h-0">
-                                <div className="flex items-center justify-between mb-2">
+                            <section className="flex min-h-0 flex-[55] flex-col rounded-xl border bg-white p-3 shadow-sm">
+                                <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">Record set</h3>
-                                    <button onClick={recordSet} className="text-xs px-2 py-1 rounded bg-black text-white">
+                                    <button onClick={recordSet} className="rounded bg-black px-2 py-1 text-xs text-white">
                                         +
                                     </button>
                                 </div>
@@ -601,11 +611,11 @@ export default function Dashboard() {
                                 <div className="space-y-2 overflow-auto pr-0.5">
                                     <div>
                                         <label className="text-[11px] text-zinc-500">exercise</label>
-                                        <div className="flex gap-2 mt-1">
+                                        <div className="mt-1 flex gap-2">
                                             <select
                                                 value={exercise}
                                                 onChange={(e) => setExercise(e.target.value)}
-                                                className="flex-1 border rounded px-2 py-1 text-sm"
+                                                className="flex-1 rounded border px-2 py-1 text-sm"
                                             >
                                                 {exercises.map((ex) => (
                                                     <option key={ex} value={ex}>
@@ -613,7 +623,7 @@ export default function Dashboard() {
                                                     </option>
                                                 ))}
                                             </select>
-                                            <button onClick={addExercise} className="text-xs px-2 py-1 rounded border">
+                                            <button onClick={addExercise} className="rounded border px-2 py-1 text-xs">
                                                 Add
                                             </button>
                                         </div>
@@ -657,13 +667,13 @@ export default function Dashboard() {
                                             type="date"
                                             value={date}
                                             onChange={(e) => setDate(e.target.value)}
-                                            className="w-full border rounded px-2 py-1 text-sm mt-1"
+                                            className="mt-1 w-full rounded border px-2 py-1 text-sm"
                                         />
                                     </div>
 
                                     <button
                                         onClick={recordSet}
-                                        className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                                        className="w-full rounded-lg bg-green-600 py-2 text-white transition hover:bg-green-700"
                                     >
                                         Save set
                                     </button>
@@ -671,15 +681,15 @@ export default function Dashboard() {
                             </section>
 
                             {/* Timer */}
-                            <section className="bg-white rounded-xl border shadow-sm p-3 flex flex-col items-stretch flex-[42] min-h-0">
-                                <h3 className="font-semibold mb-2">Timer</h3>
+                            <section className="flex min-h-0 flex-[38] flex-col items-stretch rounded-xl border bg-white p-3 shadow-sm">
+                                <h3 className="mb-2 font-semibold">Timer</h3>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="number"
                                         min={0}
                                         value={mm}
                                         onChange={(e) => setMm(Math.max(0, Number(e.target.value)))}
-                                        className="w-14 border rounded px-2 py-1 text-sm"
+                                        className="w-14 rounded border px-2 py-1 text-sm"
                                     />
                                     <span className="text-xs text-zinc-500">min</span>
                                     <input
@@ -688,30 +698,29 @@ export default function Dashboard() {
                                         max={59}
                                         value={ss}
                                         onChange={(e) => setSs(Math.min(59, Math.max(0, Number(e.target.value))))}
-                                        className="w-14 border rounded px-2 py-1 text-sm"
+                                        className="w-14 rounded border px-2 py-1 text-sm"
                                     />
                                     <span className="text-xs text-zinc-500">sec</span>
-                                    <button onClick={applyTimer} className="ml-auto text-xs px-2 py-1 rounded border">
+                                    <button onClick={applyTimer} className="ml-auto rounded border px-2 py-1 text-xs">
                                         Set
                                     </button>
                                 </div>
 
-                                {/* Circular progress (smooth fraction of time LEFT) */}
-                                <div className="mt-3 flex-1 flex items-center justify-center min-h-0">
+                                <div className="mt-2 flex min-h-0 flex-1 items-center justify-center">
                                     <TimerRing msLeft={msLeft} total={total} />
                                 </div>
 
-                                <div className="mt-2 flex gap-2 justify-center">
+                                <div className="mt-2 flex justify-center gap-2">
                                     {!running ? (
-                                        <button onClick={startTimer} className="px-3 py-1.5 rounded bg-black text-white">
+                                        <button onClick={startTimer} className="rounded bg-black px-3 py-1.5 text-white">
                                             start
                                         </button>
                                     ) : (
-                                        <button onClick={pauseTimer} className="px-3 py-1.5 rounded border">
+                                        <button onClick={pauseTimer} className="rounded border px-3 py-1.5">
                                             pause
                                         </button>
                                     )}
-                                    <button onClick={resetTimer} className="px-3 py-1.5 rounded border">
+                                    <button onClick={resetTimer} className="rounded border px-3 py-1.5">
                                         reset
                                     </button>
                                 </div>
@@ -720,15 +729,29 @@ export default function Dashboard() {
                     </div>
 
                     {/* Center Column */}
-                    <div className="col-span-6 flex flex-col gap-3 min-h-0">
-                        <section className="bg-white rounded-xl border shadow-sm p-3 h-[55%] min-h-0">
-                            <div className="flex items-center justify-between mb-1">
+                    <div className="col-span-6 min-h-0 flex flex-col gap-3">
+                        {/* Today’s lifts — TALLER, with centered buttons at BOTTOM */}
+                        <section className="min-h-0 rounded-xl border bg-white p-3 shadow-sm" style={{ height: '60%' }}>
+                            {/* Header (title left, exercise name right) */}
+                            <div className="mb-1 flex items-center justify-between">
                                 <h3 className="font-semibold">Today’s lifts</h3>
-                                <div className="text-xs text-zinc-600 truncate max-w-[55%]">{exercise || '—'}</div>
+                                <div className="max-w-[40ch] truncate text-xs text-zinc-600">{exercise || '—'}</div>
                             </div>
 
-                            {/* Range controls */}
-                            <div className="mb-2">
+                            {/* Chart area (leave room for buttons below) */}
+                            <div className="h-[calc(100%-86px)]">
+                                <LineChartDual
+                                    width={860}
+                                    height={310}
+                                    labels={labels}
+                                    weight={weightSeries.map((x) => Number(x.toFixed(1)))}
+                                    reps={repsSeries.map((x) => Number(x.toFixed(1)))}
+                                    dayEntries={perDay}
+                                />
+                            </div>
+
+                            {/* Centered range buttons at bottom */}
+                            <div className="mt-3 flex justify-center">
                                 <div className="flex items-center gap-2">
                                     {(['1W', '1M', '3M', '1Y'] as const).map((r) => (
                                         <button
@@ -742,28 +765,21 @@ export default function Dashboard() {
                                     ))}
                                 </div>
                             </div>
-
-                            <div className="h-[calc(100%-58px)]">
-                                <LineChartDual
-                                    width={860}
-                                    height={300}
-                                    labels={labels}
-                                    weight={weightSeries.map((x) => Number(x.toFixed(1)))}
-                                    reps={repsSeries.map((x) => Number(x.toFixed(1)))}
-                                    dayEntries={perDay}
-                                />
-                            </div>
                         </section>
 
-                        <section className="bg-white rounded-xl border shadow-sm p-3 h-[45%] min-h-0">
-                            <div className="flex items-center justify-between mb-2">
+                        {/* 2025 volume — SLIGHTLY TALLER (+15px) */}
+                        <section
+                            className="min-h-0 rounded-xl border bg-white p-3 shadow-sm"
+                            style={{ height: 'calc(36% + 15px)' }}
+                        >
+                            <div className="mb-1 flex items-center justify-between">
                                 <h3 className="font-semibold">2025 volume</h3>
                                 <div className="text-[11px] text-zinc-500">total sets per day</div>
                             </div>
-                            <div className="h-[calc(100%-64px)]">
-                                <YearHeatmap width={860} height={180} valuesByDate={heatmapValues} />
+                            <div className="h-[calc(100%-52px)]">
+                                <YearHeatmap width={820} height={160} valuesByDate={heatmapValues} />
                             </div>
-                            <div className="mt-2 flex items-center gap-5 text-[11px] text-zinc-600">
+                            <div className="mt-1 flex items-center gap-5 text-[11px] text-zinc-600">
                                 <LegendItem label="≤0 sets" color="#e5e7eb" />
                                 <LegendItem label="1–3 sets" color="#d1fae5" />
                                 <LegendItem label="4–6 sets" color="#a7f3d0" />
@@ -775,21 +791,22 @@ export default function Dashboard() {
 
                     {/* Right Column */}
                     <div className="col-span-3 min-h-0">
-                        <div className="flex flex-col gap-3 h-full min-h-0">
-                            <section className="bg-white rounded-xl border shadow-sm p-3 flex-[60] min-h-0">
-                                <h3 className="font-semibold mb-2">Recent entries</h3>
+                        <div className="flex h-full min-h-0 flex-col gap-3">
+                            {/* Recent entries */}
+                            <section className="min-h-0 flex-[55] rounded-xl border bg-white p-3 shadow-sm">
+                                <h3 className="mb-2 font-semibold">Recent entries</h3>
                                 <div className="h-[calc(100%-28px)] overflow-auto pr-1">
                                     {sets.length === 0 ? (
                                         <div className="text-sm text-zinc-500">No sets yet.</div>
                                     ) : (
-                                        <ul className="text-sm space-y-1.5">
+                                        <ul className="space-y-1.5 text-sm">
                                             {sets.slice(0, 100).map((r) => (
                                                 <li
                                                     key={r.id}
-                                                    className="flex items-center justify-between border rounded-lg px-2 py-1"
+                                                    className="flex items-center justify-between rounded-lg border px-2 py-1"
                                                 >
                                                     <div className="min-w-0">
-                                                        <div className="font-medium truncate">{r.exercise}</div>
+                                                        <div className="truncate font-medium">{r.exercise}</div>
                                                         <div className="text-[11px] text-zinc-500">{r.date}</div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
@@ -815,16 +832,38 @@ export default function Dashboard() {
                                 </div>
                             </section>
 
-                            <section className="bg-white rounded-xl border shadow-sm p-3 flex-[40] min-h-0">
+                            {/* Split */}
+                            <section className="min-h-0 flex-[38] rounded-xl border bg-white p-3 shadow-sm">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="font-semibold">Split</h3>
-                                    <button onClick={customizeSplit} className="text-xs px-2 py-1 rounded border">
+                                    {/* Title + arrows */}
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-semibold">Split</h3>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                className="rounded border px-2 py-0.5 text-sm"
+                                                onClick={prevSplitDay}
+                                                aria-label="Previous split day"
+                                                title="Previous day"
+                                            >
+                                                ←
+                                            </button>
+                                            <button
+                                                className="rounded border px-2 py-0.5 text-sm"
+                                                onClick={nextSplitDay}
+                                                aria-label="Next split day"
+                                                title="Next day"
+                                            >
+                                                →
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button onClick={customizeSplit} className="rounded border px-2 py-1 text-xs">
                                         Customize
                                     </button>
                                 </div>
 
                                 <div className="mt-2 flex items-center justify-center">
-                                    <SplitRing items={split} activeIndex={splitTodayIndex} progress={splitProgress} />
+                                    <SplitRing items={split} activeIndex={activeIndex} progress={splitProgress} />
                                 </div>
 
                                 <div className="mt-2 grid grid-cols-4 gap-2 text-center text-[12px]">
@@ -832,9 +871,9 @@ export default function Dashboard() {
                                         split.map((name, idx) => (
                                             <div
                                                 key={idx}
-                                                className={`px-2 py-1 rounded border ${idx === splitTodayIndex ? 'bg-green-600 text-white border-green-600' : 'bg-white'
+                                                className={`rounded border px-2 py-1 ${idx === activeIndex ? 'border-green-600 bg-green-600 text-white' : 'bg-white'
                                                     }`}
-                                                title={idx === splitTodayIndex ? 'today' : undefined}
+                                                title={idx === activeIndex ? 'today' : undefined}
                                             >
                                                 {name}
                                             </div>
@@ -869,7 +908,7 @@ export default function Dashboard() {
 function LegendItem({ label, color }: { label: string; color: string }) {
     return (
         <div className="flex items-center gap-2">
-            <span className="inline-block w-3 h-3 rounded" style={{ background: color }} />
+            <span className="inline-block h-3 w-3 rounded" style={{ background: color }} />
             <span>{label}</span>
         </div>
     );
@@ -893,7 +932,7 @@ function SplitRing({
     const segLen = full / segments;
 
     return (
-        <svg viewBox="0 0 120 120" className="w-32 h-32">
+        <svg viewBox="0 0 120 120" className="h-28 w-28 sm:h-32 sm:w-32">
             {/* faint outline */}
             <circle cx={cx} cy={cy} r={radius} stroke="#e5e7eb" strokeWidth="10" fill="none" />
             {/* progress around ring */}
@@ -928,7 +967,7 @@ function SplitRing({
 
 /** --------------------------- Timer Ring ---------------------------- */
 function TimerRing({ msLeft, total }: { msLeft: number; total: number }) {
-    const r = 56;
+    const r = 54;
     const cx = 64;
     const cy = 64;
     const c = 2 * Math.PI * r;
@@ -940,7 +979,7 @@ function TimerRing({ msLeft, total }: { msLeft: number; total: number }) {
 
     return (
         <div className="relative">
-            <svg viewBox="0 0 128 128" className="w-28 h-28">
+            <svg viewBox="0 0 128 128" className="h-24 w-24 sm:h-28 sm:w-28">
                 {/* subtle outline so the white remainder is visible */}
                 <circle cx={cx} cy={cy} r={r} stroke="#e5e7eb" strokeWidth="10" fill="none" />
                 {/* white remainder background */}
@@ -959,7 +998,7 @@ function TimerRing({ msLeft, total }: { msLeft: number; total: number }) {
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-xl font-semibold tabular-nums">
+                <div className="tabular-nums text-lg font-semibold sm:text-xl">
                     {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}
                 </div>
             </div>
