@@ -102,7 +102,7 @@ export default function Nutrition() {
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="flex w-full items-center justify-between bg-white px-[40px] py-6">
+            <header className="flex w-full items-center justify-between bg-white px-[40px] py-5">
                 <h1 className="select-none font-roboto text-3xl text-black tracking-tight">nutrition log</h1>
                 <nav className="flex gap-2">
                     <Link href="/dashboard" className="px-6 py-2 text-black hover:underline">
