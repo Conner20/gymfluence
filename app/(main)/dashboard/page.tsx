@@ -4,61 +4,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { Trash2 } from 'lucide-react';
-
-/** ------------------------------ Types ------------------------------ */
-type SetEntry = {
-    id: string;
-    exercise: string;
-    weight: number;
-    sets: number;
-    reps: number;
-    date: string; // YYYY-MM-DD
-};
-
-/** --------------------------- LocalStorage -------------------------- */
-const LS_SETS = 'gf_sets';
-const LS_EXS = 'gf_exercises';
-const LS_SPLIT = 'gf_workout_split';
-
-function loadSets(): SetEntry[] {
-    try {
-        const raw = localStorage.getItem(LS_SETS);
-        return raw ? (JSON.parse(raw) as SetEntry[]) : [];
-    } catch {
-        return [];
-    }
-}
-function saveSets(rows: SetEntry[]) {
-    localStorage.setItem(LS_SETS, JSON.stringify(rows));
-}
-function loadExercises(): string[] {
-    try {
-        const raw = localStorage.getItem(LS_EXS);
-        const arr = raw
-            ? (JSON.parse(raw) as string[])
-            : ['incline dumbbell press', 'squat', 'deadlift', 'bench press', 'overhead press'];
-        if (!raw) localStorage.setItem(LS_EXS, JSON.stringify(arr));
-        return arr;
-    } catch {
-        return ['incline dumbbell press', 'squat', 'deadlift', 'bench press', 'overhead press'];
-    }
-}
-function saveExercises(arr: string[]) {
-    localStorage.setItem(LS_EXS, JSON.stringify(arr));
-}
-function loadSplit(): string[] {
-    try {
-        const raw = localStorage.getItem(LS_SPLIT);
-        if (raw) {
-            const arr = (JSON.parse(raw) as string[]).map((s) => s.toLowerCase());
-            return arr.length ? arr : ['rest', 'legs', 'push', 'pull'];
-        }
-    } catch { }
-    return ['rest', 'legs', 'push', 'pull'];
-}
-function saveSplit(arr: string[]) {
-    localStorage.setItem(LS_SPLIT, JSON.stringify(arr));
-}
+import {
+    fetchAllDashboardData,
+    addExerciseServer,
+    addSetServer,
+    deleteSetServer,
+    saveSplitServer,
+    type SetEntry,
+} from '@/components/workoutActions';
 
 /** ----------------------------- Helpers ----------------------------- */
 function fmtDate(d: Date) {
@@ -83,6 +36,16 @@ function average(nums: number[]) {
 function daysSinceEpochUTC(date = new Date()) {
     return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
 }
+function daysBetweenInclusive(a: string, b: string) {
+    const da = new Date(a + 'T00:00:00Z');
+    const db = new Date(b + 'T00:00:00Z');
+    return Math.floor((+db - +da) / 86_400_000) + 1;
+}
+function addDaysStr(dateStr: string, n: number) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return fmtDate(d);
+}
 
 /** ------------------------------ SVG UI ----------------------------- */
 function LineChartDual({
@@ -102,7 +65,8 @@ function LineChartDual({
 }) {
     const left = 40;
     const right = 40;
-    const top = 28;     // +10px to push the chart down
+    // Shift graph down ~10px
+    const top = 28;
     const bottom = 22;
     const w = width - left - right;
     const h = height - top - bottom;
@@ -139,17 +103,31 @@ function LineChartDual({
     const [hover, setHover] = useState<{ i: number; cx: number; cyW: number | null; cyR: number | null } | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
 
+    // --- Tooltip width measurement & centering in CSS pixels ---
+    const tipRef = useRef<HTMLDivElement | null>(null);
+    const [tipW, setTipW] = useState(140); // fallback width
+
+    // Keep dependency array length/order stable
+    useEffect(() => {
+        if (tipRef.current) {
+            const w = tipRef.current.getBoundingClientRect().width;
+            if (Number.isFinite(w) && w > 0) setTipW(w);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hover?.i, hover?.cx, hover?.cyW, hover?.cyR]);
+
     const onMove = (e: React.MouseEvent) => {
         const svg = svgRef.current;
         if (!svg) return;
         const rect = svg.getBoundingClientRect();
+        // Convert mouse X from CSS pixels to SVG viewBox units
         const scaleX = width / rect.width;
         const mxView = (e.clientX - rect.left) * scaleX;
 
         const clamped = Math.max(left, Math.min(left + w, mxView));
         const ratio = (clamped - left) / w;
         const idx = Math.round(ratio * (labels.length - 1));
-        const cx = x(idx);
+        const cx = x(idx); // cx in SVG viewBox units
         const wy = weight[idx] > 0 ? yW(weight[idx]) : null;
         const ry = reps[idx] > 0 ? yR(reps[idx]) : null;
         setHover({ i: idx, cx, cyW: wy, cyR: ry });
@@ -162,12 +140,22 @@ function LineChartDual({
     const hoverAvgR = hoverRows?.length ? average(hoverRows.map((r) => r.reps)) : 0;
     const hoverTotalSets = hoverRows?.length ? hoverRows.reduce((s, r) => s + r.sets, 0) : 0;
 
+    // Convert hover.cx (SVG units) into CSS pixels for perfect centering of the tooltip
+    let tooltipLeft = 0;
+    if (hover) {
+        const rect = svgRef.current?.getBoundingClientRect();
+        const cssCX = rect ? (hover.cx / width) * rect.width : hover.cx; // CSS pixels
+        const min = 4;
+        const max = (rect?.width ?? width) - tipW - 4;
+        tooltipLeft = Math.max(min, Math.min(max, cssCX - tipW / 2));
+    }
+
     return (
-        <div className="relative w-full h-full">
+        <div className="relative h-full w-full">
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${width} ${height}`}
-                className="w-full h-full select-none"
+                className="h-full w-full select-none"
                 onMouseMove={onMove}
                 onMouseLeave={onLeave}
             >
@@ -192,11 +180,11 @@ function LineChartDual({
                     </text>
                 ))}
 
-                {/* axis titles (nudged ~5px closer to chart) */}
-                <text x={left - 30} y={top - 1} fontSize="10" fill="#111827">
+                {/* axis titles — moved ~5px UP (from top-6 to top-11) */}
+                <text x={left - 30} y={top - 11} fontSize="10" fill="#111827">
                     weight (lbs)
                 </text>
-                <text x={left + w + 30} y={top - 1} fontSize="10" textAnchor="end" fill="#111827">
+                <text x={left + w + 30} y={top - 11} fontSize="10" textAnchor="end" fill="#111827">
                     reps (avg)
                 </text>
 
@@ -206,13 +194,7 @@ function LineChartDual({
                         <text x={x(0)} y={top + h + 14} fontSize="9" textAnchor="start" fill="#6b7280">
                             {labels[0].slice(5).replace('-', '/')}
                         </text>
-                        <text
-                            x={x(labels.length - 1)}
-                            y={top + h + 14}
-                            fontSize="9"
-                            textAnchor="end"
-                            fill="#6b7280"
-                        >
+                        <text x={x(labels.length - 1)} y={top + h + 14} fontSize="9" textAnchor="end" fill="#6b7280">
                             {labels[labels.length - 1].slice(5).replace('-', '/')}
                         </text>
                     </>
@@ -249,13 +231,14 @@ function LineChartDual({
                 </span>
             </div>
 
-            {/* tooltip */}
+            {/* tooltip (centered over vertical line; clamped to edges) */}
             {hover && (
                 <div
+                    ref={tipRef}
                     className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow"
                     style={{
-                        left: Math.min(Math.max(hover.cx - 70, 4), width - 140),
-                        top: 8,
+                        left: tooltipLeft,
+                        top: 120,
                     }}
                 >
                     <div className="text-[11px] text-zinc-500">{hoverDate}</div>
@@ -324,7 +307,8 @@ function YearHeatmap({
     }
 
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const levels = [0, 1, 3, 6, 10];
+    // Buckets: <=0, 1–3, 4–6, 7–9, 10+
+    const levels = [0, 3, 6, 9, Infinity];
     const colors = ['#e5e7eb', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399'];
 
     return (
@@ -334,8 +318,8 @@ function YearHeatmap({
                 const r = idx % 7;
                 const x = 8 + c * (cell + gap);
                 const y = 8 + labelTop + r * (cell + gap);
-                const level = levels.findIndex((t) => item.val <= t);
-                const fill = colors[Math.max(0, level)];
+                const li = levels.findIndex((t) => item.val <= t);
+                const fill = colors[Math.max(0, li)];
                 return <rect key={idx} x={x} y={y} width={cell} height={cell} rx="2" ry="2" fill={fill} />;
             })}
             {monthTicks.map((t, i) => {
@@ -348,7 +332,7 @@ function YearHeatmap({
             })}
             {dayLabels.map((lb, r) => {
                 const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
-                const x = width - 26; // previously shifted left to avoid clipping
+                const x = width - 26;
                 return (
                     <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill="#6b7280">
                         {lb}
@@ -360,13 +344,24 @@ function YearHeatmap({
 }
 
 /** ------------------------------ Page ------------------------------- */
-type RangeKey = '1W' | '1M' | '3M' | '1Y';
+type RangeKey = '1W' | '1M' | '3M' | '1Y' | 'ALL';
+
+const RANGE_TITLES: Record<RangeKey, string> = {
+    '1W': "This week's lifts",
+    '1M': "This month's lifts",
+    '3M': "Past three months' lifts",
+    '1Y': "This year's lifts",
+    'ALL': 'Your lifts',
+};
 
 export default function Dashboard() {
     const [sets, setSets] = useState<SetEntry[]>([]);
     const [exercises, setExercises] = useState<string[]>([]);
     const [exercise, setExercise] = useState<string>('');
     const [split, setSplit] = useState<string[]>([]);
+
+    // split manual offset (arrows change which day is "today" logically)
+    const [splitOffset, setSplitOffset] = useState(0);
 
     // record form
     const [weight, setWeight] = useState('');
@@ -381,27 +376,27 @@ export default function Dashboard() {
     // timer (smooth)
     const [mm, setMm] = useState(0);
     const [ss, setSs] = useState(30);
-    const [total, setTotal] = useState(30);            // seconds total
-    const [msLeft, setMsLeft] = useState(30_000);      // ms remaining (smooth)
+    const [total, setTotal] = useState(30); // seconds total
+    const [msLeft, setMsLeft] = useState(30_000); // ms remaining (smooth)
     const [running, setRunning] = useState(false);
     const [endAt, setEndAt] = useState<number | null>(null); // epoch ms when it ends
 
-    // split manual offset for arrows
-    const [splitOffset, setSplitOffset] = useState(0);
-
+    // Load from server (Prisma) on mount
     useEffect(() => {
-        const s = loadSets();
-        setSets(s);
-        const exs = loadExercises();
-        setExercises(exs);
-        setExercise(exs[0] || '');
-        setSplit(loadSplit());
+        (async () => {
+            try {
+                const data = await fetchAllDashboardData();
+                setSets(data.sets);
+                setExercises(data.exercises);
+                setExercise(data.exercises[0] || '');
+                setSplit(data.split);
+            } catch (e) {
+                console.error(e);
+            }
+        })();
     }, []);
-    useEffect(() => saveSets(sets), [sets]);
-    useEffect(() => saveExercises(exercises), [exercises]);
-    useEffect(() => saveSplit(split), [split]);
 
-    const daysForRange = (r: RangeKey) => {
+    const daysForRange = (r: Exclude<RangeKey, 'ALL'>) => {
         switch (r) {
             case '1W':
                 return 7;
@@ -413,10 +408,23 @@ export default function Dashboard() {
                 return 365;
         }
     };
+
+    // Labels for the x-axis. For ALL: span from first to last logged date (inclusive).
     const labels = useMemo(() => {
-        const n = daysForRange(range);
-        return Array.from({ length: n }).map((_, i) => fmtDate(daysAgo(n - 1 - i)));
-    }, [range]);
+        if (range === 'ALL') {
+            if (sets.length === 0) return [];
+            // dates are YYYY-MM-DD, so lexicographic sort works
+            const sorted = [...sets.map((s) => s.date)].sort();
+            const first = sorted[0]!;
+            const last = sorted[sorted.length - 1]!;
+            const span = daysBetweenInclusive(first, last);
+            return Array.from({ length: span }, (_, i) => addDaysStr(first, i));
+        } else {
+            const n = daysForRange(range);
+            return Array.from({ length: n }).map((_, i) => fmtDate(daysAgo(n - 1 - i)));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [range, sets]);
 
     const filtered = useMemo(() => sets.filter((s) => s.exercise === exercise), [sets, exercise]);
 
@@ -428,6 +436,7 @@ export default function Dashboard() {
     const weightSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.weight)) : 0));
     const repsSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.reps)) : 0));
 
+    // Heatmap: sum of sets per day across ALL exercises
     const heatmapValues = useMemo(() => {
         const g = groupBy(sets, (r) => r.date);
         const out: Record<string, number> = {};
@@ -437,31 +446,33 @@ export default function Dashboard() {
         return out;
     }, [sets]);
 
-    // base index from "today"
-    const baseIndex = useMemo(() => {
+    const splitBaseIndex = useMemo(() => {
         const cycleLen = Math.max(1, split.length || 1);
         return daysSinceEpochUTC() % cycleLen;
     }, [split]);
 
-    // apply manual offset (wrap when split has items)
-    const activeIndex = useMemo(() => {
-        if (!split.length) return 0;
-        const L = split.length;
-        return ((baseIndex + ((splitOffset % L) + L) % L) + L) % L;
-    }, [baseIndex, split, splitOffset]);
+    const splitLen = split.length || 1;
+    const effectiveSplitIndex = ((splitBaseIndex + splitOffset) % splitLen + splitLen) % splitLen;
+    const splitToday = split.length ? split[effectiveSplitIndex] : '—';
+    const splitProgress = useMemo(
+        () => (split.length ? (effectiveSplitIndex + 1) / split.length : 0),
+        [split.length, effectiveSplitIndex]
+    );
 
-    const splitToday = split.length ? split[activeIndex] : '—';
-    const splitProgress = useMemo(() => (split.length ? (activeIndex + 1) / split.length : 0), [split, activeIndex]);
-
-    const addExercise = () => {
+    const addExercise = async () => {
         const name = prompt('New exercise name');
         if (!name) return;
-        if (exercises.includes(name)) return setExercise(name);
-        setExercises((x) => [...x, name]);
-        setExercise(name);
+        try {
+            const created = await addExerciseServer(name);
+            // Update local list (keep sorted)
+            setExercises((x) => Array.from(new Set([...x, created.name])).sort());
+            setExercise(created.name);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const customizeSplit = () => {
+    const customizeSplit = async () => {
         const current = split.join(', ');
         const input = prompt(
             'Customize split (comma-separated). Example: push, pull, legs or push, pull, legs, rest',
@@ -473,13 +484,19 @@ export default function Dashboard() {
             .split(',')
             .map((s) => s.trim().toLowerCase())
             .filter(Boolean);
-
         if (!parts.length) return;
-        setSplit(parts);
-        setSplitOffset(0);
+
+        try {
+            await saveSplitServer(parts);
+            setSplit(parts);
+            setSplitOffset(0);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const recordSet = () => {
+    // ---- Validation + Save ----
+    const recordSet = async () => {
         if (!exercise) return alert('Pick an exercise first.');
 
         const missing = {
@@ -500,16 +517,32 @@ export default function Dashboard() {
             return;
         }
 
-        const entry: SetEntry = { id: crypto.randomUUID(), exercise, weight: w, sets: s, reps: r, date };
-        setSets((prev) => [entry, ...prev]);
-        setWeight('');
-        setSetsNum('');
-        setReps('');
-        setShowRequired(false);
+        try {
+            const created = await addSetServer({
+                exerciseName: exercise,
+                weight: w,
+                sets: s,
+                reps: r,
+                date,
+            });
+            setSets((prev) => [created, ...prev]);
+            setWeight('');
+            setSetsNum('');
+            setReps('');
+            setShowRequired(false);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const deleteSet = (id: string) => {
-        setSets((prev) => prev.filter((x) => x.id !== id));
+    // delete entry
+    const deleteSet = async (id: string) => {
+        try {
+            const res = await deleteSetServer(id);
+            if (res.deleted) setSets((prev) => prev.filter((x) => x.id !== id));
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     // ----- Timer controls (smooth) -----
@@ -545,7 +578,6 @@ export default function Dashboard() {
     useEffect(() => {
         if (!running || !endAt) return;
         let raf = 0;
-
         const tick = () => {
             const left = Math.max(0, endAt - Date.now());
             setMsLeft(left);
@@ -556,7 +588,6 @@ export default function Dashboard() {
             }
             raf = requestAnimationFrame(tick);
         };
-
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
     }, [running, endAt]);
@@ -565,15 +596,6 @@ export default function Dashboard() {
 
     const reqClass = (empty: boolean) =>
         `w-full border rounded px-2 py-1 text-sm mt-1 ${showRequired && empty ? 'text-red-600 placeholder-red-400' : ''}`;
-
-    const prevSplitDay = () => {
-        if (!split.length) return;
-        setSplitOffset((o) => o - 1);
-    };
-    const nextSplitDay = () => {
-        if (!split.length) return;
-        setSplitOffset((o) => o + 1);
-    };
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-[#f8f8f8]">
@@ -608,75 +630,80 @@ export default function Dashboard() {
                                     </button>
                                 </div>
 
-                                <div className="space-y-2 overflow-auto pr-0.5">
-                                    <div>
-                                        <label className="text-[11px] text-zinc-500">exercise</label>
-                                        <div className="mt-1 flex gap-2">
-                                            <select
-                                                value={exercise}
-                                                onChange={(e) => setExercise(e.target.value)}
-                                                className="flex-1 rounded border px-2 py-1 text-sm"
+                                {/* Fill the card's height and center the form BLOCK vertically (equal top/bottom space) */}
+                                <div className="flex-1">
+                                    <div className="mx-auto h-full max-w-[420px] flex flex-col justify-center gap-6 -translate-y-3">
+                                        <div>
+                                            <label className="text-[11px] text-zinc-500">exercise</label>
+                                            <div className="mt-1 flex gap-2">
+                                                <select
+                                                    value={exercise}
+                                                    onChange={(e) => setExercise(e.target.value)}
+                                                    className="w-full rounded border px-2 py-1 text-sm"
+                                                >
+                                                    {exercises.map((ex) => (
+                                                        <option key={ex} value={ex}>
+                                                            {ex}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button onClick={addExercise} className="rounded border px-2 py-1 text-xs">
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[11px] text-zinc-500">weight (lbs)</label>
+                                                <input
+                                                    value={weight}
+                                                    onChange={(e) => setWeight(e.target.value)}
+                                                    placeholder="required"
+                                                    className={reqClass(weight.trim() === '')}
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-[11px] text-zinc-500">sets</label>
+                                                    <input
+                                                        value={setsNum}
+                                                        onChange={(e) => setSetsNum(e.target.value)}
+                                                        placeholder="required"
+                                                        className={reqClass(setsNum.trim() === '')}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[11px] text-zinc-500">reps</label>
+                                                    <input
+                                                        value={reps}
+                                                        onChange={(e) => setReps(e.target.value)}
+                                                        placeholder="required"
+                                                        className={reqClass(reps.trim() === '')}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[11px] text-zinc-500">date</label>
+                                            <input
+                                                type="date"
+                                                value={date}
+                                                onChange={(e) => setDate(e.target.value)}
+                                                className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <button
+                                                onClick={recordSet}
+                                                className="w-full rounded-lg bg-green-600 py-2 text-white transition hover:bg-green-700"
                                             >
-                                                {exercises.map((ex) => (
-                                                    <option key={ex} value={ex}>
-                                                        {ex}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button onClick={addExercise} className="rounded border px-2 py-1 text-xs">
-                                                Add
+                                                Save set
                                             </button>
                                         </div>
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="text-[11px] text-zinc-500">weight (lbs)</label>
-                                            <input
-                                                value={weight}
-                                                onChange={(e) => setWeight(e.target.value)}
-                                                placeholder="required"
-                                                className={reqClass(weight.trim() === '')}
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label className="text-[11px] text-zinc-500">sets</label>
-                                                <input
-                                                    value={setsNum}
-                                                    onChange={(e) => setSetsNum(e.target.value)}
-                                                    placeholder="required"
-                                                    className={reqClass(setsNum.trim() === '')}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[11px] text-zinc-500">reps</label>
-                                                <input
-                                                    value={reps}
-                                                    onChange={(e) => setReps(e.target.value)}
-                                                    placeholder="required"
-                                                    className={reqClass(reps.trim() === '')}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[11px] text-zinc-500">date</label>
-                                        <input
-                                            type="date"
-                                            value={date}
-                                            onChange={(e) => setDate(e.target.value)}
-                                            className="mt-1 w-full rounded border px-2 py-1 text-sm"
-                                        />
-                                    </div>
-
-                                    <button
-                                        onClick={recordSet}
-                                        className="w-full rounded-lg bg-green-600 py-2 text-white transition hover:bg-green-700"
-                                    >
-                                        Save set
-                                    </button>
                                 </div>
                             </section>
 
@@ -729,20 +756,20 @@ export default function Dashboard() {
                     </div>
 
                     {/* Center Column */}
-                    <div className="col-span-6 min-h-0 flex flex-col gap-3">
-                        {/* Today’s lifts — TALLER, with centered buttons at BOTTOM */}
-                        <section className="min-h-0 rounded-xl border bg-white p-3 shadow-sm" style={{ height: '60%' }}>
-                            {/* Header (title left, exercise name right) */}
+                    <div className="col-span-6 flex min-h-0 flex-col gap-3">
+                        {/* Lifts (title depends on selected range) */}
+                        <section className="relative min-h-0 rounded-xl border bg-white p-3 shadow-sm" style={{ height: '60%' }}>
+                            {/* Header: title + current exercise (left/right) */}
                             <div className="mb-1 flex items-center justify-between">
-                                <h3 className="font-semibold">Today’s lifts</h3>
+                                <h3 className="font-semibold">{RANGE_TITLES[range]}</h3>
                                 <div className="max-w-[40ch] truncate text-xs text-zinc-600">{exercise || '—'}</div>
                             </div>
 
-                            {/* Chart area (leave room for buttons below) */}
-                            <div className="h-[calc(100%-86px)]">
+                            {/* Chart area */}
+                            <div className="h-[calc(100%-32px)]">
                                 <LineChartDual
                                     width={860}
-                                    height={310}
+                                    height={370}
                                     labels={labels}
                                     weight={weightSeries.map((x) => Number(x.toFixed(1)))}
                                     reps={repsSeries.map((x) => Number(x.toFixed(1)))}
@@ -750,10 +777,10 @@ export default function Dashboard() {
                                 />
                             </div>
 
-                            {/* Centered range buttons at bottom */}
-                            <div className="mt-3 flex justify-center">
+                            {/* Range buttons — centered bottom */}
+                            <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2">
                                 <div className="flex items-center gap-2">
-                                    {(['1W', '1M', '3M', '1Y'] as const).map((r) => (
+                                    {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                                         <button
                                             key={r}
                                             className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'
@@ -767,11 +794,8 @@ export default function Dashboard() {
                             </div>
                         </section>
 
-                        {/* 2025 volume — SLIGHTLY TALLER (+15px) */}
-                        <section
-                            className="min-h-0 rounded-xl border bg-white p-3 shadow-sm"
-                            style={{ height: 'calc(36% + 15px)' }}
-                        >
+                        {/* 2025 volume (slightly taller than default earlier) */}
+                        <section className="min-h-0 rounded-xl border bg-white p-3 shadow-sm" style={{ height: 'calc(36% + 15px)' }}>
                             <div className="mb-1 flex items-center justify-between">
                                 <h3 className="font-semibold">2025 volume</h3>
                                 <div className="text-[11px] text-zinc-500">total sets per day</div>
@@ -783,7 +807,7 @@ export default function Dashboard() {
                                 <LegendItem label="≤0 sets" color="#e5e7eb" />
                                 <LegendItem label="1–3 sets" color="#d1fae5" />
                                 <LegendItem label="4–6 sets" color="#a7f3d0" />
-                                <LegendItem label="7–10 sets" color="#6ee7b7" />
+                                <LegendItem label="7–9 sets" color="#6ee7b7" />
                                 <LegendItem label="10+ sets" color="#34d399" />
                             </div>
                         </section>
@@ -801,10 +825,7 @@ export default function Dashboard() {
                                     ) : (
                                         <ul className="space-y-1.5 text-sm">
                                             {sets.slice(0, 100).map((r) => (
-                                                <li
-                                                    key={r.id}
-                                                    className="flex items-center justify-between rounded-lg border px-2 py-1"
-                                                >
+                                                <li key={r.id} className="flex items-center justify-between rounded-lg border px-2 py-1">
                                                     <div className="min-w-0">
                                                         <div className="truncate font-medium">{r.exercise}</div>
                                                         <div className="text-[11px] text-zinc-500">{r.date}</div>
@@ -832,48 +853,43 @@ export default function Dashboard() {
                                 </div>
                             </section>
 
-                            {/* Split */}
+                            {/* Split with arrows */}
                             <section className="min-h-0 flex-[38] rounded-xl border bg-white p-3 shadow-sm">
-                                <div className="flex items-center justify-between">
-                                    {/* Title + arrows */}
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold">Split</h3>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                className="rounded border px-2 py-0.5 text-sm"
-                                                onClick={prevSplitDay}
-                                                aria-label="Previous split day"
-                                                title="Previous day"
-                                            >
-                                                ←
-                                            </button>
-                                            <button
-                                                className="rounded border px-2 py-0.5 text-sm"
-                                                onClick={nextSplitDay}
-                                                aria-label="Next split day"
-                                                title="Next day"
-                                            >
-                                                →
-                                            </button>
-                                        </div>
-                                    </div>
+                                <div className="mb-1 flex items-center justify-between">
+                                    <h3 className="font-semibold">Split</h3>
                                     <button onClick={customizeSplit} className="rounded border px-2 py-1 text-xs">
                                         Customize
                                     </button>
                                 </div>
 
-                                <div className="mt-2 flex items-center justify-center">
-                                    <SplitRing items={split} activeIndex={activeIndex} progress={splitProgress} />
+                                <div className="mt-2 flex items-center justify-center gap-3">
+                                    <button
+                                        className="rounded-full border px-2 py-1 text-sm"
+                                        title="Previous day"
+                                        onClick={() => setSplitOffset((v) => v - 1)}
+                                    >
+                                        ←
+                                    </button>
+
+                                    <SplitRing items={split} activeIndex={effectiveSplitIndex} progress={splitProgress} />
+
+                                    <button
+                                        className="rounded-full border px-2 py-1 text-sm"
+                                        title="Next day"
+                                        onClick={() => setSplitOffset((v) => v + 1)}
+                                    >
+                                        →
+                                    </button>
                                 </div>
 
-                                <div className="mt-2 grid grid-cols-4 gap-2 text-center text-[12px]">
+                                <div className="mt-4 grid grid-cols-4 gap-2 text-center text-[12px]">
                                     {split.length ? (
                                         split.map((name, idx) => (
                                             <div
                                                 key={idx}
-                                                className={`rounded border px-2 py-1 ${idx === activeIndex ? 'border-green-600 bg-green-600 text-white' : 'bg-white'
+                                                className={`rounded border px-2 py-1 ${idx === effectiveSplitIndex ? 'border-green-600 bg-green-600 text-white' : 'bg-white'
                                                     }`}
-                                                title={idx === activeIndex ? 'today' : undefined}
+                                                title={idx === effectiveSplitIndex ? 'selected' : undefined}
                                             >
                                                 {name}
                                             </div>
@@ -883,10 +899,10 @@ export default function Dashboard() {
                                     )}
                                 </div>
 
-                                <div className="mt-2 text-center text-sm">
+                                <div className="mt-4 text-center text-sm">
                                     {split.length ? (
                                         <>
-                                            <span className="text-zinc-600">Today:</span>{' '}
+                                            <span className="text-zinc-600">Selected:</span>{' '}
                                             <span className="font-semibold text-green-700">{splitToday}</span>
                                         </>
                                     ) : (

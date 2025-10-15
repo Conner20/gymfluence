@@ -93,6 +93,11 @@ model User {
   sharedInMessages Message[] @relation("SharedUser")
 
   ratingsAuthored Rating[] @relation("RatingsByUser")
+
+  // --- Workouts ---
+  workoutExercises WorkoutExercise[]
+  workoutSets      WorkoutSet[]
+  workoutSplit     WorkoutSplit?
 }
 
 model TraineeProfile {
@@ -159,7 +164,6 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
 
 model Post {
   id        String   @id @default(cuid())
@@ -300,7 +304,7 @@ model Rating {
   gym       GymProfile?     @relation("RatingsToGym", fields: [gymId], references: [id], onDelete: Cascade)
   gymId     String?
 
-  stars     Int           // validate 1..5 in your API
+  stars     Int
   comment   String?
   status    RatingStatus  @default(PENDING)
 
@@ -309,4 +313,38 @@ model Rating {
   @@index([gymId, status])
   @@unique([raterId, trainerId])
   @@unique([raterId, gymId])
+}
+
+model WorkoutExercise {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  name   String
+
+  sets   WorkoutSet[]
+
+  @@unique([userId, name], name: "userId_name")
+}
+
+model WorkoutSet {
+  id         String          @id @default(cuid())
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  exercise   WorkoutExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  exerciseId String
+
+  weight Float
+  sets   Int
+  reps   Int
+  date   DateTime            // store at UTC midnight for the day
+
+  @@index([userId, date])
+  @@index([exerciseId, date])
+}
+
+model WorkoutSplit {
+  id     String   @id @default(cuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String   @unique
+  items  String[] // e.g. ["push","pull","legs","rest"]
 }
