@@ -98,6 +98,11 @@ model User {
   workoutExercises WorkoutExercise[]
   workoutSets      WorkoutSet[]
   workoutSplit     WorkoutSplit?
+
+  // --- Nutrition & Bodyweight ---
+  nutritionCustomFoods NutritionCustomFood[]
+  nutritionEntries     NutritionEntry[]
+  bodyweightEntries    BodyweightEntry[]
 }
 
 model TraineeProfile {
@@ -347,4 +352,71 @@ model WorkoutSplit {
   user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String   @unique
   items  String[] // e.g. ["push","pull","legs","rest"]
+}
+
+// ------------------------ Nutrition & Bodyweight -------------------------
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+}
+
+model NutritionCustomFood {
+  id      String @id @default(cuid())
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+
+  name    String
+  grams   Float
+  kcal    Float
+  p       Float
+  c       Float
+  f       Float
+
+  createdAt DateTime @default(now())
+
+  entries   NutritionEntry[]
+
+  @@index([userId, name])
+}
+
+model NutritionEntry {
+  id      String   @id @default(cuid())
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+
+  date    DateTime // UTC midnight
+  meal    MealType
+
+  customFood   NutritionCustomFood? @relation(fields: [customFoodId], references: [id])
+  customFoodId String?
+
+  foodName String
+  servings Float
+
+  // per-one-serving macros
+  kcal Float
+  p    Float
+  c    Float
+  f    Float
+
+  time      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, meal, date])
+}
+
+model BodyweightEntry {
+  id     String   @id @default(cuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  date   DateTime // UTC midnight
+  weight Float
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
