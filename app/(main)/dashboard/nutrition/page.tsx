@@ -294,7 +294,7 @@ export default function Nutrition() {
                                     title="Edit heatmap keys"
                                 >
                                     <Sliders size={14} />
-                                    Keys
+                                    Edit keys
                                 </button>
                             </div>
                         </div>

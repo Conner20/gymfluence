@@ -1,36 +1,31 @@
-// app/(main)/dashboard/wellness/page.tsx
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import { Moon, Droplet, Flame, Plus, X } from 'lucide-react';
+import { Moon, Droplet, Flame, Plus, X, Sliders, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
+
+import {
+    fetchWellnessData,
+    upsertSleepServer,
+    addWaterServer,
+    setWaterGoalServer,
+    setWellnessPrefsServer,
+    type SleepDTO,
+    type WaterDTO,
+} from '@/components/wellnessActions';
 
 /* utils */
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const fmtISO = (d: Date) => d.toISOString().slice(0, 10);
 
+// (reused from Nutrition page)
+function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d; }
+function average(nums: number[]) { if (!nums.length) return 0; return nums.reduce((a, b) => a + b, 0) / nums.length; }
+
 type SleepPoint = { date: string; hours: number | null };
 type WaterPoint = { date: string; liters: number };
-
-function useLocalArray<T>(key: string, initial: T[]) {
-    const [value, setValue] = useState<T[]>(() => {
-        if (typeof window === 'undefined') return initial;
-        try {
-            const raw = localStorage.getItem(key);
-            return raw ? (JSON.parse(raw) as T[]) : initial;
-        } catch {
-            return initial;
-        }
-    });
-    useEffect(() => {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch { }
-    }, [key, value]);
-    return [value, setValue] as const;
-}
 
 const AxisLabel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
     <span className={`text-[11px] text-neutral-500 ${className}`}>{children}</span>
@@ -48,7 +43,7 @@ function SleepLine({
 }: {
     data: SleepPoint[];
     range: '1W' | '1M' | '3M' | '1Y';
-    onAdd: (pt: SleepPoint) => void;
+    onAdd: (pt: SleepPoint) => void | Promise<void>;
     onRange: (r: '1W' | '1M' | '3M' | '1Y') => void;
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
@@ -86,7 +81,6 @@ function SleepLine({
     const y = (hrs: number) => pad.top + innerH - ((hrs - yMin) / (yMax - yMin)) * innerH;
     const x = (i: number) => pad.left + (i / Math.max(1, xs.length - 1)) * innerW;
 
-    // Build a path that CONNECTS all non-null points (bridges gaps over nulls).
     const nonNull = useMemo(
         () =>
             xs
@@ -182,10 +176,10 @@ function SleepLine({
                         />
                         <button
                             className="h-8 rounded-lg bg-purple-600 px-3 text-sm text-white hover:bg-purple-700"
-                            onClick={() => {
+                            onClick={async () => {
                                 const h = parseFloat(newHours);
                                 if (!isFinite(h) || h <= 0) return;
-                                onAdd({ date: newDate, hours: clamp(h, 0, 24) });
+                                await onAdd({ date: newDate, hours: clamp(h, 0, 24) });
                                 setNewHours('');
                                 setOpenAdd(false);
                             }}
@@ -245,7 +239,7 @@ function SleepLine({
                     </text>
                 </svg>
 
-                {/* tooltip that auto-flips left and nudges up if near bottom */}
+                {/* tooltip */}
                 {hover && (
                     <TooltipFlip
                         cx={hover.cx}
@@ -415,9 +409,9 @@ function WaterToday({
     addWater,
 }: {
     goal: number;
-    setGoal: (v: number) => void;
+    setGoal: (v: number) => void | Promise<void>;
     entries: { date: string; liters: number }[];
-    addWater: (liters: number) => void;
+    addWater: (liters: number) => void | Promise<void>;
 }) {
     const today = fmtISO(new Date());
     const consumed = entries.filter((e) => e.date === today).reduce((a, b) => a + b.liters, 0);
@@ -431,12 +425,12 @@ function WaterToday({
                 <div className="text-lg font-semibold">Goal: {goal.toFixed(1)} L</div>
                 <button
                     className="rounded-full border px-3 py-1 text-sm"
-                    onClick={() => {
+                    onClick={async () => {
                         const s = prompt('Set daily water goal (L):', goal.toString());
                         if (!s) return;
                         const n = parseFloat(s);
                         if (!isFinite(n) || n <= 0) return;
-                        setGoal(clamp(n, 0.1, 10));
+                        await setGoal(clamp(n, 0.1, 10));
                     }}
                 >
                     Set
@@ -477,10 +471,10 @@ function WaterToday({
                 />
                 <button
                     className="shrink-0 rounded-md bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
-                    onClick={() => {
+                    onClick={async () => {
                         const n = parseFloat(val);
                         if (!isFinite(n) || n <= 0) return;
-                        addWater(n);
+                        await addWater(n);
                         setVal('');
                     }}
                 >
@@ -495,29 +489,52 @@ function WaterToday({
 
 /* ----------------------------------- Page --------------------------------- */
 function WellnessPage() {
-    const [sleep, setSleep] = useLocalArray<SleepPoint>('w_sleep', []);
-    const [water, setWater] = useLocalArray<WaterPoint>('w_water', []);
+    // Server-backed state
+    const [sleep, setSleep] = useState<SleepPoint[]>([]);
+    const [water, setWater] = useState<WaterPoint[]>([]);
     const [range, setRange] = useState<'1W' | '1M' | '3M' | '1Y'>('1W');
+    const [waterGoal, setWaterGoal] = useState<number>(3.2);
 
-    // ✅ Water goal state + persistence
-    const [waterGoal, setWaterGoal] = useState<number>(() => {
-        if (typeof window === 'undefined') return 3.2;
-        const raw = localStorage.getItem('w_goal');
-        return raw ? parseFloat(raw) || 3.2 : 3.2;
-    });
+    // Load from server (mirrors Nutrition pattern)
     useEffect(() => {
-        try {
-            localStorage.setItem('w_goal', String(waterGoal));
-        } catch { }
-    }, [waterGoal]);
+        (async () => {
+            try {
+                const data = await fetchWellnessData();
+                setSleep((data.sleep || []).map((s) => ({ date: s.date, hours: s.hours })));
+                setWater((data.water || []).map((w) => ({ date: w.date, liters: w.liters })));
+                if (data.settings?.waterGoal) setWaterGoal(data.settings.waterGoal);
+            } catch (e) {
+                console.error(e);
+            }
+        })();
+    }, []);
 
     const todayISO = fmtISO(new Date());
-    const addSleep = (pt: SleepPoint) =>
-        setSleep((cur) => {
-            const others = cur.filter((x) => x.date !== pt.date);
-            return [...others, pt].sort((a, b) => a.date.localeCompare(b.date));
-        });
-    const addWater = (liters: number) => setWater((cur) => [...cur, { date: todayISO, liters }]);
+
+    // Persisted mutations
+    const addSleep = async (pt: SleepPoint) => {
+        try {
+            const up = await upsertSleepServer({ date: pt.date, hours: pt.hours });
+            setSleep((cur) => {
+                const others = cur.filter((x) => x.date !== up.date);
+                return [...others, { date: up.date, hours: up.hours }].sort((a, b) => a.date.localeCompare(b.date));
+            });
+        } catch (e) { console.error(e); }
+    };
+
+    const addWater = async (liters: number, dateISOParam = todayISO) => {
+        try {
+            const created = await addWaterServer({ date: dateISOParam, liters });
+            setWater((cur) => [...cur, { date: created.date, liters: created.liters }]);
+        } catch (e) { console.error(e); }
+    };
+
+    const setGoal = async (next: number) => {
+        try {
+            const res = await setWaterGoalServer(next);
+            setWaterGoal(res.waterGoal);
+        } catch (e) { console.error(e); }
+    };
 
     const last7 = useMemo(() => {
         const out: string[] = [];
@@ -547,7 +564,6 @@ function WellnessPage() {
         return vals.reduce((a, b) => a + b, 0) / vals.length;
     }, [water, last7]);
 
-    // ✅ Use current waterGoal in the streak rule
     const streakDays = useMemo(() => {
         const mapWater = new Map<string, number>();
         water.forEach((w) => mapWater.set(w.date, (mapWater.get(w.date) ?? 0) + w.liters));
@@ -615,8 +631,7 @@ function WellnessPage() {
 
                 {/* Right column */}
                 <section className="col-span-12 lg:col-span-2">
-                    {/* ✅ Pass live goal and setter */}
-                    <WaterToday goal={waterGoal} setGoal={setWaterGoal} entries={water} addWater={(l) => addWater(l)} />
+                    <WaterToday goal={waterGoal} setGoal={setGoal} entries={water} addWater={(l) => addWater(l)} />
                 </section>
             </main>
 
@@ -625,5 +640,134 @@ function WellnessPage() {
     );
 }
 
-/* Export client-only to avoid SSR hydration mismatches */
+/* ------------------------------- Bodyweight Chart ------------------------------- */
+/** ---------- Small hook for responsive components (reused) ---------- */
+function useMeasure<T extends HTMLElement>() {
+    const ref = useRef<T | null>(null);
+    const [size, setSize] = useState({ width: 0, height: 0 });
+    useEffect(() => {
+        if (!ref.current) return;
+        const el = ref.current;
+        const ro = new ResizeObserver((entries) => {
+            const cr = entries[0]?.contentRect;
+            if (cr) setSize({ width: cr.width, height: cr.height });
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    return { ref, ...size };
+}
+
+type BWPoint = { date: string; weight: number };
+type RangeKey = '1W' | '1M' | '3M' | '1Y' | 'ALL';
+type HMMetric = 'kcal' | 'f' | 'c' | 'p';
+
+/** ---------- Year heatmap (unchanged) ---------- */
+function YearHeatmap({
+    width,
+    height,
+    valuesByDate,
+    levels,
+    colors,
+    showAlternateDays = false,
+}: {
+    width: number;
+    height: number;
+    valuesByDate: Record<string, number>;
+    levels: number[];
+    colors: string[];
+    showAlternateDays?: boolean;
+}) {
+    const cols = 53, rows = 7, pad = 8, labelTop = 14, labelRight = 30, gap = 1.8;
+    const innerW = width - pad * 2 - labelRight;
+    const innerH = height - pad * 2 - labelTop;
+    const cell = Math.min(innerW / cols - gap, innerH / rows - gap);
+
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const start = new Date(todayUTC);
+    start.setUTCDate(start.getUTCDate() - 364);
+    const backToMonday = (start.getUTCDay() + 6) % 7;
+    start.setUTCDate(start.getUTCDate() - backToMonday);
+
+    const data: { d: Date; key: string; val: number }[] = [];
+    for (let i = 0; i < cols * rows; i++) {
+        const d = new Date(start);
+        d.setUTCDate(start.getUTCDate() + i);
+        const key = fmtISO(d);
+        data.push({ d, key, val: valuesByDate[key] || 0 });
+    }
+
+    const monthTicks: { label: string; col: number }[] = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    for (let i = 0; i < data.length; i++) {
+        const { d } = data[i];
+        if (d.getUTCDate() === 1) {
+            const col = Math.floor(i / 7);
+            if (!monthTicks.some((t) => t.col === col)) monthTicks.push({ label: monthNames[d.getUTCMonth()], col });
+        }
+    }
+
+    const fullDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const altDayLabels = ['Mon', 'Wed', 'Fri', 'Sun'];
+    const dayLabels = showAlternateDays ? altDayLabels : fullDayLabels;
+    const dayIndices = showAlternateDays ? [0, 2, 4, 6] : [0, 1, 2, 3, 4, 5, 6];
+
+    return (
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
+            {data.map((item, idx) => {
+                const c = Math.floor(idx / 7);
+                const r = idx % 7;
+                const x = 8 + c * (cell + gap);
+                const y = 8 + labelTop + r * (cell + gap);
+                const li = levels.findIndex((t) => item.val <= t);
+                const fill = colors[Math.max(0, li)];
+                return <rect key={idx} x={x} y={y} width={cell} height={cell} rx="2" ry="2" fill={fill} />;
+            })}
+
+            {monthTicks.map((t, i) => {
+                const x = 8 + t.col * (cell + gap) + cell / 2;
+                return <text key={i} x={x} y={18} fontSize="10" textAnchor="middle" fill="#6b7280">{t.label}</text>;
+            })}
+
+            {dayLabels.map((lb, ix) => {
+                const r = dayIndices[ix];
+                const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
+                const x = width - 26;
+                return <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill="#6b7280">{lb}</text>;
+            })}
+        </svg>
+    );
+}
+
+function ResponsiveHeatmap({
+    valuesByDate,
+    height,
+    showAlternateDays = false,
+    levels,
+    colors,
+}: {
+    valuesByDate: Record<string, number>;
+    height: number;
+    showAlternateDays?: boolean;
+    levels: number[];
+    colors: string[];
+}) {
+    const { ref, width } = useMeasure<HTMLDivElement>();
+    const w = Math.max(420, Math.floor(width));
+    return (
+        <div ref={ref} className="h-[200px] w-full">
+            <YearHeatmap
+                valuesByDate={valuesByDate}
+                height={height}
+                showAlternateDays={showAlternateDays}
+                width={w}
+                levels={levels}
+                colors={colors}
+            />
+        </div>
+    );
+}
+
+/* ------------------------------- Export ------------------------------- */
 export default dynamic(() => Promise.resolve(WellnessPage), { ssr: false });

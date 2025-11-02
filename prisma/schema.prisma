@@ -103,6 +103,11 @@ model User {
   nutritionCustomFoods NutritionCustomFood[]
   nutritionEntries     NutritionEntry[]
   bodyweightEntries    BodyweightEntry[]
+
+  // --- Wellness ---
+  sleepEntries     SleepEntry[]
+  waterEntries     WaterEntry[]
+  wellnessSettings WellnessSettings?
 }
 
 model TraineeProfile {
@@ -303,10 +308,10 @@ model Rating {
   raterId   String
 
   // target (exactly one of these should be set; enforce in your API)
-  trainer   TrainerProfile? @relation("RatingsToTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer   TrainerProfile? @relation("RatingsToTrainer", fields: [trainerId], references: [id])
   trainerId String?
 
-  gym       GymProfile?     @relation("RatingsToGym", fields: [gymId], references: [id], onDelete: Cascade)
+  gym       GymProfile?     @relation("RatingsToGym", fields: [gymId], references: [id])
   gymId     String?
 
   stars     Int
@@ -419,4 +424,40 @@ model BodyweightEntry {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+// ------------------------ Wellness (NEW) -------------------------
+
+model SleepEntry {
+  id     String   @id @default(cuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  date   DateTime // UTC midnight
+  hours  Float?   // nullable = “no data” day
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model WaterEntry {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  date      DateTime // UTC midnight
+  liters    Float
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model WellnessSettings {
+  id        String @id @default(cuid())
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String @unique
+
+  waterGoal Float  @default(3.2)
+  unit      String?
+  bwRange   String?
 }
