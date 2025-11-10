@@ -5,9 +5,9 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
     _req: Request,
-    { params }: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
-    const { id } = await params; // ✅ await params
+    const { id } = await context.params; // ✅ await params
 
     const session = await getServerSession(authOptions);
     const viewerEmail = session?.user?.email ?? null;

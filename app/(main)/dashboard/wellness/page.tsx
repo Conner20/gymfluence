@@ -450,10 +450,12 @@ function WaterToday({
                                     className={`absolute left-2 right-2 ${radiusClass} bg-blue-400/30 flex items-center justify-center`}
                                     style={{ height: `calc((100% - 1rem) * ${pct})`, bottom: '0.5rem' }}
                                 >
-                                    <div className="text-xs font-medium text-neutral-800 text-center">
-                                        {consumed.toFixed(1)} L
-                                        <div className="text-[10px] opacity-80">today</div>
-                                    </div>
+                                    {consumed > 0 && (
+                                        <div className="text-xs font-medium text-neutral-800 text-center">
+                                            {consumed.toFixed(1)} L
+                                            <div className="text-[10px] opacity-80">today</div>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })()}
@@ -486,6 +488,7 @@ function WaterToday({
         </div>
     );
 }
+
 
 /* ----------------------------------- Page --------------------------------- */
 function WellnessPage() {

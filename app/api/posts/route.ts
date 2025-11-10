@@ -1,3 +1,4 @@
+// app/api/posts/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
@@ -5,6 +6,8 @@ import { authOptions } from "@/lib/auth";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+
+const PAGE_SIZE = 10; // 🔹 10 posts per request
 
 // Helpers
 async function ensureUploadsDir() {
@@ -55,11 +58,17 @@ export async function POST(req: Request) {
             if (file && file instanceof File && file.size > 0) {
                 const maxBytes = 8 * 1024 * 1024; // 8MB
                 if (file.size > maxBytes) {
-                    return NextResponse.json({ message: "Image too large (max 8MB)." }, { status: 400 });
+                    return NextResponse.json(
+                        { message: "Image too large (max 8MB)." },
+                        { status: 400 }
+                    );
                 }
                 const mime = file.type || "application/octet-stream";
                 if (!mime.startsWith("image/")) {
-                    return NextResponse.json({ message: "Only image uploads are allowed." }, { status: 400 });
+                    return NextResponse.json(
+                        { message: "Only image uploads are allowed." },
+                        { status: 400 }
+                    );
                 }
 
                 const buf = Buffer.from(await file.arrayBuffer());
@@ -83,7 +92,10 @@ export async function POST(req: Request) {
         }
 
         if (!title || !content) {
-            return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
+            return NextResponse.json(
+                { message: "Title and content are required." },
+                { status: 400 }
+            );
         }
 
         const newPost = await db.post.create({
@@ -95,17 +107,24 @@ export async function POST(req: Request) {
             },
         });
 
-        return NextResponse.json({ post: newPost, message: "Post created!" }, { status: 201 });
+        return NextResponse.json(
+            { post: newPost, message: "Post created!" },
+            { status: 201 }
+        );
     } catch (error) {
         console.error("POST /api/posts error:", error);
-        return NextResponse.json({ message: "Failed to create post." }, { status: 500 });
+        return NextResponse.json(
+            { message: "Failed to create post." },
+            { status: 500 }
+        );
     }
 }
 
-// Fetch posts with privacy rules (unchanged logic you already have):
+// Fetch posts with privacy rules:
 // - Public authors visible to everyone
 // - Private authors visible to followers
 // - Viewer always sees their own posts
+// Supports pagination via ?cursor=<ISO createdAt>
 export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     const viewerEmail = session?.user?.email ?? null;
@@ -121,6 +140,58 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const authorId = searchParams.get("authorId");
+    const cursorParam = searchParams.get("cursor");
+
+    let cursorDate: Date | null = null;
+    if (cursorParam) {
+        const d = new Date(cursorParam);
+        if (!Number.isNaN(d.getTime())) {
+            cursorDate = d;
+        }
+    }
+
+    // Helper to format posts (used for both profile + home)
+    const formatPosts = (posts: any[]) =>
+        posts.map((p) => ({
+            id: p.id,
+            title: p.title,
+            content: p.content,
+            imageUrl: p.imageUrl ?? null,
+            createdAt: p.createdAt,
+            author: p.author
+                ? {
+                    id: p.author.id,
+                    username: p.author.username,
+                    name: p.author.name,
+                }
+                : null,
+            likeCount: p.likes.length,
+            didLike: viewerId ? p.likes.some((l: any) => l.userId === viewerId) : false,
+            commentCount:
+                p.comments.length +
+                p.comments.reduce(
+                    (s: number, c: any) => s + (c.replies?.length ?? 0),
+                    0
+                ),
+            comments: p.comments.map((c: any) => ({
+                id: c.id,
+                content: c.content,
+                createdAt: c.createdAt,
+                author: {
+                    username: c.author?.username ?? null,
+                    email: c.author?.email ?? null,
+                },
+                replies: c.replies.map((r: any) => ({
+                    id: r.id,
+                    content: r.content,
+                    createdAt: r.createdAt,
+                    author: {
+                        username: r.author?.username ?? null,
+                        email: r.author?.email ?? null,
+                    },
+                })),
+            })),
+        }));
 
     try {
         // ---------- PROFILE FEED (authorId provided) ----------
@@ -151,31 +222,34 @@ export async function GET(req: Request) {
             }
 
             const posts = await db.post.findMany({
-                where: { authorId },
+                where: {
+                    authorId,
+                    ...(cursorDate && { createdAt: { lt: cursorDate } }),
+                },
                 orderBy: { createdAt: "desc" },
                 include: {
                     author: { select: { id: true, username: true, name: true } },
                     likes: { select: { userId: true } },
                     comments: {
                         where: { parentId: null },
-                        select: { id: true },
+                        orderBy: { createdAt: "asc" },
+                        include: {
+                            author: { select: { username: true, email: true } },
+                            replies: {
+                                orderBy: { createdAt: "asc" },
+                                include: {
+                                    author: {
+                                        select: { username: true, email: true },
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
-                take: 60,
+                take: PAGE_SIZE, // 🔹 10 per page
             });
 
-            const formatted = posts.map((p) => ({
-                id: p.id,
-                title: p.title,
-                content: p.content,
-                imageUrl: p.imageUrl ?? null,
-                createdAt: p.createdAt,
-                author: p.author ? { id: p.author.id, username: p.author.username, name: p.author.name } : null,
-                likeCount: p.likes.length,
-                didLike: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
-                commentCount: p.comments.length, // (top-level only; replies loaded in PostComments)
-            }));
-
+            const formatted = formatPosts(posts);
             return NextResponse.json(formatted);
         }
 
@@ -189,8 +263,7 @@ export async function GET(req: Request) {
             followedIds = following.map((f) => f.followingId);
         }
 
-        // IMPORTANT: no `as const` and use relation filter with `is: {...}`
-        const whereFilter =
+        const baseWhere =
             viewerId
                 ? {
                     OR: [
@@ -201,6 +274,13 @@ export async function GET(req: Request) {
                 }
                 : { author: { is: { isPrivate: false } } };
 
+        const whereFilter = {
+            AND: [
+                baseWhere,
+                ...(cursorDate ? [{ createdAt: { lt: cursorDate } }] : []),
+            ],
+        };
+
         const posts = await db.post.findMany({
             where: whereFilter,
             orderBy: { createdAt: "desc" },
@@ -209,28 +289,31 @@ export async function GET(req: Request) {
                 likes: { select: { userId: true } },
                 comments: {
                     where: { parentId: null },
-                    select: { id: true },
+                    orderBy: { createdAt: "asc" },
+                    include: {
+                        author: { select: { username: true, email: true } },
+                        replies: {
+                            orderBy: { createdAt: "asc" },
+                            include: {
+                                author: {
+                                    select: { username: true, email: true },
+                                },
+                            },
+                        },
+                    },
                 },
             },
-            take: 60,
+            take: PAGE_SIZE, // 🔹 10 per page
         });
 
-        const formatted = posts.map((p) => ({
-            id: p.id,
-            title: p.title,
-            content: p.content,
-            imageUrl: p.imageUrl ?? null,
-            createdAt: p.createdAt,
-            author: p.author ? { id: p.author.id, username: p.author.username, name: p.author.name } : null,
-            likeCount: p.likes.length,
-            didLike: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
-            commentCount: p.comments.length,
-        }));
-
+        const formatted = formatPosts(posts);
         return NextResponse.json(formatted);
     } catch (e) {
         console.error("GET /api/posts error:", e);
-        return NextResponse.json({ message: "Failed to fetch posts." }, { status: 500 });
+        return NextResponse.json(
+            { message: "Failed to fetch posts." },
+            { status: 500 }
+        );
     }
 }
 
@@ -248,11 +331,17 @@ export async function DELETE(req: Request) {
     });
 
     if (!post) {
-        return NextResponse.json({ message: "Post not found." }, { status: 404 });
+        return NextResponse.json(
+            { message: "Post not found." },
+            { status: 404 }
+        );
     }
 
     if (post.author?.email !== session.user.email) {
-        return NextResponse.json({ message: "Forbidden: You can only delete your own posts." }, { status: 403 });
+        return NextResponse.json(
+            { message: "Forbidden: You can only delete your own posts." },
+            { status: 403 }
+        );
     }
 
     await db.post.delete({ where: { id } });

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { Trash2 } from 'lucide-react';
 
 // --- SharedPostModal (auto-resizes to the real post height) ---
 function SharedPostModal({
@@ -76,6 +77,11 @@ type LiteUser = {
     image?: string | null;
 };
 
+const displayName = (u?: LiteUser | null, fallback = 'User') =>
+    (u?.name && u.name.trim()) ||
+    (u?.username && u.username.trim()) ||
+    fallback;
+
 type SharedPost = {
     id: string;
     title: string;
@@ -90,7 +96,13 @@ type ConversationRow = {
     groupName?: string | null;
     groupMembers?: LiteUser[];
     other: LiteUser | null;
-    lastMessage: { id: string; content: string; createdAt: string; isMine: boolean; imageUrls?: string[] } | null;
+    lastMessage: {
+        id: string;
+        content: string;
+        createdAt: string;
+        isMine: boolean;
+        imageUrls?: string[];
+    } | null;
     unreadCount?: number;
 };
 
@@ -109,6 +121,42 @@ type ThreadMessage = {
 type ShareDraft =
     | { type: 'profile'; url: string; label?: string; userId?: string }
     | { type: 'post'; post: SharedPost };
+
+// --- Avatar helper (uses user.image if present, otherwise initials) ---
+function Avatar({
+    user,
+    size = 32,
+    fallbackChar = 'U',
+}: {
+    user?: LiteUser | null;
+    size?: number;
+    fallbackChar?: string;
+}) {
+    const label = displayName(user, fallbackChar || 'U');
+    const initials = label.slice(0, 2).toUpperCase();
+    const dim = `${size}px`;
+
+    if (user?.image) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={user.image}
+                alt={label}
+                className="rounded-full object-cover"
+                style={{ width: dim, height: dim }}
+            />
+        );
+    }
+
+    return (
+        <div
+            className="rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase"
+            style={{ width: dim, height: dim }}
+        >
+            {initials}
+        </div>
+    );
+}
 
 export default function Messenger() {
     const { data: session } = useSession();
@@ -153,6 +201,7 @@ export default function Messenger() {
     const [groupResults, setGroupResults] = useState<LiteUser[]>([]);
     const [groupLoading, setGroupLoading] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [selectedUsers, setSelectedUsers] = useState<LiteUser[]>([]);
 
     // MANAGE modal
     const [showManage, setShowManage] = useState(false);
@@ -172,6 +221,7 @@ export default function Messenger() {
     const threadReqIdRef = useRef(0);
 
     const myUsername = (session?.user as any)?.username as string | undefined;
+    const myId = (session?.user as any)?.id as string | undefined;
 
     const lastTimestamp = useMemo(
         () => (messages.length ? messages[messages.length - 1].createdAt : null),
@@ -210,7 +260,8 @@ export default function Messenger() {
     };
 
     // ---------- system message helpers ----------
-    const SYS_PREFIX = '[SYS] ';
+    // prefix changed from "[SYS] " to "* "
+    const SYS_PREFIX = '* ';
     const isSystemMessage = (m: ThreadMessage) => {
         if ((m.imageUrls?.length ?? 0) > 0) return false;
         if (m.content?.startsWith(SYS_PREFIX)) return true;
@@ -227,6 +278,14 @@ export default function Messenger() {
         m.content?.startsWith(SYS_PREFIX) ? m.content.slice(SYS_PREFIX.length) : m.content;
 
     // ---------------- helpers ----------------
+
+    const groupTitleFromMembers = (members?: LiteUser[], meId?: string) => {
+        if (!members || members.length === 0) return 'Group';
+        const others = meId ? members.filter((m) => m.id !== meId) : members;
+        const base = others.length > 0 ? others : members;
+        const label = base.map((u) => displayName(u)).join(', ');
+        return label || 'Group';
+    };
 
     // Collapse accidental duplicates; only show real groups (>= 2 other members)
     const normalizeConvos = (rows: ConversationRow[]) => {
@@ -279,15 +338,22 @@ export default function Messenger() {
             setSearchLoading(false);
             return;
         }
+        const qLower = q.toLowerCase();
         let alive = true;
         setSearchLoading(true);
         const t = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, {
+                    cache: 'no-store',
+                });
                 if (!res.ok) throw new Error();
                 const data: { followers: LiteUser[] } = await res.json();
                 if (!alive) return;
-                setSearchFollowers(data.followers);
+                setSearchFollowers(
+                    data.followers.filter((u) =>
+                        ((u.name || u.username || '') as string).toLowerCase().includes(qLower)
+                    )
+                );
             } catch {
                 if (alive) setSearchFollowers([]);
             } finally {
@@ -309,15 +375,22 @@ export default function Messenger() {
             setGroupLoading(false);
             return;
         }
+        const qLower = q.toLowerCase();
         let alive = true;
         setGroupLoading(true);
         const t = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, {
+                    cache: 'no-store',
+                });
                 if (!res.ok) throw new Error();
                 const data: { followers: LiteUser[] } = await res.json();
                 if (!alive) return;
-                setGroupResults(data.followers);
+                setGroupResults(
+                    data.followers.filter((u) =>
+                        ((u.name || u.username || '') as string).toLowerCase().includes(qLower)
+                    )
+                );
             } catch {
                 if (alive) setGroupResults([]);
             } finally {
@@ -339,15 +412,22 @@ export default function Messenger() {
             setAddLoading(false);
             return;
         }
+        const qLower = q.toLowerCase();
         let alive = true;
         setAddLoading(true);
         const t = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, {
+                    cache: 'no-store',
+                });
                 if (!res.ok) throw new Error();
                 const data: { followers: LiteUser[] } = await res.json();
                 if (!alive) return;
-                setAddResults(data.followers);
+                setAddResults(
+                    data.followers.filter((u) =>
+                        ((u.name || u.username || '') as string).toLowerCase().includes(qLower)
+                    )
+                );
             } catch {
                 if (alive) setAddResults([]);
             } finally {
@@ -373,7 +453,10 @@ export default function Messenger() {
         } else if (shareType === 'post' && shareId) {
             (async () => {
                 try {
-                    const res = await fetch(`/api/share/preview?type=post&id=${encodeURIComponent(shareId)}`, { cache: 'no-store' });
+                    const res = await fetch(
+                        `/api/share/preview?type=post&id=${encodeURIComponent(shareId)}`,
+                        { cache: 'no-store' }
+                    );
                     if (!res.ok) return;
                     const data = await res.json();
                     if (data?.post) {
@@ -448,7 +531,9 @@ export default function Messenger() {
                 setConvos((prev) =>
                     normalizeConvos(
                         prev.map((c) =>
-                            c.id === data.conversationId ? { ...c, unreadCount: 0, groupName: data.group?.name ?? c.groupName } : c
+                            c.id === data.conversationId
+                                ? { ...c, unreadCount: 0, groupName: data.group?.name ?? c.groupName }
+                                : c
                         )
                     )
                 );
@@ -505,11 +590,19 @@ export default function Messenger() {
                         groupName: null,
                         groupMembers: undefined,
                         lastMessage: newest
-                            ? { id: newest.id, content: newest.content, createdAt: newest.createdAt, isMine: newest.isMine, imageUrls: newest.imageUrls ?? [] }
+                            ? {
+                                id: newest.id,
+                                content: newest.content,
+                                createdAt: newest.createdAt,
+                                isMine: newest.isMine,
+                                imageUrls: newest.imageUrls ?? [],
+                            }
                             : null,
                         unreadCount: 0,
                     };
-                    const byKey = new Map(prev.map((c) => [c.isGroup ? `grp:${c.id}` : `dm:${c.other?.id ?? c.id}`, c]));
+                    const byKey = new Map(
+                        prev.map((c) => [c.isGroup ? `grp:${c.id}` : `dm:${c.other?.id ?? c.id}`, c])
+                    );
                     byKey.set(`dm:${data.other.id}`, updated);
                     return normalizeConvos(Array.from(byKey.values()));
                 });
@@ -527,7 +620,9 @@ export default function Messenger() {
         if (!activeConvoId) return;
         try {
             const url = lastTimestamp
-                ? `/api/messages?conversationId=${encodeURIComponent(activeConvoId)}&cursor=${encodeURIComponent(lastTimestamp)}`
+                ? `/api/messages?conversationId=${encodeURIComponent(
+                    activeConvoId
+                )}&cursor=${encodeURIComponent(lastTimestamp)}`
                 : `/api/messages?conversationId=${encodeURIComponent(activeConvoId)}`;
 
             const res = await fetch(url, { cache: 'no-store' });
@@ -615,7 +710,11 @@ export default function Messenger() {
                 sender: { id: 'me', username: myUsername ?? 'you', name: 'You', image: null },
                 sharedUser:
                     shareDraft?.type === 'profile' && shareDraft.userId
-                        ? { id: shareDraft.userId, username: shareDraft.label ?? null, name: shareDraft.label ?? null }
+                        ? {
+                            id: shareDraft.userId,
+                            username: shareDraft.label ?? null,
+                            name: shareDraft.label ?? null,
+                        }
                         : null,
                 sharedPost: shareDraft?.type === 'post' ? shareDraft.post : null,
             };
@@ -628,7 +727,13 @@ export default function Messenger() {
                             c.id === activeConvoId
                                 ? {
                                     ...c,
-                                    lastMessage: { id: tempId, content: text, imageUrls: uploaded, createdAt: nowIso, isMine: true },
+                                    lastMessage: {
+                                        id: tempId,
+                                        content: text,
+                                        imageUrls: uploaded,
+                                        createdAt: nowIso,
+                                        isMine: true,
+                                    },
                                     updatedAt: nowIso,
                                 }
                                 : c
@@ -658,7 +763,9 @@ export default function Messenger() {
                 const data: { id: string; createdAt: string; conversationId: string } = await res.json();
                 setActiveConvoId((prev) => prev ?? data.conversationId);
                 setMessages((prev) =>
-                    prev.map((m) => (m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m))
+                    prev.map((m) =>
+                        m.id === tempId ? { ...m, id: data.id, createdAt: data.createdAt } : m
+                    )
                 );
 
                 setShareDraft(null);
@@ -678,7 +785,18 @@ export default function Messenger() {
                 inputRef.current?.focus();
             }
         },
-        [draft, files, activeConvoId, activeOther, fetchConversations, myUsername, shareDraft, router, pathname, searchParams]
+        [
+            draft,
+            files,
+            activeConvoId,
+            activeOther,
+            fetchConversations,
+            myUsername,
+            shareDraft,
+            router,
+            pathname,
+            searchParams,
+        ]
     );
 
     // ---------------- effects ----------------
@@ -703,7 +821,9 @@ export default function Messenger() {
             return;
         }
         if (to) {
-            const guess = convos.find((c) => !c.isGroup && (c.other?.username === to || c.other?.id === to))?.other;
+            const guess = convos.find(
+                (c) => !c.isGroup && (c.other?.username === to || c.other?.id === to)
+            )?.other;
             if (guess) {
                 setActiveOther(guess);
                 setActiveGroupMembers(null);
@@ -761,6 +881,34 @@ export default function Messenger() {
         setSearchFollowers([]);
     };
 
+    // NEW: delete conversation handler
+    const handleDeleteConversation = async (conversationId: string) => {
+        const ok = window.confirm(
+            'Are you sure you want to delete this conversation? This will remove all messages for you.'
+        );
+        if (!ok) return;
+
+        try {
+            const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+                method: 'DELETE',
+            });
+            if (!res.ok) throw new Error('Failed to delete conversation');
+
+            setConvos((prev) => prev.filter((c) => c.id !== conversationId));
+
+            if (activeConvoId === conversationId) {
+                setActiveConvoId(null);
+                setActiveOther(null);
+                setActiveGroupMembers(null);
+                setActiveGroupName(null);
+                setMessages([]);
+                router.replace(pathname);
+            }
+        } catch (e) {
+            alert((e as Error).message || 'Failed to delete conversation.');
+        }
+    };
+
     // ---------- small components ----------
     const Attachments = ({ urls }: { urls: string[] }) => {
         if (!urls || urls.length === 0) return null;
@@ -773,13 +921,18 @@ export default function Messenger() {
                 </a>
             );
         }
-        const gridCols = urls.length === 2 ? 'grid-cols-2' : urls.length <= 4 ? 'grid-cols-2' : 'grid-cols-3';
+        const gridCols =
+            urls.length === 2 ? 'grid-cols-2' : urls.length <= 4 ? 'grid-cols-2' : 'grid-cols-3';
         return (
             <div className={clsx('grid gap-2', gridCols)}>
                 {urls.map((url, i) => (
                     <a key={i} href={url} target="_blank" rel="noreferrer">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt="attachment" className="rounded-lg w-full h-auto max-h-32 object-cover" />
+                        <img
+                            src={url}
+                            alt="attachment"
+                            className="rounded-lg w-full h-auto max-h-32 object-cover"
+                        />
                     </a>
                 ))}
             </div>
@@ -788,7 +941,7 @@ export default function Messenger() {
 
     const ShareCard = ({ m }: { m: ThreadMessage }) => {
         const containerClasses =
-            "block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline";
+            'block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline';
 
         // PROFILE SHARE
         if (m.sharedUser || (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.test(m.content))) {
@@ -796,33 +949,34 @@ export default function Messenger() {
 
             // Infer slug from URL if needed
             let linkFromContent =
-                (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.exec(m.content)?.[0]) || "";
+                (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.exec(m.content)?.[0]) || '';
             let inferredSlug: string | undefined = u?.username || u?.name || u?.id || undefined;
             if (!inferredSlug && linkFromContent) {
                 try {
-                    const url = linkFromContent.startsWith("http")
+                    const url = linkFromContent.startsWith('http')
                         ? new URL(linkFromContent)
                         : new URL(linkFromContent, window.location.origin);
-                    const parts = url.pathname.split("/").filter(Boolean);
-                    if (parts[0] === "u" && parts[1]) inferredSlug = decodeURIComponent(parts[1]);
-                } catch { /* ignore */ }
+                    const parts = url.pathname.split('/').filter(Boolean);
+                    if (parts[0] === 'u' && parts[1]) inferredSlug = decodeURIComponent(parts[1]);
+                } catch {
+                    /* ignore */
+                }
             }
 
-            const display = u?.username || inferredSlug || "Profile";
-            const href = linkFromContent || (inferredSlug ? `/u/${encodeURIComponent(inferredSlug)}` : "#");
+            const display = displayName(u, inferredSlug || 'Profile');
+            const href =
+                linkFromContent || (inferredSlug ? `/u/${encodeURIComponent(inferredSlug)}` : '#');
 
             return (
                 <a
                     href={href}
                     className={containerClasses}
                     onClick={(e) => e.stopPropagation()}
-                    target={href.startsWith("http") ? "_blank" : undefined}
-                    rel={href.startsWith("http") ? "noreferrer" : undefined}
+                    target={href.startsWith('http') ? '_blank' : undefined}
+                    rel={href.startsWith('http') ? 'noreferrer' : undefined}
                 >
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white border-2 border-black flex items-center justify-center text-xs uppercase">
-                            {(display || "PR").slice(0, 2)}
-                        </div>
+                        <Avatar user={u ?? null} size={40} fallbackChar="P" />
                         <div className="min-w-0">
                             <div className="text-sm font-medium truncate text-black">{display}</div>
                             <div className="text-xs truncate text-black">Open profile</div>
@@ -835,7 +989,7 @@ export default function Messenger() {
         // POST SHARE — now same size as profile card (40×40 thumb, same paddings/typography)
         if (m.sharedPost) {
             const p = m.sharedPost;
-            const author = p.author?.username || p.author?.name || "Author";
+            const author = p.author?.name || p.author?.username || 'Author';
 
             return (
                 <button
@@ -872,10 +1026,6 @@ export default function Messenger() {
         return null;
     };
 
-
-
-
-
     const normalized = normalizeConvos(convos);
 
     return (
@@ -910,7 +1060,9 @@ export default function Messenger() {
 
                     {search && (
                         <div className="px-3 pb-2">
-                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Start chat</div>
+                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                                Start chat
+                            </div>
                             <div className="border rounded-md max-h-40 overflow-y-auto divide-y">
                                 {searchLoading ? (
                                     <div className="p-2 text-sm text-gray-500">Searching…</div>
@@ -923,10 +1075,8 @@ export default function Messenger() {
                                             className="p-2 text-sm hover:bg-gray-50 cursor-pointer flex items-center gap-2"
                                             onClick={() => startChatWithUser(u)}
                                         >
-                                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
-                                                {(u.username || u.name || 'U').slice(0, 2)}
-                                            </div>
-                                            <div className="truncate">{u.username || u.name || 'User'}</div>
+                                            <Avatar user={u} size={24} />
+                                            <div className="truncate">{displayName(u)}</div>
                                         </div>
                                     ))
                                 )}
@@ -936,7 +1086,9 @@ export default function Messenger() {
 
                     <div className="flex-1 overflow-y-auto px-0">
                         <div className="px-0">
-                            <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">Conversations</div>
+                            <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">
+                                Conversations
+                            </div>
                             {convosLoading ? (
                                 <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
                             ) : convosError ? (
@@ -947,23 +1099,39 @@ export default function Messenger() {
                                 <ul>
                                     {normalized.map((c) => {
                                         const realGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
-                                        const active = c.id === activeConvoId || (!realGroup && c.other?.id === activeOther?.id);
-                                        const title = realGroup ? (c.groupName || 'Group') : (c.other?.username || c.other?.name || 'User');
+                                        const active =
+                                            c.id === activeConvoId ||
+                                            (!realGroup && c.other?.id === activeOther?.id);
+                                        const title = realGroup
+                                            ? (c.groupName && c.groupName.trim()) ||
+                                            groupTitleFromMembers(c.groupMembers, myId)
+                                            : displayName(c.other);
                                         const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
                                         const previewText = c.lastMessage
-                                            ? (c.lastMessage.content?.trim() ? c.lastMessage.content : hasPhoto ? '📷 Photo' : 'No messages yet')
+                                            ? c.lastMessage.content?.trim()
+                                                ? c.lastMessage.content
+                                                : hasPhoto
+                                                    ? '📷 Photo'
+                                                    : 'No messages yet'
                                             : 'No messages yet';
 
                                         return (
                                             <li
                                                 key={realGroup ? `grp:${c.id}` : `dm:${c.other?.id}`}
-                                                className={clsx('px-4 py-3 cursor-pointer hover:bg-gray-50 border-b', active && 'bg-gray-100')}
+                                                className={clsx(
+                                                    'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b',
+                                                    active && 'bg-gray-100'
+                                                )}
                                                 onClick={() => onPick(c)}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                                        {realGroup ? 'G' : (c.other?.username || c.other?.name || 'U').slice(0, 2)}
-                                                    </div>
+                                                    {realGroup ? (
+                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                                            G
+                                                        </div>
+                                                    ) : (
+                                                        <Avatar user={c.other} size={32} />
+                                                    )}
                                                     <div className="min-w-0 flex-1">
                                                         <div className="text-sm font-medium truncate">
                                                             {realGroup ? (
@@ -981,7 +1149,9 @@ export default function Messenger() {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <div className="text-xs text-gray-500 truncate">{previewText}</div>
+                                                        <div className="text-xs text-gray-500 truncate">
+                                                            {previewText}
+                                                        </div>
                                                     </div>
                                                     {(c.unreadCount ?? 0) > 0 && !active && (
                                                         <span
@@ -990,6 +1160,17 @@ export default function Messenger() {
                                                             aria-label={`${c.unreadCount} unread`}
                                                         />
                                                     )}
+                                                    {/* Trash icon to delete conversation */}
+                                                    <button
+                                                        className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0"
+                                                        title="Delete conversation"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteConversation(c.id);
+                                                        }}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                             </li>
                                         );
@@ -1006,9 +1187,13 @@ export default function Messenger() {
                     <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
                         {activeConvoId ? (
                             <>
-                                <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                    {activeGroupMembers ? 'G' : (activeOther?.username || activeOther?.name || 'U').slice(0, 2)}
-                                </div>
+                                {activeGroupMembers ? (
+                                    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                        G
+                                    </div>
+                                ) : (
+                                    <Avatar user={activeOther} size={36} />
+                                )}
                                 <div className="font-medium truncate flex-1">
                                     {activeGroupMembers ? (
                                         activeGroupName ? (
@@ -1016,22 +1201,29 @@ export default function Messenger() {
                                         ) : (
                                             <span className="truncate">
                                                 {activeGroupMembers
-                                                    .filter((u) => !myUsername || u.username !== myUsername)
-                                                    .map((u, idx) => (
-                                                        <button
-                                                            key={u.id}
-                                                            className="hover:underline mr-1"
-                                                            onClick={() => goToProfile(u)}
-                                                            title={u.username || u.name || 'User'}
-                                                        >
-                                                            {(u.username || u.name || 'User') + (idx < activeGroupMembers.length - 1 ? ',' : '')}
-                                                        </button>
-                                                    ))}
+                                                    .filter((u) => !myId || u.id !== myId)
+                                                    .map((u, idx, arr) => {
+                                                        const label = displayName(u);
+                                                        return (
+                                                            <button
+                                                                key={u.id}
+                                                                className="hover:underline mr-1"
+                                                                onClick={() => goToProfile(u)}
+                                                                title={label}
+                                                            >
+                                                                {label}
+                                                                {idx < arr.length - 1 ? ',' : ''}
+                                                            </button>
+                                                        );
+                                                    })}
                                             </span>
                                         )
                                     ) : (
-                                        <button className="hover:underline" onClick={() => goToProfile(activeOther!)}>
-                                            {activeOther?.username || activeOther?.name || 'User'}
+                                        <button
+                                            className="hover:underline"
+                                            onClick={() => goToProfile(activeOther!)}
+                                        >
+                                            {displayName(activeOther)}
                                         </button>
                                     )}
                                 </div>
@@ -1060,7 +1252,9 @@ export default function Messenger() {
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto px-4 py-4">
                         {!activeConvoId ? (
-                            <div className="text-center text-sm text-gray-400 mt-20">No conversation selected.</div>
+                            <div className="text-center text-sm text-gray-400 mt-20">
+                                No conversation selected.
+                            </div>
                         ) : threadLoading && messages.length === 0 ? (
                             <div className="text-center text-sm text-gray-400 mt-20">Loading…</div>
                         ) : messages.length === 0 ? (
@@ -1071,7 +1265,9 @@ export default function Messenger() {
                                     if (isSystemMessage(m)) {
                                         return (
                                             <div key={m.id} className="w-full flex">
-                                                <div className="mx-auto text-[12px] text-gray-500 italic">{systemText(m)}</div>
+                                                <div className="mx-auto text-[12px] text-gray-500 italic">
+                                                    {systemText(m)}
+                                                </div>
                                             </div>
                                         );
                                     }
@@ -1079,12 +1275,20 @@ export default function Messenger() {
                                     const hasText = Boolean(m.content && m.content.trim().length);
                                     const imgs = m.imageUrls ?? [];
                                     const sender = m.sender;
-                                    const senderLabel = sender?.username || sender?.name || (m.isMine ? 'You' : 'User');
+                                    const senderLabel = displayName(sender, m.isMine ? 'You' : 'User');
                                     const hasShare =
-                                        !!m.sharedUser || !!m.sharedPost || (m.content && /^https?:\/\//.test(m.content));
+                                        !!m.sharedUser ||
+                                        !!m.sharedPost ||
+                                        (m.content && /^https?:\/\//.test(m.content));
 
                                     return (
-                                        <div key={m.id} className={clsx('w-full flex flex-col', m.isMine ? 'items-end' : 'items-start')}>
+                                        <div
+                                            key={m.id}
+                                            className={clsx(
+                                                'w-full flex flex-col',
+                                                m.isMine ? 'items-end' : 'items-start'
+                                            )}
+                                        >
                                             {activeGroupMembers && !m.isMine && (
                                                 <button
                                                     className="text-[11px] mb-0.5 text-left pl-1 text-gray-600 hover:underline"
@@ -1097,7 +1301,9 @@ export default function Messenger() {
                                             <div
                                                 className={clsx(
                                                     'rounded-2xl px-3 py-2 text-sm break-words max-w-[70%] inline-block',
-                                                    m.isMine ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-800'
+                                                    m.isMine
+                                                        ? 'bg-green-600 text-white'
+                                                        : 'bg-gray-100 text-gray-800'
                                                 )}
                                                 title={new Date(m.createdAt).toLocaleString()}
                                             >
@@ -1129,7 +1335,9 @@ export default function Messenger() {
                             </div>
                         )}
                         {activeConvoId && threadError && (
-                            <div className="mt-3 text-center text-xs text-red-500">{threadError}</div>
+                            <div className="mt-3 text-center text-xs text-red-500">
+                                {threadError}
+                            </div>
                         )}
                     </div>
 
@@ -1140,29 +1348,53 @@ export default function Messenger() {
                             <div className="border rounded-lg p-2 flex items-center gap-3">
                                 {shareDraft.type === 'profile' ? (
                                     <>
-                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
-                                            {(shareDraft.label || 'PR').slice(0, 2)}
-                                        </div>
+                                        <Avatar
+                                            user={
+                                                shareDraft.userId
+                                                    ? {
+                                                        id: shareDraft.userId,
+                                                        username: shareDraft.label ?? null,
+                                                        name: shareDraft.label ?? null,
+                                                    }
+                                                    : null
+                                            }
+                                            size={32}
+                                            fallbackChar="P"
+                                        />
                                         <div className="text-sm min-w-0">
                                             <div className="truncate">
                                                 Sharing profile:{' '}
-                                                <span className="font-medium">{shareDraft.label || 'Profile'}</span>
+                                                <span className="font-medium">
+                                                    {shareDraft.label || 'Profile'}
+                                                </span>
                                             </div>
-                                            <div className="text-xs text-gray-500 truncate">{shareDraft.url}</div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {shareDraft.url}
+                                            </div>
                                         </div>
                                     </>
                                 ) : (
                                     <>
                                         {shareDraft.post.imageUrl && (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={shareDraft.post.imageUrl} alt="" className="w-10 h-10 object-cover rounded-md" />
+                                            <img
+                                                src={shareDraft.post.imageUrl}
+                                                alt=""
+                                                className="w-10 h-10 object-cover rounded-md"
+                                            />
                                         )}
                                         <div className="text-sm min-w-0">
                                             <div className="truncate">
-                                                Sharing post: <span className="font-medium">{shareDraft.post.title}</span>
+                                                Sharing post:{' '}
+                                                <span className="font-medium">
+                                                    {shareDraft.post.title}
+                                                </span>
                                             </div>
                                             <div className="text-xs text-gray-500 truncate">
-                                                by {shareDraft.post.author.username || shareDraft.post.author.name || 'Author'}
+                                                by{' '}
+                                                {shareDraft.post.author.name ||
+                                                    shareDraft.post.author.username ||
+                                                    'Author'}
                                             </div>
                                         </div>
                                         <div className="flex-1" />
@@ -1186,7 +1418,9 @@ export default function Messenger() {
                                         sp.delete('shareUrl');
                                         sp.delete('shareLabel');
                                         sp.delete('shareUserId');
-                                        router.replace(`${pathname}${sp.toString() ? `?${sp}` : ''}`);
+                                        router.replace(
+                                            `${pathname}${sp.toString() ? `?${sp}` : ''}`
+                                        );
                                     }}
                                 >
                                     Remove
@@ -1219,7 +1453,9 @@ export default function Messenger() {
                                 onChange={(e) => {
                                     const picked = Array.from(e.target.files || []);
                                     const maxBytes = 8 * 1024 * 1024;
-                                    const valid = picked.filter((f) => f.type.startsWith('image/') && f.size <= maxBytes);
+                                    const valid = picked.filter(
+                                        (f) => f.type.startsWith('image/') && f.size <= maxBytes
+                                    );
                                     setFiles((prev) => [...prev, ...valid].slice(0, 10));
                                     e.currentTarget.value = '';
                                 }}
@@ -1264,12 +1500,18 @@ export default function Messenger() {
                                     {previews.map((url, i) => (
                                         <div key={i} className="relative group">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={url} alt="preview" className="h-24 w-full object-cover rounded-lg" />
+                                            <img
+                                                src={url}
+                                                alt="preview"
+                                                className="h-24 w-full object-cover rounded-lg"
+                                            />
                                             <button
                                                 className="absolute -top-2 -right-2 bg-black/70 text-white text-[10px] rounded-full px-1.5 py-0.5 opacity-0 group-hover:opacity-100"
                                                 onClick={() => {
                                                     setFiles((prev) => prev.filter((_, idx) => idx !== i));
-                                                    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+                                                    setPreviews((prev) =>
+                                                        prev.filter((_, idx) => idx !== i)
+                                                    );
                                                 }}
                                                 title="Remove"
                                             >
@@ -1289,6 +1531,8 @@ export default function Messenger() {
                         className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
                         onClick={() => {
                             setShowNewGroup(false);
+                            setSelectedIds([]);
+                            setSelectedUsers([]);
                             router.replace(pathname);
                         }}
                     >
@@ -1302,6 +1546,8 @@ export default function Messenger() {
                                     className="text-sm text-gray-500 hover:text-black"
                                     onClick={() => {
                                         setShowNewGroup(false);
+                                        setSelectedIds([]);
+                                        setSelectedUsers([]);
                                         router.replace(pathname);
                                     }}
                                 >
@@ -1333,31 +1579,42 @@ export default function Messenger() {
                                                 <input
                                                     type="checkbox"
                                                     checked={chosen}
-                                                    onChange={(e) =>
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
                                                         setSelectedIds((prev) =>
-                                                            e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
-                                                        )
-                                                    }
+                                                            checked
+                                                                ? [...prev, u.id]
+                                                                : prev.filter((id) => id !== u.id)
+                                                        );
+                                                        setSelectedUsers((prev) => {
+                                                            if (checked) {
+                                                                if (prev.some((p) => p.id === u.id)) return prev;
+                                                                return [...prev, u];
+                                                            }
+                                                            return prev.filter((p) => p.id !== u.id);
+                                                        });
+                                                    }}
                                                 />
-                                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
-                                                    {(u.username || u.name || 'U').slice(0, 2)}
+                                                <Avatar user={u} size={24} />
+                                                <div className="truncate">
+                                                    {displayName(u)}
                                                 </div>
-                                                <div className="truncate">{u.username || u.name || 'User'}</div>
                                             </label>
                                         );
                                     })
                                 )}
                             </div>
 
-                            {selectedIds.length > 0 && (
+                            {selectedUsers.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    {groupResults
-                                        .filter((u) => selectedIds.includes(u.id))
-                                        .map((u) => (
-                                            <span key={u.id} className="px-2 py-1 text-xs bg-gray-100 rounded-full">
-                                                {u.username || u.name || 'User'}
-                                            </span>
-                                        ))}
+                                    {selectedUsers.map((u) => (
+                                        <span
+                                            key={u.id}
+                                            className="px-2 py-1 text-xs bg-gray-100 rounded-full"
+                                        >
+                                            {displayName(u)}
+                                        </span>
+                                    ))}
                                 </div>
                             )}
 
@@ -1366,6 +1623,8 @@ export default function Messenger() {
                                     className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
                                     onClick={() => {
                                         setShowNewGroup(false);
+                                        setSelectedIds([]);
+                                        setSelectedUsers([]);
                                         router.replace(pathname);
                                     }}
                                 >
@@ -1374,7 +1633,9 @@ export default function Messenger() {
                                 <button
                                     className={clsx(
                                         'text-sm px-3 py-2 rounded text-white',
-                                        selectedIds.length < 2 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                        selectedIds.length < 2
+                                            ? 'bg-gray-300 cursor-not-allowed'
+                                            : 'bg-green-600 hover:bg-green-700'
                                     )}
                                     disabled={selectedIds.length < 2}
                                     onClick={async () => {
@@ -1387,8 +1648,13 @@ export default function Messenger() {
                                             if (!res.ok) throw new Error();
                                             const data: { conversationId: string } = await res.json();
                                             setShowNewGroup(false);
-                                            router.replace(`${pathname}?convoId=${encodeURIComponent(data.conversationId)}`);
+                                            router.replace(
+                                                `${pathname}?convoId=${encodeURIComponent(
+                                                    data.conversationId
+                                                )}`
+                                            );
                                             setSelectedIds([]);
+                                            setSelectedUsers([]);
                                             setGroupQuery('');
                                             setGroupResults([]);
                                             loadByConversationId(data.conversationId);
@@ -1417,7 +1683,10 @@ export default function Messenger() {
                         >
                             <div className="flex items-center justify-between mb-3">
                                 <div className="text-lg font-semibold">Manage Group</div>
-                                <button className="text-sm text-gray-500 hover:text-black" onClick={() => setShowManage(false)}>
+                                <button
+                                    className="text-sm text-gray-500 hover:text-black"
+                                    onClick={() => setShowManage(false)}
+                                >
                                     Close
                                 </button>
                             </div>
@@ -1436,11 +1705,18 @@ export default function Messenger() {
                                         className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
-                                                    method: 'PATCH',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ name: groupNameInput.trim() || null }),
-                                                });
+                                                const res = await fetch(
+                                                    `/api/conversations/${encodeURIComponent(
+                                                        activeConvoId
+                                                    )}`,
+                                                    {
+                                                        method: 'PATCH',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            name: groupNameInput.trim() || null,
+                                                        }),
+                                                    }
+                                                );
                                                 if (!res.ok) throw new Error();
                                                 const data = await res.json();
                                                 setActiveGroupName(data.name ?? null);
@@ -1465,26 +1741,28 @@ export default function Messenger() {
                                 <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
                                     {activeGroupMembers.map((u) => (
                                         <div key={u.id} className="p-2 flex items-center gap-2">
-                                            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
-                                                {(u.username || u.name || 'U').slice(0, 2)}
-                                            </div>
+                                            <Avatar user={u} size={28} />
                                             <button
                                                 className="text-sm hover:underline text-left truncate flex-1"
                                                 onClick={() => goToProfile(u)}
-                                                title={u.username || u.name || 'User'}
+                                                title={displayName(u)}
                                             >
-                                                {u.username || u.name || 'User'}
+                                                {displayName(u)}
                                             </button>
                                             <button
                                                 className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
                                                 onClick={async () => {
                                                     try {
                                                         const res = await fetch(
-                                                            `/api/conversations/${encodeURIComponent(activeConvoId)}/members?userId=${encodeURIComponent(u.id)}`,
+                                                            `/api/conversations/${encodeURIComponent(
+                                                                activeConvoId
+                                                            )}/members?userId=${encodeURIComponent(u.id)}`,
                                                             { method: 'DELETE' }
                                                         );
                                                         if (!res.ok) throw new Error();
-                                                        setActiveGroupMembers((prev) => (prev ? prev.filter((m) => m.id !== u.id) : prev));
+                                                        setActiveGroupMembers((prev) =>
+                                                            prev ? prev.filter((m) => m.id !== u.id) : prev
+                                                        );
                                                         fetchConversations();
                                                     } catch {
                                                         alert('Failed to remove user.');
@@ -1514,7 +1792,9 @@ export default function Messenger() {
                                         <div className="p-2 text-sm text-gray-400">No matches</div>
                                     ) : (
                                         addResults.map((u) => {
-                                            const alreadyIn = !!activeGroupMembers.find((m) => m.id === u.id);
+                                            const alreadyIn = !!activeGroupMembers.find(
+                                                (m) => m.id === u.id
+                                            );
                                             const chosen = addSelectedIds.includes(u.id);
                                             return (
                                                 <label
@@ -1530,15 +1810,21 @@ export default function Messenger() {
                                                         checked={chosen}
                                                         onChange={(e) =>
                                                             setAddSelectedIds((prev) =>
-                                                                e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id)
+                                                                e.target.checked
+                                                                    ? [...prev, u.id]
+                                                                    : prev.filter((id) => id !== u.id)
                                                             )
                                                         }
                                                     />
-                                                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text:[10px] uppercase">
-                                                        {(u.username || u.name || 'U').slice(0, 2)}
+                                                    <Avatar user={u} size={24} />
+                                                    <div className="truncate">
+                                                        {displayName(u)}
                                                     </div>
-                                                    <div className="truncate">{u.username || u.name || 'User'}</div>
-                                                    {alreadyIn && <span className="ml-auto text-[11px] text-gray-400">In group</span>}
+                                                    {alreadyIn && (
+                                                        <span className="ml-auto text-[11px] text-gray-400">
+                                                            In group
+                                                        </span>
+                                                    )}
                                                 </label>
                                             );
                                         })
@@ -1550,8 +1836,11 @@ export default function Messenger() {
                                         {addResults
                                             .filter((u) => addSelectedIds.includes(u.id))
                                             .map((u) => (
-                                                <span key={u.id} className="px-2 py-1 text-xs bg-gray-100 rounded-full">
-                                                    {u.username || u.name || 'User'}
+                                                <span
+                                                    key={u.id}
+                                                    className="px-2 py-1 text-xs bg-gray-100 rounded-full"
+                                                >
+                                                    {displayName(u)}
                                                 </span>
                                             ))}
                                     </div>
@@ -1561,19 +1850,29 @@ export default function Messenger() {
                                     <button
                                         className={clsx(
                                             'text-sm px-3 py-2 rounded text-white',
-                                            addSelectedIds.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                            addSelectedIds.length === 0
+                                                ? 'bg-gray-300 cursor-not-allowed'
+                                                : 'bg-green-600 hover:bg-green-700'
                                         )}
                                         disabled={addSelectedIds.length === 0}
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}/members`, {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ userIds: addSelectedIds }),
-                                                });
+                                                const res = await fetch(
+                                                    `/api/conversations/${encodeURIComponent(
+                                                        activeConvoId
+                                                    )}/members`,
+                                                    {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ userIds: addSelectedIds }),
+                                                    }
+                                                );
                                                 if (!res.ok) throw new Error();
                                                 const data: { added: LiteUser[] } = await res.json();
-                                                setActiveGroupMembers((prev) => [...(prev ?? []), ...data.added]);
+                                                setActiveGroupMembers((prev) => [
+                                                    ...(prev ?? []),
+                                                    ...data.added,
+                                                ]);
                                                 setAddSelectedIds([]);
                                                 setAddQuery('');
                                                 setAddResults([]);
@@ -1594,9 +1893,14 @@ export default function Messenger() {
                                     className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
                                     onClick={async () => {
                                         try {
-                                            const res = await fetch(`/api/conversations/${encodeURIComponent(activeConvoId)}`, {
-                                                method: 'DELETE',
-                                            });
+                                            const res = await fetch(
+                                                `/api/conversations/${encodeURIComponent(
+                                                    activeConvoId
+                                                )}`,
+                                                {
+                                                    method: 'DELETE',
+                                                }
+                                            );
                                             if (!res.ok) throw new Error();
                                             setShowManage(false);
                                             router.replace(pathname);

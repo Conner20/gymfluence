@@ -11,6 +11,8 @@ export default function SettingsPage() {
     const { data: session, status } = useSession();
 
     const [loading, setLoading] = useState(true);
+
+    // Global saving state for Profile button
     const [saving, setSaving] = useState(false);
 
     // Text fields
@@ -23,6 +25,9 @@ export default function SettingsPage() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const previousPreviewRef = useRef<string | null>(null);
+
+    // Trigger to tell SearchProfileEditor to save
+    const [searchSaveTrigger, setSearchSaveTrigger] = useState(0);
 
     useEffect(() => {
         (async () => {
@@ -63,8 +68,8 @@ export default function SettingsPage() {
         }
     };
 
-    const onSave = async () => {
-        setSaving(true);
+    // Save ONLY the main profile (no Search Profile here)
+    const saveProfile = async () => {
         try {
             const form = new FormData();
             form.append("name", name);
@@ -85,9 +90,26 @@ export default function SettingsPage() {
             setPreviewUrl(null);
             setFile(null);
 
+            // You can keep or change this alert; it runs even when Search Profile fails
             alert("Profile updated!");
         } catch {
             alert("Failed to save profile.");
+            // If this fails, we still won't trigger search profile save
+            throw new Error("Profile save failed");
+        }
+    };
+
+    // Save BOTH main profile and search profile
+    const saveBoth = async () => {
+        setSaving(true);
+        try {
+            // 1) Save main profile
+            await saveProfile();
+
+            // 2) Tell SearchProfileEditor to run its own onSave
+            setSearchSaveTrigger((t) => t + 1);
+        } catch {
+            // Errors already alerted inside saveProfile or SearchProfileEditor
         } finally {
             setSaving(false);
         }
@@ -182,8 +204,9 @@ export default function SettingsPage() {
                                     />
                                 </div>
 
+                                {/* This button now saves BOTH profile and search profile */}
                                 <button
-                                    onClick={onSave}
+                                    onClick={saveBoth}
                                     disabled={saving}
                                     className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
                                 >
@@ -199,16 +222,22 @@ export default function SettingsPage() {
                     </section>
                 </div>
 
-                {/* Search Profile card (this was missing a white container) */}
+                {/* Search Profile card */}
                 <div className="bg-white rounded-xl shadow p-6 space-y-6">
-                    <SearchProfileEditor />
+                    <SearchProfileEditor
+                        onSaveAll={saveBoth}
+                        externalSaveTrigger={searchSaveTrigger}
+                    />
                 </div>
 
                 {/* Log Out */}
                 <div className="bg-white rounded-xl shadow p-6">
                     <h2 className="font-semibold mb-3">Log Out</h2>
                     <p className="text-sm text-gray-600 mb-4">
-                        You are currently signed in as <span className="font-medium">{session?.user?.email || session?.user?.name || "your account"}</span>.
+                        You are currently signed in as{" "}
+                        <span className="font-medium">
+                            {session?.user?.email || session?.user?.name || "your account"}
+                        </span>.
                     </p>
                     <button
                         onClick={() => signOut({ callbackUrl: "/" })}

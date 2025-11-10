@@ -343,9 +343,9 @@ export default function UserOnboarding() {
                                 name="fee"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="mb-2">Base Membership Fee</FormLabel>
+                                        <FormLabel className="mb-2">Monthly Membership Fee</FormLabel>
                                         <FormControl className="bg-white">
-                                            <Input placeholder="Base Membership Fee" {...field} />
+                                            <Input placeholder="Monthly Membership Fee" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

@@ -77,6 +77,11 @@ export default function CreatePost({
                 const data = await res.json().catch(() => ({}));
                 setError(data.message || "Failed to create post.");
             } else {
+                // ✅ tell any listeners (like TraineeProfile) to refresh posts
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new Event("post-created"));
+                }
+
                 // reset
                 setTitle('');
                 setContent('');
@@ -152,10 +157,13 @@ export default function CreatePost({
                                 >
                                     <ImageIcon size={22} className="mb-1" />
                                     <span className="text-sm text-zinc-600">Click to choose an image</span>
-                                    <span className="text-[11px] text-zinc-400 mt-1">PNG, JPG, WEBP, GIF · up to 8MB</span>
+                                    <span className="text-[11px] text-zinc-400 mt-1">
+                                        PNG, JPG, WEBP, GIF · up to 8MB
+                                    </span>
                                 </button>
                             ) : (
                                 <div className="rounded-lg border p-2">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={previewUrl}
                                         alt="Preview"

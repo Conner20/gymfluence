@@ -105,7 +105,7 @@ function LineChartDual({
 
     // --- Tooltip width measurement & centering in CSS pixels ---
     const tipRef = useRef<HTMLDivElement | null>(null);
-    const [tipW, setTipW] = useState(140); // fallback width
+    const[tipW, setTipW] = useState(140); // fallback width
 
     // Keep dependency array length/order stable
     useEffect(() => {
@@ -472,6 +472,17 @@ export default function Dashboard() {
         }
     };
 
+    // NEW: remove currently selected exercise from the dropdown (client-side only)
+    const removeExercise = () => {
+        if (!exercise) return;
+        setExercises((prev) => {
+            const next = prev.filter((ex) => ex !== exercise);
+            // update selected exercise to something valid
+            setExercise(next[0] || '');
+            return next;
+        });
+    };
+
     const customizeSplit = async () => {
         const current = split.join(', ');
         const input = prompt(
@@ -649,6 +660,9 @@ export default function Dashboard() {
                                                 </select>
                                                 <button onClick={addExercise} className="rounded border px-2 py-1 text-xs">
                                                     Add
+                                                </button>
+                                                <button onClick={removeExercise} className="rounded border px-2 py-1 text-xs">
+                                                    Remove
                                                 </button>
                                             </div>
                                         </div>

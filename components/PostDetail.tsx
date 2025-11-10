@@ -46,15 +46,15 @@ type Post = {
     imageUrl?: string | null;
     createdAt: string;
     author: { id: string; username: string | null; name: string | null } | null;
-    likeCount: number;
-    didLike: boolean;
-    commentCount: number;
+    likeCount?: number;            // <- optional
+    didLike?: boolean;             // <- optional
+    commentCount?: number;         // <- optional
     comments?: Comment[];
 };
 
 export default function PostDetail({
     postId,
-    flat = false, // NEW: render “flat” (no card) when embedded inside profile view
+    flat = false,
 }: {
     postId: string;
     flat?: boolean;
@@ -72,7 +72,7 @@ export default function PostDetail({
     const [convosLoading, setConvosLoading] = useState(false);
     const [convosError, setConvosError] = useState<string | null>(null);
 
-    const [shareQuery, setShareQuery] = useState('');
+    const [shareQuery, setShareQuery] = useState("");
     const [shareResults, setShareResults] = useState<LiteUser[]>([]);
     const [shareSearching, setShareSearching] = useState(false);
 
@@ -82,7 +82,10 @@ export default function PostDetail({
         setError(null);
         setLoading(true);
         try {
-            const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`, { cache: "no-store" });
+            const res = await fetch(
+                `/api/posts/${encodeURIComponent(postId)}`,
+                { cache: "no-store" }
+            );
             if (res.status === 404) {
                 setError("Post not found or not visible.");
                 setPost(null);
@@ -110,7 +113,10 @@ export default function PostDetail({
 
         const sendSize = () => {
             const h = document.documentElement.scrollHeight;
-            window.parent.postMessage({ type: "post-embed-size", height: h }, window.location.origin);
+            window.parent.postMessage(
+                { type: "post-embed-size", height: h },
+                window.location.origin
+            );
         };
         sendSize();
         const ro = new ResizeObserver(() => sendSize());
@@ -124,27 +130,59 @@ export default function PostDetail({
     }, []);
 
     const handleLike = async () => {
-        if (!post) return;
+        setPost(prev => {
+            if (!prev) return prev;
+
+            const wasLiked = !!prev.didLike;
+            const prevCount = prev.likeCount ?? 0;
+
+            return {
+                ...prev,
+                didLike: !wasLiked,
+                likeCount: prevCount + (wasLiked ? -1 : 1),
+            };
+        });
+
         try {
-            const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/like`, { method: "POST" });
+            const res = await fetch(
+                `/api/posts/${encodeURIComponent(postId)}/like`,
+                { method: "POST" }
+            );
             if (!res.ok) throw new Error();
-            fetchPost();
+            // Optional: re-sync with server if you want exact counts
+            // fetchPost();
         } catch {
+            // rollback
+            setPost(prev => {
+                if (!prev) return prev;
+
+                const wasLiked = !!prev.didLike;
+                const prevCount = prev.likeCount ?? 0;
+
+                return {
+                    ...prev,
+                    didLike: !wasLiked,
+                    likeCount: prevCount + (wasLiked ? -1 : 1),
+                };
+            });
             alert("Failed to like/unlike post.");
         }
     };
+
 
     const openShare = async () => {
         setShareOpen(true);
         setConvosError(null);
         setConvosLoading(true);
         try {
-            const res = await fetch('/api/messages/conversations', { cache: 'no-store' });
+            const res = await fetch("/api/messages/conversations", {
+                cache: "no-store",
+            });
             if (!res.ok) throw new Error();
             const data: ConversationRow[] = await res.json();
             setConvos(data);
         } catch {
-            setConvosError('Failed to load conversations.');
+            setConvosError("Failed to load conversations.");
         } finally {
             setConvosLoading(false);
         }
@@ -162,7 +200,10 @@ export default function PostDetail({
         setShareSearching(true);
         const t = setTimeout(async () => {
             try {
-                const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+                const res = await fetch(
+                    `/api/messages/search?q=${encodeURIComponent(q)}`,
+                    { cache: "no-store" }
+                );
                 if (!res.ok) throw new Error();
                 const data: { followers: LiteUser[] } = await res.json();
                 if (!alive) return;
@@ -179,7 +220,8 @@ export default function PostDetail({
         };
     }, [shareQuery, shareOpen]);
 
-    const displayName = (u?: LiteUser | null) => u?.username || u?.name || 'User';
+    const displayName = (u?: LiteUser | null) =>
+        u?.username || u?.name || "User";
 
     if (loading) return <div className="text-gray-500 p-8">Loading post…</div>;
     if (error) return <div className="text-red-500 p-8">{error}</div>;
@@ -203,7 +245,12 @@ export default function PostDetail({
             <div className={outerCls}>
                 <article className={articleCls}>
                     <div className="flex flex-col gap-1 mb-2">
-                        <h2 className={clsx("font-bold text-2xl", flat ? "text-gray-900" : "text-gray-800")}>
+                        <h2
+                            className={clsx(
+                                "font-bold text-2xl",
+                                flat ? "text-gray-900" : "text-gray-800"
+                            )}
+                        >
                             {post.title}
                         </h2>
                         <div className="flex flex-wrap items-center gap-2">
@@ -221,18 +268,27 @@ export default function PostDetail({
                                     <span className="font-semibold">Unknown</span>
                                 )}
                             </span>
-                            <span className="text-xs text-gray-400">· {new Date(post.createdAt).toLocaleString()}</span>
+                            <span className="text-xs text-gray-400">
+                                · {new Date(post.createdAt).toLocaleString()}
+                            </span>
 
                             <button
                                 className={clsx(
                                     "flex items-center ml-3 gap-1 text-xs transition",
-                                    post.didLike ? "text-red-500 font-bold" : "text-gray-400 hover:text-red-400"
+                                    post.didLike
+                                        ? "text-red-500 font-bold"
+                                        : "text-gray-400 hover:text-red-400"
                                 )}
                                 onClick={handleLike}
                                 title={post.didLike ? "Unlike" : "Like"}
                             >
-                                <Heart size={18} fill={post.didLike ? "currentColor" : "none"} strokeWidth={2} />
-                                {post.likeCount}
+                                <Heart
+                                    size={18}
+                                    fill={post.didLike ? "currentColor" : "none"}
+                                    strokeWidth={2}
+                                />
+                                {/* always show a number */}
+                                {post.likeCount ?? 0}
                             </button>
 
                             <a
@@ -241,13 +297,16 @@ export default function PostDetail({
                                 title="Jump to comments"
                             >
                                 <MessageCircle size={16} />
-                                {post.commentCount}
+                                {/* always show a number */}
+                                {post.commentCount ?? 0}
                             </a>
 
                             <button
                                 className={clsx(
                                     "flex items-center gap-1 text-xs ml-2 transition",
-                                    canShare ? "text-gray-500 hover:text-green-700" : "text-gray-300 cursor-not-allowed"
+                                    canShare
+                                        ? "text-gray-500 hover:text_GREEN-700"
+                                        : "text-gray-300 cursor-not-allowed"
                                 )}
                                 onClick={() => canShare && openShare()}
                                 disabled={!canShare}
@@ -260,7 +319,12 @@ export default function PostDetail({
                     </div>
 
                     {post.content && (
-                        <div className={clsx("text-gray-700 mt-2 whitespace-pre-wrap", flat && "px-0")}>
+                        <div
+                            className={clsx(
+                                "text-gray-700 mt-2 whitespace-pre-wrap",
+                                flat && "px-0"
+                            )}
+                        >
                             {post.content}
                         </div>
                     )}
@@ -290,14 +354,21 @@ export default function PostDetail({
                     >
                         <div className="flex items-center justify-between mb-4">
                             <div className="text-lg font-semibold">Share post</div>
-                            <button className="text-gray-500 hover:text-black" onClick={() => setShareOpen(false)} title="Close">
+                            <button
+                                className="text-gray-500 hover:text-black"
+                                onClick={() => setShareOpen(false)}
+                                title="Close"
+                            >
                                 <X size={18} />
                             </button>
                         </div>
 
                         <div className="mb-3">
                             <div className="relative">
-                                <Search size={16} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Search
+                                    size={16}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
                                 <input
                                     className="w-full pl-8 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
                                     placeholder="Search followers to start a new chat…"
@@ -315,18 +386,24 @@ export default function PostDetail({
                                         shareResults.map((u) => (
                                             <button
                                                 key={u.id}
-                                                className="w-full text-left p-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                                                className="w-full text-left p-2 text-sm hover:bg-gray-50 flex items.center gap-2"
                                                 onClick={() => {
                                                     const pretty = u.username || u.id;
-                                                    router.push(`/messages?to=${encodeURIComponent(pretty)}&shareType=profile&shareUrl=${encodeURIComponent(
-                                                        `${window.location.origin}/u/${pretty}`
-                                                    )}&shareLabel=${encodeURIComponent(displayName(u))}&shareUserId=${encodeURIComponent(u.id)}`);
+                                                    router.push(
+                                                        `/messages?to=${encodeURIComponent(
+                                                            pretty
+                                                        )}&shareType=profile&shareUrl=${encodeURIComponent(
+                                                            `${window.location.origin}/u/${pretty}`
+                                                        )}&shareLabel=${encodeURIComponent(
+                                                            displayName(u)
+                                                        )}&shareUserId=${encodeURIComponent(u.id)}`
+                                                    );
                                                     setShareOpen(false);
                                                 }}
                                                 title={`Share with ${displayName(u)}`}
                                             >
                                                 <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
-                                                    {(u.username || u.name || 'U').slice(0, 2)}
+                                                    {(u.username || u.name || "U").slice(0, 2)}
                                                 </div>
                                                 <div className="truncate">{displayName(u)}</div>
                                             </button>
@@ -339,25 +416,40 @@ export default function PostDetail({
                         <div className="h-px bg-gray-100 my-3" />
 
                         <div>
-                            <div className="text-xs text-gray-500 mb-2">Or share to an existing conversation</div>
+                            <div className="text-xs text-gray-500 mb-2">
+                                Or share to an existing conversation
+                            </div>
                             <div className="border rounded-md max-h-72 overflow-y-auto divide-y">
                                 {convosLoading ? (
-                                    <div className="p-3 text-sm text-gray-500">Loading conversations…</div>
+                                    <div className="p-3 text-sm text-gray-500">
+                                        Loading conversations…
+                                    </div>
                                 ) : convosError ? (
-                                    <div className="p-3 text-sm text-red-500">{convosError}</div>
+                                    <div className="p-3 text-sm text-red-500">
+                                        {convosError}
+                                    </div>
                                 ) : convos.length === 0 ? (
-                                    <div className="p-3 text-sm text-gray-400">No conversations yet.</div>
+                                    <div className="p-3 text-sm text-gray-400">
+                                        No conversations yet.
+                                    </div>
                                 ) : (
                                     convos.map((c) => {
-                                        const isGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
-                                        const title = isGroup ? (c.groupName || 'Group') : (c.other?.username || c.other?.name || 'User');
-                                        const initials = isGroup ? 'G' : (c.other?.username || c.other?.name || 'U').slice(0, 2);
-                                        const preview =
-                                            c.lastMessage?.content?.trim()
-                                                ? c.lastMessage.content
-                                                : (c.lastMessage?.imageUrls?.length ?? 0) > 0
-                                                    ? '📷 Photo'
-                                                    : 'No messages yet';
+                                        const isGroup =
+                                            c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
+                                        const title = isGroup
+                                            ? c.groupName || "Group"
+                                            : c.other?.username || c.other?.name || "User";
+                                        const initials = isGroup
+                                            ? "G"
+                                            : (c.other?.username || c.other?.name || "U").slice(
+                                                0,
+                                                2
+                                            );
+                                        const preview = c.lastMessage?.content?.trim()
+                                            ? c.lastMessage.content
+                                            : (c.lastMessage?.imageUrls?.length ?? 0) > 0
+                                                ? "📷 Photo"
+                                                : "No messages yet";
                                         return (
                                             <button
                                                 key={c.id}
@@ -365,9 +457,21 @@ export default function PostDetail({
                                                 onClick={() => {
                                                     const pretty = c.other?.username || c.other?.id || "";
                                                     if (isGroup || !pretty) {
-                                                        router.push(`/messages?convoId=${encodeURIComponent(c.id)}&shareType=post&shareId=${encodeURIComponent(post.id)}`);
+                                                        router.push(
+                                                            `/messages?convoId=${encodeURIComponent(
+                                                                c.id
+                                                            )}&shareType=post&shareId=${encodeURIComponent(
+                                                                post.id
+                                                            )}`
+                                                        );
                                                     } else {
-                                                        router.push(`/messages?to=${encodeURIComponent(pretty)}&shareType=post&shareId=${encodeURIComponent(post.id)}`);
+                                                        router.push(
+                                                            `/messages?to=${encodeURIComponent(
+                                                                pretty
+                                                            )}&shareType=post&shareId=${encodeURIComponent(
+                                                                post.id
+                                                            )}`
+                                                        );
                                                     }
                                                     setShareOpen(false);
                                                 }}
@@ -377,8 +481,12 @@ export default function PostDetail({
                                                     {initials}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="text-sm font-medium truncate">{title}</div>
-                                                    <div className="text-xs text-gray-500 truncate">{preview}</div>
+                                                    <div className="text-sm font-medium truncate">
+                                                        {title}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {preview}
+                                                    </div>
                                                 </div>
                                             </button>
                                         );

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { db } from "@/prisma/client";
 import HomePosts from "@/components/HomePosts";
 import Navbar from "@/components/Navbar";
+import Link from "next/link";
 
 export const revalidate = 0; // always fresh server render
 
@@ -59,20 +60,22 @@ export default async function Home() {
             },
         },
         orderBy: { createdAt: "desc" },
-        take: 60, // tweak if needed
+        take: 10, // 🔹 only 10 posts on initial load
     });
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
             <header className="w-full bg-white py-6 flex justify-center items-center z-20">
                 <h1 className="font-serif font-bold text-3xl text-green-700 tracking-tight select-none">
-                    <span>gymfluence</span>
+                    <Link href="/">
+                        <span className="cursor-pointer">gymfluence</span>
+                    </Link>
                 </h1>
             </header>
 
             <main className="flex-1 w-full flex justify-center">
                 {/* Pass the filtered posts down; component can use or ignore this prop */}
-                <HomePosts initialPosts={posts} />
+                <HomePosts initialPosts={posts as any} />
             </main>
             <Navbar />
         </div>

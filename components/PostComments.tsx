@@ -2,71 +2,172 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { CornerDownRight } from "lucide-react";
+import { CornerDownRight, Trash2 } from "lucide-react";
+
+type Comment = {
+    id: string;
+    content: string;
+    createdAt: string;
+    author: {
+        username: string | null;
+        email: string | null;
+        image?: string | null;
+    } | null;
+    replies?: Comment[];
+};
 
 export function PostComments({ postId }: { postId: string }) {
     const { data: session } = useSession();
-    const [comments, setComments] = useState<any[]>([]);
-    const [content, setContent] = useState('');
+    const [comments, setComments] = useState<Comment[]>([]);
+    const [content, setContent] = useState("");
     const [loading, setLoading] = useState(true);
 
     const fetchComments = async () => {
         setLoading(true);
-        const res = await fetch(`/api/posts/${postId}/comments`);
-        setComments(await res.json());
-        setLoading(false);
+        try {
+            const res = await fetch(`/api/posts/${postId}/comments`);
+            if (!res.ok) throw new Error();
+            const data: Comment[] = await res.json();
+            setComments(data);
+        } catch {
+            // optional: add error UI
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { fetchComments(); }, []);
+    useEffect(() => {
+        fetchComments();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [postId]);
 
     const handleAdd = async (content: string, parentId?: string) => {
-        await fetch(`/api/posts/${postId}/comments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content, parentId }),
-        });
-        setContent('');
-        fetchComments();
+        if (!content.trim()) return;
+        try {
+            await fetch(`/api/posts/${postId}/comments`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content, parentId }),
+            });
+            setContent("");
+            await fetchComments();
+        } catch {
+            alert("Failed to add comment.");
+        }
     };
 
-    // Recursive comment rendering for replies
-    function CommentNode({ comment }: { comment: any }) {
+    const handleDelete = async (commentId: string) => {
+        try {
+            const res = await fetch(`/api/comments/${commentId}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error();
+            await fetchComments();
+        } catch {
+            alert("Failed to delete comment.");
+        }
+    };
+
+    function CommentNode({ comment }: { comment: Comment }) {
         const [showReply, setShowReply] = useState(false);
-        const [replyContent, setReplyContent] = useState('');
+        const [replyContent, setReplyContent] = useState("");
+
+        const isMine =
+            !!session?.user?.email && comment.author?.email === session.user.email;
+
+        const displayName =
+            comment.author?.username ||
+            comment.author?.email?.split("@")[0] ||
+            "Unknown";
+
+        const initials = (displayName || "U")
+            .trim()
+            .slice(0, 2)
+            .toUpperCase();
+
         return (
             <div className="ml-0 mb-3">
-                <div className="flex gap-2 items-center">
-                    <span className="font-semibold">{comment.author?.username || "Unknown"}</span>
-                    <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString()}</span>
-                </div>
-                <div className="ml-2 mb-1">{comment.content}</div>
-                <button className="text-xs text-blue-500 ml-2" onClick={() => setShowReply(!showReply)}>
-                    Reply
-                </button>
-                {showReply && (
-                    <div className="ml-4 mt-2 flex gap-1">
-                        <input
-                            className="border px-2 py-1 rounded text-xs"
-                            value={replyContent}
-                            onChange={e => setReplyContent(e.target.value)}
-                            placeholder="Reply..."
+                <div className="flex items-start gap-2">
+                    {/* Avatar */}
+                    {comment.author?.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={comment.author.image}
+                            alt={displayName}
+                            className="w-8 h-8 rounded-full object-cover border"
                         />
-                        <button
-                            className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-                            onClick={() => { handleAdd(replyContent, comment.id); setShowReply(false); }}
-                        >
-                            <CornerDownRight size={14} />
-                        </button>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-200 border flex items-center justify-center text-[11px] font-semibold uppercase text-gray-700">
+                            {initials}
+                        </div>
+                    )}
+
+                    {/* Main comment body */}
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-gray-800">
+                                {displayName}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                                {new Date(comment.createdAt).toLocaleString()}
+                            </span>
+
+                            {isMine && (
+                                <button
+                                    className="ml-2 text-[11px] text-red-500 hover:text-red-600 flex items-center gap-1"
+                                    onClick={() => handleDelete(comment.id)}
+                                    title="Delete comment"
+                                >
+                                    <Trash2 size={12} />
+                                    Delete
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="mt-1 mb-1 text-sm text-gray-800">
+                            {comment.content}
+                        </div>
+
+                        {session && (
+                            <button
+                                className="text-[11px] text-blue-500 hover:underline"
+                                onClick={() => setShowReply(!showReply)}
+                            >
+                                Reply
+                            </button>
+                        )}
+
+                        {showReply && (
+                            <div className="mt-2 flex gap-1">
+                                <input
+                                    className="border px-2 py-1 rounded text-xs flex-1"
+                                    value={replyContent}
+                                    onChange={(e) => setReplyContent(e.target.value)}
+                                    placeholder="Reply..."
+                                />
+                                <button
+                                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded flex items-center gap-1"
+                                    onClick={async () => {
+                                        await handleAdd(replyContent, comment.id);
+                                        setReplyContent("");
+                                        setShowReply(false);
+                                    }}
+                                >
+                                    <CornerDownRight size={14} />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Replies */}
+                        {comment.replies && comment.replies.length > 0 && (
+                            <div className="ml-4 mt-2 border-l border-gray-100 pl-3">
+                                {comment.replies.map((reply) => (
+                                    <CommentNode key={reply.id} comment={reply} />
+                                ))}
+                            </div>
+                        )}
                     </div>
-                )}
-                {/* Render replies recursively */}
-                {comment.replies?.length > 0 && (
-                    <div className="ml-6 mt-1">
-                        {comment.replies.map((reply: any) => (
-                            <CommentNode key={reply.id} comment={reply} />
-                        ))}
-                    </div>
-                )}
+                </div>
             </div>
         );
     }
@@ -74,27 +175,39 @@ export function PostComments({ postId }: { postId: string }) {
     return (
         <div className="bg-white rounded-xl p-3 mt-4">
             <h4 className="font-bold mb-2 text-gray-700">Comments</h4>
-            {session &&
+
+            {session && (
                 <form
-                    onSubmit={e => { e.preventDefault(); handleAdd(content); }}
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        handleAdd(content);
+                    }}
                     className="flex gap-2 mb-4"
                 >
                     <input
-                        className="flex-1 border px-2 py-1 rounded"
+                        className="flex-1 border px-2 py-1 rounded text-sm"
                         placeholder="Add a comment..."
                         value={content}
-                        onChange={e => setContent(e.target.value)}
+                        onChange={(e) => setContent(e.target.value)}
                         required
                     />
-                    <button className="bg-blue-500 text-white px-3 py-1 rounded" type="submit">Post</button>
+                    <button
+                        className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                        type="submit"
+                    >
+                        Post
+                    </button>
                 </form>
-            }
+            )}
+
             {loading ? (
-                <div>Loading comments...</div>
+                <div className="text-sm text-gray-500">Loading comments...</div>
+            ) : comments.length === 0 ? (
+                <div className="text-gray-400 text-sm">No comments yet.</div>
             ) : (
-                comments.length === 0
-                    ? <div className="text-gray-400 text-sm">No comments yet.</div>
-                    : comments.map(comment => <CommentNode key={comment.id} comment={comment} />)
+                comments.map((comment) => (
+                    <CommentNode key={comment.id} comment={comment} />
+                ))
             )}
         </div>
     );

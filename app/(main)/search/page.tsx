@@ -183,13 +183,13 @@ export default function SearchPage() {
                             label="Distance"
                             value={distanceKm ? `${distanceKm} km` : 'Any'}
                             menu={
-                                <div className="grid grid-cols-2 gap-2 p-2">
+                                <div className="grid grid-cols-2 gap-2 p-2 w-52">
                                     {['', '5', '10', '25', '50', '100'].map((d) => (
                                         <button
                                             key={d || 'any'}
                                             onClick={() => setDistanceKm(d)}
                                             className={clsx(
-                                                'px-2 py-1 rounded border text-sm',
+                                                'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
                                                 (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
                                             )}
                                         >
@@ -204,13 +204,13 @@ export default function SearchPage() {
                             label="Entity"
                             value={role === 'ALL' ? 'All' : role.toLowerCase()}
                             menu={
-                                <div className="grid grid-cols-2 gap-2 p-2">
+                                <div className="grid grid-cols-2 gap-2 p-2 w-52">
                                     {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
                                         <button
                                             key={r}
                                             onClick={() => setRole(r)}
                                             className={clsx(
-                                                'px-2 py-1 rounded border text-sm',
+                                                'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
                                                 role === r ? 'bg-gray-900 text-white' : 'bg-white'
                                             )}
                                         >
@@ -220,6 +220,7 @@ export default function SearchPage() {
                                 </div>
                             }
                         />
+
 
                         <Chip
                             label="Budget"
@@ -642,12 +643,14 @@ function Chip({
         <div className="relative">
             <button
                 onClick={() => setOpen((v) => !v)}
-                className="flex items-center gap-1 px-3 py-2 rounded-full border bg-white hover:bg-gray-50 text-sm"
+                className="flex items-center gap-1 px-3 py-2 rounded-full border bg-white hover:bg-gray-50 text-sm max-w-[220px]"
             >
-                {label}
+                <span className="whitespace-nowrap">{label}</span>
                 <span className="px-1 text-gray-500">•</span>
-                <span className="text-gray-700">{value}</span>
-                <ChevronDown size={16} className="ml-1 text-gray-500" />
+                <span className="text-gray-700 truncate max-w-[120px]">
+                    {value}
+                </span>
+                <ChevronDown size={16} className="ml-1 text-gray-500 shrink-0" />
             </button>
             {open && (
                 <div className="absolute right-0 mt-2 bg-white border rounded-xl shadow-lg">
@@ -666,3 +669,4 @@ function Chip({
         </div>
     );
 }
+

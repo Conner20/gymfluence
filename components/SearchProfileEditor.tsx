@@ -1,11 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import clsx from "clsx";
 
 type Role = "TRAINEE" | "TRAINER" | "GYM" | null;
 
-export default function SearchProfileEditor() {
+type SearchProfileEditorProps = {
+    // Called when the Search Profile "Save changes" button is clicked.
+    // We'll use this to trigger saving BOTH main profile and search profile.
+    onSaveAll?: () => void | Promise<void>;
+    // A counter from the parent: whenever it changes, we run our own onSave().
+    externalSaveTrigger?: number;
+};
+
+export default function SearchProfileEditor({
+    onSaveAll,
+    externalSaveTrigger,
+}: SearchProfileEditorProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState<string | null>(null);
@@ -100,7 +111,8 @@ export default function SearchProfileEditor() {
         clear();
     };
 
-    const onSave = async () => {
+    // Make onSave stable so useEffect can depend on it
+    const onSave = useCallback(async () => {
         try {
             setSaving(true);
             setErr(null);
@@ -127,7 +139,7 @@ export default function SearchProfileEditor() {
         } finally {
             setSaving(false);
         }
-    };
+    }, [about, role, goals, services, hourlyRate, gymFee, amenitiesText]);
 
     const onUpload = async (files: File[]) => {
         if (!files.length) return;
@@ -150,6 +162,23 @@ export default function SearchProfileEditor() {
     };
 
     const roleLabel = useMemo(() => (role ? role.toLowerCase() : "profile"), [role]);
+
+    // Watch the external trigger from the parent and run onSave whenever it changes
+    const lastTriggerRef = useRef<number | undefined>(externalSaveTrigger);
+    useEffect(() => {
+        if (externalSaveTrigger === undefined) return;
+
+        if (lastTriggerRef.current === undefined) {
+            lastTriggerRef.current = externalSaveTrigger;
+            return;
+        }
+
+        if (externalSaveTrigger !== lastTriggerRef.current) {
+            lastTriggerRef.current = externalSaveTrigger;
+            // Trigger a save of the Search Profile
+            onSave();
+        }
+    }, [externalSaveTrigger, onSave]);
 
     return (
         <section className="mt-6">
@@ -326,7 +355,7 @@ export default function SearchProfileEditor() {
                     {role === "GYM" && (
                         <>
                             <div className="mb-6 max-w-xs">
-                                <label className="block text-sm font-medium mb-1">Membership fee ($/mo)</label>
+                                <label className="block text-sm font-medium mb-1">Monthly fee ($/mo)</label>
                                 <input
                                     type="number"
                                     min={0}
@@ -406,11 +435,18 @@ export default function SearchProfileEditor() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* This button now calls the parent saveBoth (which also triggers our onSave via externalSaveTrigger) */}
                         <button
-                            onClick={onSave}
+                            onClick={() => {
+                                if (onSaveAll) {
+                                    onSaveAll();
+                                } else {
+                                    onSave();
+                                }
+                            }}
                             disabled={saving}
                             className={clsx(
-                                "px-4 py-2 rounded-full text-sm",
+                                "px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50",
                                 saving ? "bg-gray-300 text-gray-600" : "bg-gray-900 text-white hover:bg-black"
                             )}
                         >

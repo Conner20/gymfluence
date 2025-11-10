@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -13,10 +13,12 @@ import {
     ArrowLeft,
     Heart,
     MessageCircle,
+    Trash2,
 } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
 import NotificationsModal from "@/components/NotificationsModal";
+import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
 
 type BasicPost = {
@@ -74,28 +76,70 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const [gridPosts, setGridPosts] = useState<BasicPost[]>(posts ?? []);
     const [fullPosts, setFullPosts] = useState<FullPost[] | null>(null);
     const [postsLoading, setPostsLoading] = useState(false);
+    const [showCreatePost, setShowCreatePost] = useState(false);
+
+    const [focusPostId, setFocusPostId] = useState<string | null>(null);
+
+    const refreshPosts = useCallback(async () => {
+        if (!canViewPrivate) return;
+        setPostsLoading(true);
+        try {
+            const res = await fetch(`/api/posts?authorId=${encodeURIComponent(user.id)}`, {
+                cache: "no-store",
+            });
+            if (!res.ok) return;
+            const data: FullPost[] = await res.json();
+            setFullPosts(data);
+            setGridPosts(
+                data.map((p) => ({
+                    id: p.id,
+                    title: p.title,
+                    imageUrl: p.imageUrl ?? null,
+                }))
+            );
+        } finally {
+            setPostsLoading(false);
+        }
+    }, [user.id, canViewPrivate]);
 
     useEffect(() => {
-        let ignore = false;
-        async function load() {
-            if (!canViewPrivate) return;
-            setPostsLoading(true);
-            try {
-                const res = await fetch(`/api/posts?authorId=${encodeURIComponent(user.id)}`, { cache: "no-store" });
-                if (!res.ok) return;
-                const data: FullPost[] = await res.json();
-                if (ignore) return;
-                setFullPosts(data);
-                setGridPosts(data.map((p) => ({ id: p.id, title: p.title, imageUrl: p.imageUrl ?? null })));
-            } finally {
-                if (!ignore) setPostsLoading(false);
-            }
-        }
-        load();
-        return () => {
-            ignore = true;
+        refreshPosts();
+    }, [refreshPosts]);
+
+    // When a post is created via CreatePost, refresh this profile
+    useEffect(() => {
+        if (!isOwnProfile) return;
+        const handler = () => {
+            refreshPosts();
         };
-    }, [user.id, canViewPrivate]);
+        window.addEventListener("post-created", handler);
+        return () => window.removeEventListener("post-created", handler);
+    }, [isOwnProfile, refreshPosts]);
+
+    const handleDeletePost = async (postId: string) => {
+        if (!isOwnProfile) return;
+        const ok = window.confirm("Delete this post? This cannot be undone.");
+        if (!ok) return;
+
+        try {
+            const res = await fetch("/api/posts", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: postId }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || "Failed to delete post.");
+                return;
+            }
+
+            setFullPosts((prev) => (prev ? prev.filter((p) => p.id !== postId) : prev));
+            setGridPosts((prev) => prev.filter((p) => p.id !== postId));
+            if (focusPostId === postId) setFocusPostId(null);
+        } catch {
+            alert("Failed to delete post.");
+        }
+    };
 
     // Followers / Following
     const [showFollowers, setShowFollowers] = useState(false);
@@ -161,171 +205,185 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
     const [showNotifications, setShowNotifications] = useState(false);
 
-    // View mode & focus post
+    // View mode
     const [viewMode, setViewMode] = useState<"grid" | "scroll">("grid");
-    const [focusPostId, setFocusPostId] = useState<string | null>(null);
 
     const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
     return (
-        <div className="flex min-h-screen bg-[#f8f8f8]">
+        <div className="flex min-h-screen">
             {/* Sidebar */}
-            <aside className="w-80 shrink-0 bg-white px-6 py-8 flex flex-col items-center">
+            <aside className="w-72 bg-white flex flex-col items-center pt-8">
                 {/* Avatar */}
-                <div className="relative">
+                <div className="flex justify-center items-center mb-3">
                     {user.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={user.image}
                             alt={user.username || user.name || "Profile picture"}
-                            className="w-28 h-28 rounded-full object-cover border border-zinc-200 shadow-md"
+                            className="w-24 h-24 rounded-full object-cover border-4 border-white"
                         />
                     ) : (
-                        <div className="w-28 h-28 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                            <span className="text-green-700 font-bold text-xl select-none text-center px-2 break-words">
+                        <div className="w-24 h-24 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                            <span className="text-green-700 font-bold text-xl select-none text-center px-2 break-words leading-6">
                                 {user.username || user.name || "User"}
                             </span>
                         </div>
                     )}
                 </div>
 
-                <h2 className="mt-4 font-semibold text-xl text-zinc-900">{user.name}</h2>
-                <div className="text-gray-500 text-sm">{user.role?.toLowerCase()}</div>
+                <h2 className="font-bold text-xl">{user.name}</h2>
+                <div className="text-gray-500 text-sm mb-3">{user.role?.toLowerCase()}</div>
 
-                {/* Bio & location */}
-                <div className="mt-4 text-center text-zinc-700 leading-relaxed">
-                    {trainee?.bio || "this is my bio"}
-                </div>
-                <div className="text-center text-sm text-gray-600 mt-1">{user.location}</div>
-
-                {/* Action buttons (sleek + responsive) */}
-                {!isOwnProfile ? (
+                {/* Action buttons */}
+                {!isOwnProfile && (
                     <>
-                        <div className="mt-6 w-full">
-                            <div className="flex flex-wrap gap-2 justify-center">
-                                <button
-                                    onClick={handleFollowButton}
-                                    disabled={loading}
-                                    className={clsx(
-                                        "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition",
-                                        isFollowing
-                                            ? "bg-white hover:bg-zinc-50 text-zinc-900"
-                                            : "bg-green-700 hover:bg-green-800 text-white"
-                                    )}
-                                    title={
-                                        user.isPrivate
-                                            ? isFollowing
-                                                ? "Unfollow"
-                                                : requested
-                                                    ? "Requested"
-                                                    : "Request Follow"
-                                            : isFollowing
-                                                ? "Unfollow"
-                                                : "Follow"
-                                    }
-                                    aria-label="Follow toggle"
-                                >
-                                    {user.isPrivate ? (
-                                        isFollowing ? (
-                                            <>
-                                                <UserMinus size={18} />
-                                                <span>Unfollow</span>
-                                            </>
-                                        ) : requested ? (
-                                            <span className="text-xs font-medium">Requested</span>
-                                        ) : (
-                                            <>
-                                                <UserPlus size={18} />
-                                                <span>Follow</span>
-                                            </>
-                                        )
-                                    ) : isFollowing ? (
+                        <div className="flex flex-wrap.items-center gap-2 mb-4 justify-center">
+                            <button
+                                onClick={handleFollowButton}
+                                disabled={loading}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={
+                                    user.isPrivate
+                                        ? isFollowing
+                                            ? "Unfollow"
+                                            : "Requested"
+                                        : isFollowing
+                                            ? "Unfollow"
+                                            : "Follow"
+                                }
+                                aria-label="Follow toggle"
+                            >
+                                {user.isPrivate ? (
+                                    isFollowing ? (
                                         <>
                                             <UserMinus size={18} />
                                             <span>Unfollow</span>
                                         </>
+                                    ) : requested ? (
+                                        <span className="text-xs font-medium">Requested</span>
                                     ) : (
                                         <>
                                             <UserPlus size={18} />
                                             <span>Follow</span>
                                         </>
-                                    )}
-                                </button>
+                                    )
+                                ) : isFollowing ? (
+                                    <>
+                                        <UserMinus size={18} />
+                                        <span>Unfollow</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus size={18} />
+                                        <span>Follow</span>
+                                    </>
+                                )}
+                            </button>
 
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleMessage}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm bg-white hover:bg-zinc-50 transition"
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
                                     title="Message"
                                 >
-                                    <MessageSquare size={18} />
-                                    <span>Message</span>
+                                    <MessageSquare size={20} />
                                 </button>
 
                                 <button
                                     onClick={handleShare}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm bg-white hover:bg-zinc-50 transition"
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
                                     title="Share profile"
                                 >
-                                    <Share2 size={18} />
-                                    <span>Share</span>
+                                    <Share2 size={20} />
                                 </button>
                             </div>
-                            {shareHint && <div className="text-xs text-gray-500 mt-2 text-center">{shareHint}</div>}
                         </div>
+                        {shareHint && <div className="text-xs text-gray-500 mb-2">{shareHint}</div>}
                     </>
-                ) : (
-                    <div className="mt-6 w-full space-y-2">
+                )}
+
+                {/* Bio & location */}
+                <div className="text-center mt-6 mb-4 px-4">{trainee?.bio || "this is my bio"}</div>
+                <div className="text-center text-sm text-gray-600 mb-2">{user.location}</div>
+
+                {/* Stats */}
+                <div className="flex flex-col gap-2 my-4 w-full px-6">
+                    <button
+                        onClick={openFollowers}
+                        disabled={!canViewPrivate}
+                        className={clsx(
+                            "flex justify-between",
+                            canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
+                        )}
+                        title={canViewPrivate ? "View followers" : "Private"}
+                    >
+                        <span className="font-semibold">{followers}</span>
+                        <span className="text-gray-500">followers</span>
+                    </button>
+                    <button
+                        onClick={openFollowing}
+                        disabled={!canViewPrivate}
+                        className={clsx(
+                            "flex justify-between",
+                            canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
+                        )}
+                        title={canViewPrivate ? "View following" : "Private"}
+                    >
+                        <span className="font-semibold">{following}</span>
+                        <span className="text-gray-500">following</span>
+                    </button>
+                    <ProfileStat
+                        label="posts"
+                        value={canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
+                    />
+                </div>
+
+                {/* Own profile buttons */}
+                {isOwnProfile && (
+                    <div className="flex flex-col gap-2 mb-6">
                         <button
-                            className="w-full py-2 rounded-full border bg-white hover:bg-zinc-50 transition text-sm"
+                            className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
                             onClick={() => setShowNotifications(true)}
                         >
                             View Notifications
                         </button>
                         <button
-                            className="w-full py-2 rounded-full bg-green-700 hover:bg-green-800 text-white transition text-sm"
+                            className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
                             onClick={() => router.push("/settings")}
                         >
                             Edit Profile
                         </button>
                     </div>
                 )}
-
-                {/* Stats (sleek rows) */}
-                <div className="mt-8 w-full">
-                    <StatRow
-                        label="followers"
-                        value={followers}
-                        onClick={openFollowers}
-                        enabled={canViewPrivate}
-                    />
-                    <StatRow
-                        label="following"
-                        value={following}
-                        onClick={openFollowing}
-                        enabled={canViewPrivate}
-                    />
-                    <ProfileStat
-                        label="posts"
-                        value={canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
-                    />
-                </div>
             </aside>
 
             {/* Main Content + overlay */}
-            <main className="flex-1 p-8 relative">
+            <main className="flex-1 p-8 relative bg-[#f8f8f8]">
                 {!canViewPrivate ? (
                     <PrivatePlaceholder />
                 ) : (
                     <>
                         {/* Header row */}
                         <div className="mb-4 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-zinc-900">Posts</h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold.text-zinc-900">Posts</h3>
+                                {isOwnProfile && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCreatePost(true)}
+                                        className="px-3 py-1.5 rounded-full border text-xs font-medium bg-white hover:bg-zinc-50 transition"
+                                    >
+                                        + Add Post
+                                    </button>
+                                )}
+                            </div>
                             <div className="inline-flex rounded-full border bg-white p-1 shadow-sm">
                                 <button
                                     className={clsx(
                                         "px-3 py-1 text-sm rounded-full",
                                         viewMode === "grid"
-                                            ? "bg-green-700 text-white"
+                                            ? "bg-black text-white"
                                             : "text-gray-600 hover:bg-zinc-50"
                                     )}
                                     onClick={() => setViewMode("grid")}
@@ -336,7 +394,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     className={clsx(
                                         "px-3 py-1 text-sm rounded-full",
                                         viewMode === "scroll"
-                                            ? "bg-green-700 text-white"
+                                            ? "bg-black text-white"
                                             : "text-gray-600 hover:bg-zinc-50"
                                     )}
                                     onClick={() => setViewMode("scroll")}
@@ -355,26 +413,29 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         ) : (
                             <ScrollFeed
                                 posts={fullPosts ?? []}
+                                canDelete={isOwnProfile}
+                                onDelete={handleDeletePost}
                                 onOpen={(id) => setFocusPostId(id)}
                                 onLike={async (id) => {
                                     try {
-                                        await fetch(`/api/posts/${encodeURIComponent(id)}/like`, { method: "POST" });
-                                        const res = await fetch(
-                                            `/api/posts?authorId=${encodeURIComponent(user.id)}`,
-                                            { cache: "no-store" }
+                                        await fetch(
+                                            `/api/posts/${encodeURIComponent(id)}/like`,
+                                            { method: "POST" }
                                         );
-                                        if (res.ok) setFullPosts(await res.json());
-                                    } catch { }
+                                        await refreshPosts();
+                                    } catch {
+                                        /* ignore */
+                                    }
                                 }}
                             />
                         )}
                     </>
                 )}
 
-                {/* Focus overlay (fills gray area) */}
+                {/* Focus overlay */}
                 {focusPostId && (
                     <div className="absolute inset-0 bg-[#f8f8f8] z-50">
-                        <div className="p-4">
+                        <div className="p-4 flex items-center justify-between">
                             <button
                                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white hover:bg-zinc-50 text-sm"
                                 onClick={() => setFocusPostId(null)}
@@ -383,6 +444,15 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 <ArrowLeft size={16} />
                                 Back
                             </button>
+                            {isOwnProfile && (
+                                <button
+                                    className="p-2 rounded-full hover:bg-red-50 text-red-500"
+                                    title="Delete post"
+                                    onClick={() => handleDeletePost(focusPostId)}
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            )}
                         </div>
                         <div className="h-[calc(100%-56px)] px-6 pb-6">
                             <iframe
@@ -414,40 +484,15 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                 onClose={() => setShowNotifications(false)}
                 onAnyChange={refreshCounts}
             />
-        </div>
-    );
-}
 
-function StatRow({
-    label,
-    value,
-    onClick,
-    enabled = true,
-}: {
-    label: string;
-    value: React.ReactNode;
-    onClick?: () => void;
-    enabled?: boolean;
-}) {
-    return (
-        <button
-            onClick={enabled ? onClick : undefined}
-            disabled={!enabled}
-            className={clsx(
-                "flex justify-between w-full px-3 py-2 rounded-lg transition",
-                enabled ? "hover:bg-zinc-50" : "opacity-50 cursor-not-allowed"
-            )}
-            title={enabled ? `View ${label}` : "Private"}
-        >
-            <span className="font-semibold">{value}</span>
-            <span className="text-gray-500">{label}</span>
-        </button>
+            {showCreatePost && <CreatePost onClose={() => setShowCreatePost(false)} />}
+        </div>
     );
 }
 
 function ProfileStat({ label, value }: { label: string; value: React.ReactNode }) {
     return (
-        <div className="flex justify-between px-3 py-2 rounded-lg">
+        <div className="flex justify-between">
             <span className="font-semibold">{value}</span>
             <span className="text-gray-500">{label}</span>
         </div>
@@ -460,13 +505,17 @@ function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string)
             {posts.map((post) => (
                 <button
                     key={post.id}
-                    className="bg-white rounded-xl flex items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 hover:shadow-sm hover:opacity-95 transition"
+                    className="bg-white rounded-xl flex.items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 hover:shadow-sm hover:opacity-95 transition"
                     title={post.title}
                     onClick={() => onOpen(post.id)}
                 >
                     {post.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.imageUrl} alt={post.title} className="object-cover w-full h-full" />
+                        <img
+                            src={post.imageUrl}
+                            alt={post.title}
+                            className="object-cover w-full h-full"
+                        />
                     ) : (
                         <span className="text-gray-700 font-medium text-base text-center px-4">
                             {post.title}
@@ -482,10 +531,14 @@ function ScrollFeed({
     posts,
     onOpen,
     onLike,
+    canDelete,
+    onDelete,
 }: {
     posts: FullPost[];
     onOpen: (id: string) => void;
     onLike: (id: string) => void | Promise<void>;
+    canDelete: boolean;
+    onDelete: (id: string) => void | Promise<void>;
 }) {
     const fmt = (iso: string) =>
         new Date(iso).toLocaleString(undefined, {
@@ -501,8 +554,11 @@ function ScrollFeed({
     return (
         <div className="space-y-6 max-w-2xl">
             {posts.map((p) => (
-                <article key={p.id} className="bg-white rounded-2xl shadow-sm border border-zinc-200 px-5 py-4">
-                    {/* header like home */}
+                <article
+                    key={p.id}
+                    className="bg-white rounded-2xl shadow-sm border border-zinc-200 px-5 py-4"
+                >
+                    {/* header */}
                     <div className="flex items-center justify-between">
                         <div className="min-w-0">
                             <button
@@ -527,6 +583,15 @@ function ScrollFeed({
                                 · {fmt(p.createdAt)}
                             </div>
                         </div>
+                        {canDelete && (
+                            <button
+                                className="p-1.5 rounded-full hover:bg-red-50 text-red-500"
+                                title="Delete post"
+                                onClick={() => onDelete(p.id)}
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                     </div>
 
                     {/* media */}
@@ -547,7 +612,7 @@ function ScrollFeed({
                         <div className="text-zinc-800 mt-3 whitespace-pre-wrap">{p.content}</div>
                     )}
 
-                    {/* actions like home */}
+                    {/* actions */}
                     <div className="mt-3 flex items-center gap-4 text-sm">
                         <button
                             className={clsx(
