@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import { Moon, Droplet, Flame, Plus, X, Sliders, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
+import { Moon, Droplet, Flame, Plus, X } from 'lucide-react';
 
 import {
     fetchWellnessData,
@@ -21,8 +21,15 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const fmtISO = (d: Date) => d.toISOString().slice(0, 10);
 
 // (reused from Nutrition page)
-function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d; }
-function average(nums: number[]) { if (!nums.length) return 0; return nums.reduce((a, b) => a + b, 0) / nums.length; }
+function daysAgo(n: number) {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d;
+}
+function average(nums: number[]) {
+    if (!nums.length) return 0;
+    return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
 
 type SleepPoint = { date: string; hours: number | null };
 type WaterPoint = { date: string; liters: number };
@@ -40,11 +47,13 @@ function SleepLine({
     range,
     onAdd,
     onRange,
+    goal,
 }: {
     data: SleepPoint[];
     range: '1W' | '1M' | '3M' | '1Y';
     onAdd: (pt: SleepPoint) => void | Promise<void>;
     onRange: (r: '1W' | '1M' | '3M' | '1Y') => void;
+    goal: number;
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -67,7 +76,7 @@ function SleepLine({
             arr.push({ date: iso, hours: v });
         }
         return arr;
-    }, [data, days]);
+    }, [data, days, start]);
 
     // drawing box
     const W = 780;
@@ -76,9 +85,36 @@ function SleepLine({
     const innerW = W - pad.left - pad.right;
     const innerH = H - pad.top - pad.bottom;
 
-    const yMin = 6.5;
-    const yMax = 10;
-    const y = (hrs: number) => pad.top + innerH - ((hrs - yMin) / (yMax - yMin)) * innerH;
+    // dynamic Y-scale based on data + goal
+    const hoursVals = xs
+        .map((p) => p.hours)
+        .filter((v): v is number => v != null && isFinite(v));
+
+    let yMin = 6;
+    let yMax = 10;
+    const domainVals = [...hoursVals];
+    if (isFinite(goal)) domainVals.push(goal);
+
+    if (domainVals.length > 0) {
+        let min = Math.min(...domainVals);
+        let max = Math.max(...domainVals);
+
+        if (min === max) {
+            const padRange = Math.max(0.5, min * 0.1);
+            min = min - padRange;
+            max = max + padRange;
+        } else {
+            const padRange = (max - min) * 0.1;
+            min -= padRange;
+            max += padRange;
+        }
+
+        min = Math.max(0, min);
+        yMin = min;
+        yMax = max;
+    }
+
+    const y = (hrs: number) => pad.top + innerH - ((hrs - yMin) / (yMax - yMin || 1)) * innerH;
     const x = (i: number) => pad.left + (i / Math.max(1, xs.length - 1)) * innerW;
 
     const nonNull = useMemo(
@@ -94,7 +130,7 @@ function SleepLine({
         let d = `M ${x(nonNull[0].i)} ${y(nonNull[0].hours)}`;
         for (let k = 1; k < nonNull.length; k++) d += ` L ${x(nonNull[k].i)} ${y(nonNull[k].hours)}`;
         return d;
-    }, [nonNull]);
+    }, [nonNull, x, y]);
 
     const [hover, setHover] = useState<{ i: number; cx: number; cy: number } | null>(null);
     const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -122,6 +158,10 @@ function SleepLine({
 
     const expanderCls =
         'overflow-hidden transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-2';
+
+    // dynamic y ticks
+    const tickCount = 4;
+    const yTicks = Array.from({ length: tickCount + 1 }, (_, i) => yMin + ((yMax - yMin) * i) / tickCount);
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
@@ -199,25 +239,60 @@ function SleepLine({
                     onMouseMove={onMove}
                     onMouseLeave={() => setHover(null)}
                 >
-                    {[10, 9, 8, 7].map((h) => (
+                    {/* grid + y-axis labels */}
+                    {yTicks.map((h) => (
                         <g key={h}>
-                            <line x1={pad.left} x2={W - pad.right} y1={y(h)} y2={y(h)} stroke="#eee" strokeWidth={1} />
+                            <line
+                                x1={pad.left}
+                                x2={W - pad.right}
+                                y1={y(h)}
+                                y2={y(h)}
+                                stroke="#eee"
+                                strokeWidth={1}
+                            />
                             <text x={pad.left - 8} y={y(h) + 3} textAnchor="end" fontSize="10" fill="#9ca3af">
                                 {h.toFixed(1)}
                             </text>
                         </g>
                     ))}
 
+                    {/* sleep goal line */}
+                    {isFinite(goal) && (
+                        <>
+                            <line
+                                x1={pad.left}
+                                x2={W - pad.right}
+                                y1={y(goal)}
+                                y2={y(goal)}
+                                stroke="#a855f7"
+                                strokeDasharray="4 4"
+                                strokeWidth={1.5}
+                            />
+                            <text
+                                x={W - pad.right}
+                                y={y(goal) - 4}
+                                textAnchor="end"
+                                fontSize="10"
+                                fill="#7c3aed"
+                            >
+                                goal {goal.toFixed(1)}h
+                            </text>
+                        </>
+                    )}
+
                     {/* CONNECTED polyline through non-null points */}
                     {pathD && <path d={pathD} fill="none" stroke="#a855f7" strokeWidth={2} />}
 
-                    {/* light area fill only when 2+ points exist */}
-                    {nonNull.length >= 2 && (
-                        <path
-                            d={`${pathD} L ${pad.left + innerW} ${pad.top + innerH} L ${pad.left} ${pad.top + innerH} Z`}
-                            fill="#a855f71a"
-                        />
-                    )}
+                    {/* light area fill only under data between first & last non-null points */}
+                    {nonNull.length >= 2 && (() => {
+                        const first = nonNull[0];
+                        const last = nonNull[nonNull.length - 1];
+                        const firstX = x(first.i);
+                        const lastX = x(last.i);
+                        const baseY = pad.top + innerH;
+                        const areaPath = `${pathD} L ${lastX} ${baseY} L ${firstX} ${baseY} Z`;
+                        return <path d={areaPath} fill="#a855f71a" />;
+                    })()}
 
                     {/* dots only on recorded days */}
                     {xs.map((p, i) => (p.hours != null ? <Dot key={i} cx={x(i)} cy={y(p.hours)} /> : null))}
@@ -225,8 +300,17 @@ function SleepLine({
                     {/* hover guide */}
                     {hover && (
                         <>
-                            <line x1={hover.cx} x2={hover.cx} y1={pad.top} y2={pad.top + innerH} stroke="#d1d5db" strokeDasharray="4 4" />
-                            {xs[hover.i].hours != null && <Dot cx={hover.cx} cy={y(xs[hover.i].hours!)} r={4} color="#7c3aed" />}
+                            <line
+                                x1={hover.cx}
+                                x2={hover.cx}
+                                y1={pad.top}
+                                y2={pad.top + innerH}
+                                stroke="#d1d5db"
+                                strokeDasharray="4 4"
+                            />
+                            {xs[hover.i].hours != null && (
+                                <Dot cx={hover.cx} cy={y(xs[hover.i].hours!)} r={4} color="#7c3aed" />
+                            )}
                         </>
                     )}
 
@@ -234,7 +318,13 @@ function SleepLine({
                     <text x={pad.left + 2} y={pad.top + innerH + 18} fontSize="10" fill="#9ca3af" textAnchor="start">
                         {xs[0]?.date ?? ''}
                     </text>
-                    <text x={pad.left + innerW - 2} y={pad.top + innerH + 18} fontSize="10" fill="#9ca3af" textAnchor="end">
+                    <text
+                        x={pad.left + innerW - 2}
+                        y={pad.top + innerH + 18}
+                        fontSize="10"
+                        fill="#9ca3af"
+                        textAnchor="end"
+                    >
                         {xs.at(-1)?.date ?? ''}
                     </text>
                 </svg>
@@ -250,7 +340,11 @@ function SleepLine({
                         content={
                             <div className="leading-tight">
                                 <div className="font-medium">{xs[hover.i].date}</div>
-                                <div>{xs[hover.i].hours != null ? `${xs[hover.i].hours.toFixed(1)} hrs` : '—'}</div>
+                                <div>
+                                    {xs[hover.i].hours != null
+                                        ? `${xs[hover.i].hours.toFixed(1)} hrs`
+                                        : '—'}
+                                </div>
                             </div>
                         }
                     />
@@ -319,7 +413,7 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
             out.push({ date: iso, liters: map.get(iso) ?? 0 });
         }
         return out;
-    }, [data]);
+    }, [data, start]);
 
     const max = Math.max(2, ...xs.map((d) => d.liters));
 
@@ -351,7 +445,10 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
             >
                 {xs.map((d) => (
                     <div key={d.date} className="flex h-full flex-col items-center justify-end">
-                        <div className="w-7 rounded-t bg-blue-400/40" style={{ height: `${(d.liters / max) * 100}%` }} />
+                        <div
+                            className="w-7 rounded-t bg-blue-400/40"
+                            style={{ height: `${(d.liters / max) * 100}%` }}
+                        />
                         <div className="mt-1 text-[10px] text-neutral-500">{d.date.slice(5)}</div>
                     </div>
                 ))}
@@ -376,12 +473,14 @@ function KPI({
     subtitle,
     color = 'purple',
     icon,
+    rightElement,
 }: {
     title: string;
     value: string | number;
     subtitle?: string;
     color?: 'purple' | 'blue' | 'orange';
     icon: React.ReactNode;
+    rightElement?: React.ReactNode;
 }) {
     const colorClasses =
         color === 'purple'
@@ -391,8 +490,11 @@ function KPI({
                 : 'bg-amber-100 text-amber-900';
     return (
         <div className={`rounded-xl p-5 ${colorClasses}`}>
-            <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/60">
-                {icon}
+            <div className="mb-2 flex items-center justify-between">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/60">
+                    {icon}
+                </div>
+                {rightElement && <div className="ml-2">{rightElement}</div>}
             </div>
             <div className="text-3xl font-semibold leading-none">{value}</div>
             <div className="mt-2 text-sm font-medium">{title}</div>
@@ -411,13 +513,32 @@ function WaterToday({
     goal: number;
     setGoal: (v: number) => void | Promise<void>;
     entries: { date: string; liters: number }[];
-    addWater: (liters: number) => void | Promise<void>;
+    addWater: (liters: number, dateISO: string) => void | Promise<void>;
 }) {
-    const today = fmtISO(new Date());
-    const consumed = entries.filter((e) => e.date === today).reduce((a, b) => a + b.liters, 0);
+    const [selectedDate, setSelectedDate] = useState(fmtISO(new Date()));
+
+    const consumed = entries
+        .filter((e) => e.date === selectedDate)
+        .reduce((a, b) => a + b.liters, 0);
     const remaining = Math.max(0, goal - consumed);
     const pct = clamp(consumed / Math.max(0.0001, goal), 0, 1);
     const [val, setVal] = useState('');
+
+    const handleAdd = async () => {
+        const n = parseFloat(val);
+        if (!isFinite(n) || n <= 0) return;
+        await addWater(n, selectedDate);
+        setVal('');
+    };
+
+    const handleRemove = async () => {
+        const n = parseFloat(val);
+        if (!isFinite(n) || n <= 0) return;
+        const amount = Math.min(n, consumed);
+        if (amount <= 0) return;
+        await addWater(-amount, selectedDate);
+        setVal('');
+    };
 
     return (
         <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-xl border bg-white p-4 shadow-sm">
@@ -439,21 +560,27 @@ function WaterToday({
 
             {/* Middle area — centers the gauge; +20px height */}
             <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white/70 p-4">
-                <div className="text-sm text-blue-900/80">Remaining: {remaining.toFixed(1)} L</div>
+                <div className="text-sm text-blue-900/80">
+                    Remaining: {remaining.toFixed(1)} L
+                </div>
                 <div className="flex flex-1 items-center justify-center">
                     <div className="relative mx-auto mt-4 flex h-60 w-20 items-end rounded-full bg-blue-50 sm:h-[21rem]">
                         {(() => {
                             const isFull = pct >= 0.999;
-                            const radiusClass = isFull ? 'rounded-full' : 'rounded-b-full rounded-t-none';
+                            const radiusClass = isFull
+                                ? 'rounded-full'
+                                : 'rounded-b-full rounded-t-none';
                             return (
                                 <div
                                     className={`absolute left-2 right-2 ${radiusClass} bg-blue-400/30 flex items-center justify-center`}
-                                    style={{ height: `calc((100% - 1rem) * ${pct})`, bottom: '0.5rem' }}
+                                    style={{
+                                        height: `calc((100% - 1rem) * ${pct})`,
+                                        bottom: '0.5rem',
+                                    }}
                                 >
                                     {consumed > 0 && (
                                         <div className="text-xs font-medium text-neutral-800 text-center">
                                             {consumed.toFixed(1)} L
-                                            <div className="text-[10px] opacity-80">today</div>
                                         </div>
                                     )}
                                 </div>
@@ -472,23 +599,32 @@ function WaterToday({
                     className="w-full rounded-md border px-3 py-2 outline-none"
                 />
                 <button
-                    className="shrink-0 rounded-md bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
-                    onClick={async () => {
-                        const n = parseFloat(val);
-                        if (!isFinite(n) || n <= 0) return;
-                        await addWater(n);
-                        setVal('');
-                    }}
+                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50"
+                    onClick={handleAdd}
                 >
-                    add
+                    +
+                </button>
+                <button
+                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50"
+                    onClick={handleRemove}
+                >
+                    -
                 </button>
             </div>
 
-            <div className="text-right text-xs text-neutral-500">today</div>
+            <div className="flex justify-end">
+                <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => {
+                        if (e.target.value) setSelectedDate(e.target.value);
+                    }}
+                    className="rounded border px-2 py-1 text-xs text-neutral-600 outline-none"
+                />
+            </div>
         </div>
     );
 }
-
 
 /* ----------------------------------- Page --------------------------------- */
 function WellnessPage() {
@@ -497,6 +633,7 @@ function WellnessPage() {
     const [water, setWater] = useState<WaterPoint[]>([]);
     const [range, setRange] = useState<'1W' | '1M' | '3M' | '1Y'>('1W');
     const [waterGoal, setWaterGoal] = useState<number>(3.2);
+    const [sleepGoal, setSleepGoal] = useState<number>(8); // sleep goal
 
     // Load from server (mirrors Nutrition pattern)
     useEffect(() => {
@@ -506,6 +643,7 @@ function WellnessPage() {
                 setSleep((data.sleep || []).map((s) => ({ date: s.date, hours: s.hours })));
                 setWater((data.water || []).map((w) => ({ date: w.date, liters: w.liters })));
                 if (data.settings?.waterGoal) setWaterGoal(data.settings.waterGoal);
+                // if server later supports sleepGoal: hydrate here
             } catch (e) {
                 console.error(e);
             }
@@ -520,23 +658,31 @@ function WellnessPage() {
             const up = await upsertSleepServer({ date: pt.date, hours: pt.hours });
             setSleep((cur) => {
                 const others = cur.filter((x) => x.date !== up.date);
-                return [...others, { date: up.date, hours: up.hours }].sort((a, b) => a.date.localeCompare(b.date));
+                return [...others, { date: up.date, hours: up.hours }].sort((a, b) =>
+                    a.date.localeCompare(b.date)
+                );
             });
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const addWater = async (liters: number, dateISOParam = todayISO) => {
         try {
             const created = await addWaterServer({ date: dateISOParam, liters });
             setWater((cur) => [...cur, { date: created.date, liters: created.liters }]);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const setGoal = async (next: number) => {
         try {
             const res = await setWaterGoalServer(next);
             setWaterGoal(res.waterGoal);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const last7 = useMemo(() => {
@@ -554,7 +700,9 @@ function WellnessPage() {
         sleep.forEach((s) => {
             if (s.hours != null) map.set(s.date, s.hours);
         });
-        const vals = last7.map((d) => map.get(d)).filter((v): v is number => v != null && isFinite(v));
+        const vals = last7
+            .map((d) => map.get(d))
+            .filter((v): v is number => v != null && isFinite(v));
         if (vals.length === 0) return 0;
         return vals.reduce((a, b) => a + b, 0) / vals.length;
     }, [sleep, last7]);
@@ -569,7 +717,9 @@ function WellnessPage() {
 
     const streakDays = useMemo(() => {
         const mapWater = new Map<string, number>();
-        water.forEach((w) => mapWater.set(w.date, (mapWater.get(w.date) ?? 0) + w.liters));
+        water.forEach((w) =>
+            mapWater.set(w.date, (mapWater.get(w.date) ?? 0) + w.liters)
+        );
         const mapSleep = new Map<string, number>();
         sleep.forEach((s) => {
             if (s.hours != null) mapSleep.set(s.date, s.hours);
@@ -593,7 +743,9 @@ function WellnessPage() {
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
             <header className="flex w-full items-center justify-between bg-white px-[40px] py-5">
-                <h1 className="select-none font-roboto text-3xl text-black tracking-tight">wellness log</h1>
+                <h1 className="select-none font-roboto text-3xl text-black tracking-tight">
+                    wellness log
+                </h1>
                 <nav className="flex gap-2">
                     <Link href="/dashboard" className="px-6 py-2 text-black hover:underline">
                         workouts
@@ -611,7 +763,13 @@ function WellnessPage() {
             <main className="mx-auto grid h-[calc(100vh-128px)] max-w-[1400px] grid-cols-12 gap-6 p-4">
                 {/* Left column — Sleep bigger, Water smaller */}
                 <section className="col-span-12 grid grid-rows-[2fr_1fr] gap-6 overflow-hidden lg:col-span-7">
-                    <SleepLine data={sleep} range={range} onAdd={addSleep} onRange={setRange} />
+                    <SleepLine
+                        data={sleep}
+                        range={range}
+                        onAdd={addSleep}
+                        onRange={setRange}
+                        goal={sleepGoal}
+                    />
                     <WaterBars data={water} />
                 </section>
 
@@ -622,6 +780,20 @@ function WellnessPage() {
                         value={avgSleep7.toFixed(1)}
                         color="purple"
                         icon={<Moon size={18} className="text-purple-700" />}
+                        rightElement={
+                            <button
+                                className="h-7 rounded-full px-3 text-[11px] text-purple-700 bg-white/60 hover:bg-white/80 border border-transparent"
+                                onClick={() => {
+                                    const s = prompt('Set sleep goal (hours):', sleepGoal.toString());
+                                    if (!s) return;
+                                    const n = parseFloat(s);
+                                    if (!isFinite(n) || n <= 0 || n > 24) return;
+                                    setSleepGoal(clamp(n, 1, 16));
+                                }}
+                            >
+                                Goal {sleepGoal.toFixed(1)}h
+                            </button>
+                        }
                     />
                     <KPI
                         title="Liters of water (avg last 7d)"
@@ -629,12 +801,22 @@ function WellnessPage() {
                         color="blue"
                         icon={<Droplet size={18} className="text-blue-700" />}
                     />
-                    <KPI title="Days in a row goals met" value={streakDays} color="orange" icon={<Flame size={18} className="text-amber-700" />} />
+                    <KPI
+                        title="Days in a row goals met"
+                        value={streakDays}
+                        color="orange"
+                        icon={<Flame size={18} className="text-amber-700" />}
+                    />
                 </section>
 
                 {/* Right column */}
                 <section className="col-span-12 lg:col-span-2">
-                    <WaterToday goal={waterGoal} setGoal={setGoal} entries={water} addWater={(l) => addWater(l)} />
+                    <WaterToday
+                        goal={waterGoal}
+                        setGoal={setGoal}
+                        entries={water}
+                        addWater={(l, d) => addWater(l, d)}
+                    />
                 </section>
             </main>
 
@@ -681,13 +863,20 @@ function YearHeatmap({
     colors: string[];
     showAlternateDays?: boolean;
 }) {
-    const cols = 53, rows = 7, pad = 8, labelTop = 14, labelRight = 30, gap = 1.8;
+    const cols = 53,
+        rows = 7,
+        pad = 8,
+        labelTop = 14,
+        labelRight = 30,
+        gap = 1.8;
     const innerW = width - pad * 2 - labelRight;
     const innerH = height - pad * 2 - labelTop;
     const cell = Math.min(innerW / cols - gap, innerH / rows - gap);
 
     const today = new Date();
-    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const todayUTC = new Date(
+        Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    );
     const start = new Date(todayUTC);
     start.setUTCDate(start.getUTCDate() - 364);
     const backToMonday = (start.getUTCDay() + 6) % 7;
@@ -702,12 +891,26 @@ function YearHeatmap({
     }
 
     const monthTicks: { label: string; col: number }[] = [];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+    ];
     for (let i = 0; i < data.length; i++) {
         const { d } = data[i];
         if (d.getUTCDate() === 1) {
             const col = Math.floor(i / 7);
-            if (!monthTicks.some((t) => t.col === col)) monthTicks.push({ label: monthNames[d.getUTCMonth()], col });
+            if (!monthTicks.some((t) => t.col === col))
+                monthTicks.push({ label: monthNames[d.getUTCMonth()], col });
         }
     }
 
@@ -725,19 +928,52 @@ function YearHeatmap({
                 const y = 8 + labelTop + r * (cell + gap);
                 const li = levels.findIndex((t) => item.val <= t);
                 const fill = colors[Math.max(0, li)];
-                return <rect key={idx} x={x} y={y} width={cell} height={cell} rx="2" ry="2" fill={fill} />;
+                return (
+                    <rect
+                        key={idx}
+                        x={x}
+                        y={y}
+                        width={cell}
+                        height={cell}
+                        rx="2"
+                        ry="2"
+                        fill={fill}
+                    />
+                );
             })}
 
             {monthTicks.map((t, i) => {
                 const x = 8 + t.col * (cell + gap) + cell / 2;
-                return <text key={i} x={x} y={18} fontSize="10" textAnchor="middle" fill="#6b7280">{t.label}</text>;
+                return (
+                    <text
+                        key={i}
+                        x={x}
+                        y={18}
+                        fontSize="10"
+                        textAnchor="middle"
+                        fill="#6b7280"
+                    >
+                        {t.label}
+                    </text>
+                );
             })}
 
             {dayLabels.map((lb, ix) => {
                 const r = dayIndices[ix];
                 const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
                 const x = width - 26;
-                return <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill="#6b7280">{lb}</text>;
+                return (
+                    <text
+                        key={lb}
+                        x={x}
+                        y={y}
+                        fontSize="10"
+                        textAnchor="start"
+                        fill="#6b7280"
+                    >
+                        {lb}
+                    </text>
+                );
             })}
         </svg>
     );
