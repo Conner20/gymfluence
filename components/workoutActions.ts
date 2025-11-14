@@ -190,3 +190,35 @@ export async function saveSplitServer(items: string[]) {
 
     return { ok: true };
 }
+
+/** Persistently delete an exercise (and its sets) for the current user */
+export async function deleteExerciseServer(name: string) {
+    const userId = await requireMe();
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed) throw new Error('Exercise name required');
+
+    // Find exercise for this user
+    const exercise = await db.workoutExercise.findFirst({
+        where: { userId, name: trimmed },
+        select: { id: true },
+    });
+
+    if (!exercise) {
+        return { deleted: false };
+    }
+
+    // Delete all sets tied to this exercise (to avoid FK issues)
+    await db.workoutSet.deleteMany({
+        where: {
+            userId,
+            exerciseId: exercise.id,
+        },
+    });
+
+    // Delete the exercise itself
+    await db.workoutExercise.delete({
+        where: { id: exercise.id },
+    });
+
+    return { deleted: true };
+}

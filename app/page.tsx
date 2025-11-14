@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Play, Instagram, Linkedin, Facebook } from "lucide-react";
+import { ArrowRight, Instagram, Linkedin, Facebook } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -42,23 +42,23 @@ export default function LandingPage() {
       <section className="relative overflow-hidden">
         {/* subtle background glows */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-green-700/10 blur-3xl" />
+          <div className="absolute -top-24 -left-24 h-120 w-120 rounded-full bg-green-700/10 blur-3xl" />
           <div className="absolute -bottom-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-black/5 blur-3xl" />
         </div>
 
-        <div className="mx-auto max-w-7xl px-6 pt-20 pb-8 lg:pt-28 lg:pb-12 grid lg:grid-cols-2 gap-10 items-center">
-          <div>
+        <div className="mx-auto max-w-7xl px-6 pt-20 pb-8 lg:pt-28 lg:pb-12 flex items-center justify-center">
+          <div className="max-w-3xl text-center">
             <h1 className="text-5xl md:text-6xl font-extrabold leading-tight tracking-tight">
               <span className="block">Empower Trainers.</span>
               <span className="block">Elevate Gyms.</span>
               <span className="block">Transform Clients.</span>
             </h1>
-            <p className="mt-6 text-lg text-neutral-700 max-w-xl">
+            <p className="mt-6 text-lg text-neutral-700 max-w-xl mx-auto">
               A shared ecosystem for gyms, trainers, and fitness enthusiasts.
               Gymfluence helps you connect, track, and train — all in one place.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 href="/sign-up"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-700 text-white hover:bg-black transition"
@@ -70,29 +70,6 @@ export default function LandingPage() {
             <p className="mt-8 text-sm uppercase tracking-wider text-neutral-500">
               Re-engineering the Fitness Economy.
             </p>
-          </div>
-
-          {/* HERO SHOWCASE — drop your brand mark here if you prefer */}
-          <div className="relative">
-            <DeviceCard>
-              {/* Replace src with your hero screenshot (e.g., a collage) */}
-              <Image
-                src="/images/hero-showcase.png"
-                alt="Gymfluence overview"
-                fill
-                className="object-cover"
-                priority
-              />
-            </DeviceCard>
-
-            {/* floating logo tile (optional) */}
-            <div className="hidden md:block absolute -left-6 -bottom-6">
-              <div className="rounded-2xl border bg-white shadow-sm p-3">
-                <div className="relative h-10 w-10">
-                  <Image src="/logo.svg" alt="logo" fill className="object-contain" />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -116,6 +93,9 @@ export default function LandingPage() {
         body="Discover people nearby, follow private or public profiles, and build your network with smart search and filters."
         imageSrc="/images/search.png" // Replace with your Search page screenshot
         imageAlt="Search & connect"
+        // slightly wider & more cinematic for this screenshot
+        frameClassName="max-w-[740px] aspect-[16/9]"
+        imageClassName="object-contain"
       />
 
       {/* ======= FEATURE: TRACK ======= */}
@@ -126,6 +106,8 @@ export default function LandingPage() {
         body="Visualize metrics that matter, stay accountable with ratings & reviews, and see the bigger picture at a glance."
         imageSrc="/images/dashboard.png" // Replace with your Dashboard screenshot
         imageAlt="Analytics dashboard"
+        frameClassName="max-w-[740px] aspect-[16/9]"
+        imageClassName="object-contain"
       />
 
       {/* ======= FEATURE: TRAIN ======= */}
@@ -135,6 +117,8 @@ export default function LandingPage() {
         body="Publish sessions, share media, and cultivate community. Everything you need to train smarter — together."
         imageSrc="/images/home.png" // Replace with your Home/Posts screenshot
         imageAlt="Home posts feed"
+        frameClassName="max-w-[720px] aspect-[17/10]"
+        imageClassName="object-contain"
       />
 
       {/* ======= CTA ======= */}
@@ -153,12 +137,6 @@ export default function LandingPage() {
             >
               Get Started <ArrowRight size={18} />
             </Link>
-            <Link
-              href="/log-in"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-white/20 text-white hover:bg-white hover:text-black transition"
-            >
-              log in
-            </Link>
           </div>
         </div>
       </section>
@@ -171,7 +149,7 @@ export default function LandingPage() {
               <Image src="/logo.svg" alt="gymfluence" fill className="object-contain p-0.5" />
             </div>
             <span className="text-sm text-neutral-600">
-              Copyright © {new Date().getFullYear()} Gymfluence, Inc. All Rights Reserved.
+              Gymfluence
             </span>
           </div>
           <div className="flex items-center gap-4 text-sm">
@@ -196,14 +174,7 @@ function DeviceCard({ children }: { children: React.ReactNode }) {
       <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-black/5 to-transparent z-10" />
       {/* media */}
       <div className="absolute inset-0">{children}</div>
-      {/* play overlay (optional / decorative) */}
-      <button
-        className="group absolute bottom-4 right-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 text-white text-xs backdrop-blur hover:bg-green-700 transition"
-        aria-label="Preview"
-      >
-        <Play size={14} className="opacity-90 group-hover:opacity-100" />
-        Preview
-      </button>
+      {/* preview overlay removed */}
     </div>
   );
 }
@@ -215,6 +186,8 @@ function FeatureSection({
   imageSrc,
   imageAlt,
   inverted = false,
+  frameClassName,
+  imageClassName,
 }: {
   eyebrow: string;
   title: string;
@@ -222,6 +195,8 @@ function FeatureSection({
   imageSrc: string;
   imageAlt: string;
   inverted?: boolean;
+  frameClassName?: string;
+  imageClassName?: string;
 }) {
   return (
     <section className="relative">
@@ -244,12 +219,17 @@ function FeatureSection({
 
           {/* image */}
           <div className="relative">
-            <div className="relative mx-auto w-full max-w-[720px] aspect-[16/10] rounded-[20px] border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden">
+            <div
+              className={[
+                "relative mx-auto w-full rounded-[20px] border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden",
+                frameClassName ?? "max-w-[720px] aspect-[16/10]",
+              ].join(" ")}
+            >
               <Image
                 src={imageSrc}
                 alt={imageAlt}
                 fill
-                className="object-cover"
+                className={imageClassName ?? "object-contain"}
               />
             </div>
             {/* soft glow */}

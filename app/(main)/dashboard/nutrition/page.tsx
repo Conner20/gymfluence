@@ -651,7 +651,7 @@ function BWChartLiftsStyle({
     points: BWPoint[];
     onAdd: (dateISO: string, weight: number) => void;
 }) {
-    const [range, setRange] = useState<RangeKey>('1M');
+    const [range, setRange] = useState<RangeKey>('1W');
     const [unit, setUnit] = useState<'lbs' | 'kg'>('lbs');
 
     const LBS_PER_KG = 2.20462262185;
@@ -712,12 +712,31 @@ function BWChartLiftsStyle({
     const left = 40, right = 40, top = 28, bottom = 22;
     const w = svgW - left - right, h = svgH - top - bottom;
 
-    const hasAnyValue = series.some((v) => v > 0);
-    const minY = hasAnyValue ? Math.min(...series.filter((v) => v > 0), 0) : 100;
-    const maxY = hasAnyValue ? Math.max(...series, Math.max(1, minY + 1)) : 200;
+    // Dynamic Y-scale based strictly on visible data in the selected range
+    const nonZeroSeries = series.filter((v) => v > 0);
+
+    let minY: number;
+    let maxY: number;
+
+    if (nonZeroSeries.length === 0) {
+        // No data in this range – use a tiny default span
+        minY = 0;
+        maxY = 1;
+    } else {
+        // Min and max are the lowest & highest data points in this time frame
+        minY = Math.min(...nonZeroSeries);
+        maxY = Math.max(...nonZeroSeries);
+
+        // If all visible points are the same value, give a small buffer
+        if (minY === maxY) {
+            minY = minY - 1;
+            maxY = maxY + 1;
+        }
+    }
 
     const y = (v: number) => top + h - ((v - minY) / (maxY - minY || 1)) * h;
     const x = (i: number) => left + (i / Math.max(1, Math.max(1, labels.length - 1))) * w;
+
 
     const ticks = 4;
     const yTicks = Array.from({ length: ticks + 1 }, (_, i) => minY + ((maxY - minY) * i) / ticks);

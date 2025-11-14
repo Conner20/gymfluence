@@ -7,20 +7,35 @@ import PrivacyToggle from "./privacy-toggle";
 import Navbar from "@/components/Navbar";
 import SearchProfileEditor from "@/components/SearchProfileEditor";
 
+type LocationSuggestion = {
+    id: string;
+    label: string;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    lat: number;
+    lng: number;
+};
+
 export default function SettingsPage() {
     const { data: session, status } = useSession();
 
     const [loading, setLoading] = useState(true);
-
-    // Global saving state for Profile button
     const [saving, setSaving] = useState(false);
 
-    // Text fields
+    // Profile text fields
     const [name, setName] = useState("");
-    const [location, setLocation] = useState("");
+    const [location, setLocation] = useState(""); // display text label
     const [bio, setBio] = useState("");
 
-    // Avatar: persisted URL from server + local preview blob URL
+    // NEW: structured location fields
+    const [city, setCity] = useState("");
+    const [stateRegion, setStateRegion] = useState("");
+    const [country, setCountry] = useState("");
+    const [lat, setLat] = useState<number | null>(null);
+    const [lng, setLng] = useState<number | null>(null);
+
+    // Avatar
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [file, setFile] = useState<File | null>(null);
@@ -38,12 +53,25 @@ export default function SettingsPage() {
                 setLocation(me.location || "");
                 setBio(me.bio || "");
                 setImageUrl(me.image || null);
+
+                // NEW: hydrate structured location from API
+                setCity(me.city || "");
+                setStateRegion(me.state || "");
+                setCountry(me.country || "");
+                setLat(typeof me.lat === "number" ? me.lat : null);
+                setLng(typeof me.lng === "number" ? me.lng : null);
+
+                // If user.location is empty but we have structured parts, synthesize a label
+                if (!me.location && (me.city || me.state || me.country)) {
+                    const label = [me.city, me.state, me.country].filter(Boolean).join(", ");
+                    setLocation(label);
+                }
             }
             setLoading(false);
         })();
     }, []);
 
-    // Clean up blob URLs when changed/unmounted
+    // Clean up blob URLs
     useEffect(() => {
         return () => {
             if (previousPreviewRef.current) {
@@ -54,7 +82,6 @@ export default function SettingsPage() {
 
     const handleFilePick = (picked: File | null) => {
         setFile(picked);
-        // revoke the old preview
         if (previousPreviewRef.current) {
             URL.revokeObjectURL(previousPreviewRef.current);
             previousPreviewRef.current = null;
@@ -68,20 +95,27 @@ export default function SettingsPage() {
         }
     };
 
-    // Save ONLY the main profile (no Search Profile here)
+    // Save ONLY the main profile (name, location, bio, avatar)
     const saveProfile = async () => {
         try {
             const form = new FormData();
             form.append("name", name);
             form.append("location", location);
             form.append("bio", bio);
+
+            // NEW: include structured fields for geocoding
+            form.append("city", city);
+            form.append("state", stateRegion);
+            form.append("country", country);
+            if (lat != null) form.append("lat", String(lat));
+            if (lng != null) form.append("lng", String(lng));
+
             if (file) form.append("image", file);
 
             const res = await fetch("/api/user/profile", { method: "PATCH", body: form });
             if (!res.ok) throw new Error();
             const me = await res.json();
 
-            // Use the server URL after save; clear local preview
             setImageUrl(me.image || null);
             if (previousPreviewRef.current) {
                 URL.revokeObjectURL(previousPreviewRef.current);
@@ -90,11 +124,9 @@ export default function SettingsPage() {
             setPreviewUrl(null);
             setFile(null);
 
-            // You can keep or change this alert; it runs even when Search Profile fails
             alert("Profile updated!");
         } catch {
             alert("Failed to save profile.");
-            // If this fails, we still won't trigger search profile save
             throw new Error("Profile save failed");
         }
     };
@@ -103,13 +135,10 @@ export default function SettingsPage() {
     const saveBoth = async () => {
         setSaving(true);
         try {
-            // 1) Save main profile
             await saveProfile();
-
-            // 2) Tell SearchProfileEditor to run its own onSave
             setSearchSaveTrigger((t) => t + 1);
         } catch {
-            // Errors already alerted inside saveProfile or SearchProfileEditor
+            // errors already alerted
         } finally {
             setSaving(false);
         }
@@ -118,7 +147,7 @@ export default function SettingsPage() {
     if (status === "loading" || loading) return <div className="p-8 text-gray-500">Loading…</div>;
     if (!session) return <div className="p-8 text-red-500">Please sign in.</div>;
 
-    const displayImage = previewUrl || imageUrl; // show preview immediately if present
+    const displayImage = previewUrl || imageUrl;
 
     return (
         <div className="min-h-screen bg-[#f8f8f8]">
@@ -128,7 +157,6 @@ export default function SettingsPage() {
                 </h1>
             </header>
 
-            {/* note the space-y-6 and wrapping SearchProfileEditor in its own white card */}
             <main className="max-w-3xl mx-auto p-6 space-y-6">
                 {/* Profile + Privacy card */}
                 <div className="bg-white rounded-xl shadow p-6 space-y-6">
@@ -147,7 +175,6 @@ export default function SettingsPage() {
                                     )}
                                 </div>
 
-                                {/* Visible, high-contrast upload button */}
                                 <label
                                     htmlFor="avatar-file"
                                     className="inline-flex items-center px-3 py-1.5 rounded-full bg-gray-900 text-white text-sm cursor-pointer hover:bg-black"
@@ -162,7 +189,6 @@ export default function SettingsPage() {
                                     onChange={(e) => handleFilePick(e.target.files?.[0] ?? null)}
                                 />
 
-                                {/* Filename helper */}
                                 <div className="text-xs text-gray-500 min-h-[1rem]">
                                     {file ? file.name : previewUrl ? "Previewing selected image" : ""}
                                 </div>
@@ -186,12 +212,25 @@ export default function SettingsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm text-gray-600 mb-1">City / Country</label>
-                                    <input
-                                        className="w-full border rounded px-3 py-2"
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
+                                    <label className="block text-sm text-gray-600 mb-1">Location</label>
+                                    <LocationAutocomplete
+                                        label={location}
+                                        onChangeLabel={setLocation}
+                                        onChangeStructured={(loc) => {
+                                            setLocation(loc.label);
+                                            setCity(loc.city || "");
+                                            setStateRegion(loc.state || "");
+                                            setCountry(loc.country || "");
+                                            setLat(loc.lat);
+                                            setLng(loc.lng);
+                                        }}
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Start typing a city (e.g. “Cincinnati, OH”) and choose a suggestion.
+                                    </p>
+                                    <p className="mt-1 text-[10px] text-gray-400">
+                                        Location search powered by Open-Meteo / GeoNames.
+                                    </p>
                                 </div>
 
                                 <div>
@@ -204,7 +243,6 @@ export default function SettingsPage() {
                                     />
                                 </div>
 
-                                {/* This button now saves BOTH profile and search profile */}
                                 <button
                                     onClick={saveBoth}
                                     disabled={saving}
@@ -250,6 +288,118 @@ export default function SettingsPage() {
             </main>
 
             <Navbar />
+        </div>
+    );
+}
+
+/**
+ * LocationAutocomplete
+ * - Debounces calls to /api/location-search (Open-Meteo)
+ * - Shows dropdown of city suggestions
+ * - On select: returns label + city/state/country + lat/lng
+ */
+function LocationAutocomplete({
+    label,
+    onChangeLabel,
+    onChangeStructured,
+}: {
+    label: string;
+    onChangeLabel: (value: string) => void;
+    onChangeStructured: (loc: {
+        label: string;
+        city: string | null;
+        state: string | null;
+        country: string | null;
+        lat: number;
+        lng: number;
+    }) => void;
+}) {
+    const [input, setInput] = useState(label || "");
+    const [open, setOpen] = useState(false);
+    const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    // keep input in sync with external label changes
+    useEffect(() => {
+        setInput(label || "");
+    }, [label]);
+
+    // debounced search to /api/location-search
+    useEffect(() => {
+        if (!input || input.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        const handle = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/location-search?q=${encodeURIComponent(input)}`);
+                if (!res.ok) throw new Error();
+                const json = await res.json();
+                setSuggestions(json.results || []);
+                setOpen((json.results || []).length > 0);
+            } catch {
+                setSuggestions([]);
+                setOpen(false);
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(handle);
+    }, [input]);
+
+    const handleSelect = (s: LocationSuggestion) => {
+        onChangeStructured({
+            label: s.label,
+            city: s.city,
+            state: s.state,
+            country: s.country,
+            lat: s.lat,
+            lng: s.lng,
+        });
+        setInput(s.label);
+        setOpen(false);
+    };
+
+    return (
+        <div className="relative">
+            <input
+                className="w-full border rounded px-3 py-2"
+                value={input}
+                onChange={(e) => {
+                    setInput(e.target.value);
+                    onChangeLabel(e.target.value);
+                }}
+                onFocus={() => {
+                    if (suggestions.length) setOpen(true);
+                }}
+                placeholder="Start typing a city…"
+            />
+            {loading && (
+                <div className="absolute right-3 top-2.5 text-xs text-gray-400">
+                    …
+                </div>
+            )}
+
+            {open && suggestions.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-y-auto">
+                    {suggestions.map((s) => (
+                        <button
+                            key={s.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                            onClick={() => handleSelect(s)}
+                        >
+                            <div className="font-medium">{s.label}</div>
+                            <div className="text-xs text-gray-500">
+                                {[s.city, s.state, s.country].filter(Boolean).join(", ")}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

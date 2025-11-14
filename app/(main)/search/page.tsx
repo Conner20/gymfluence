@@ -144,8 +144,9 @@ export default function SearchPage() {
         const pretty = u.username || u.id;
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const profileUrl = `${origin}/u/${pretty}`;
+        const shareLabel = u.name || u.username || 'User';
         router.push(
-            `/messages?shareType=profile&shareUrl=${encodeURIComponent(profileUrl)}&shareLabel=${encodeURIComponent(u.username || u.name || 'User')}&shareUserId=${encodeURIComponent(u.id)}`
+            `/messages?shareType=profile&shareUrl=${encodeURIComponent(profileUrl)}&shareLabel=${encodeURIComponent(shareLabel)}&shareUserId=${encodeURIComponent(u.id)}`
         );
     };
 
@@ -201,7 +202,7 @@ export default function SearchPage() {
                         />
 
                         <Chip
-                            label="Entity"
+                            label="Role"
                             value={role === 'ALL' ? 'All' : role.toLowerCase()}
                             menu={
                                 <div className="grid grid-cols-2 gap-2 p-2 w-52">
@@ -315,7 +316,7 @@ export default function SearchPage() {
                                 ) : (
                                     data.results.map((u) => {
                                         const slug = u.username || u.id;
-                                        const display = u.username || u.name || 'User';
+                                        const display = u.name || u.username || 'User';
 
                                         return (
                                             <button
@@ -337,7 +338,7 @@ export default function SearchPage() {
                                                     />
                                                 ) : (
                                                     <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-semibold">
-                                                        {(u.username || u.name || 'U').slice(0, 2)}
+                                                        {(u.name || u.username || 'U').slice(0, 2)}
                                                     </div>
                                                 )}
 
@@ -371,13 +372,22 @@ export default function SearchPage() {
                                                             : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
                                                     </div>
 
+                                                    {/* UPDATED: city, state + price only */}
                                                     <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2">
-                                                        {u.city && <span>{u.city}</span>}
-                                                        {u.country && <span>· {u.country}</span>}
-                                                        {u.distanceKm != null && <span>· {u.distanceKm.toFixed(0)} km</span>}
+                                                        {(u.city || u.state) && (
+                                                            <span>
+                                                                {u.city}
+                                                                {u.state ? `, ${u.state}` : ''}
+                                                            </span>
+                                                        )}
                                                         {u.price != null && (
                                                             <span>
-                                                                · {u.role === 'TRAINER' ? `$${u.price}/hr` : `$${u.price}/mo`}
+                                                                {(u.city || u.state) ? '· ' : ''}
+                                                                {u.role === 'TRAINER'
+                                                                    ? `$${u.price}/hr`
+                                                                    : u.role === 'GYM'
+                                                                        ? `$${u.price}/mo`
+                                                                        : `$${u.price}`}
                                                             </span>
                                                         )}
                                                     </div>
@@ -458,7 +468,7 @@ function UserDetails({
     onOpenImage: (url: string) => void;
 }) {
     const slug = u.username || u.id;
-    const display = u.username || u.name || 'User';
+    const display = u.name || u.username || 'User';
 
     return (
         <div className="max-w-[820px]">
@@ -469,7 +479,7 @@ function UserDetails({
                     <img src={u.image} alt="" className="w-16 h-16 rounded-full object-cover border" />
                 ) : (
                     <div className="w-16 h-16 rounded-full bg-gray-200 border flex items-center justify-center text-sm font-semibold">
-                        {(u.username || u.name || 'U').slice(0, 2)}
+                        {(u.name || u.username || 'U').slice(0, 2)}
                     </div>
                 )}
 
@@ -508,7 +518,6 @@ function UserDetails({
                                 </span>
                             </button>
 
-                            {/* NEW: Deep-link to the profile's rating modal */}
                             {(u.role === 'TRAINER' || u.role === 'GYM') && (
                                 <Link
                                     href={`/u/${encodeURIComponent(slug)}?rate=1`}
@@ -516,7 +525,7 @@ function UserDetails({
                                     title={`Rate this ${u.role.toLowerCase()}`}
                                 >
                                     <span className="inline-flex items-center gap-1">
-                                        <Star size={16}/>
+                                        <Star size={16} />
                                         Rate
                                     </span>
                                 </Link>
@@ -524,16 +533,21 @@ function UserDetails({
                         </div>
                     </div>
 
+                    {/* UPDATED: only city, state + rate/fee; no country, no km away */}
                     <div className="text-sm text-gray-600 mt-1">
                         {u.city}
-                        {u.state ? `, ${u.state}` : ''} {u.country ? `• ${u.country}` : ''}
-                        {u.distanceKm != null ? ` • ${u.distanceKm.toFixed(0)} km away` : ''}
+                        {u.state ? `, ${u.state}` : ''}
+                        {u.price != null && (
+                            <>
+                                {' '}
+                                • {u.role === 'TRAINER'
+                                    ? `$${u.price}/hr`
+                                    : u.role === 'GYM'
+                                        ? `$${u.price}/mo`
+                                        : `$${u.price}`}
+                            </>
+                        )}
                     </div>
-                    {u.price != null && (
-                        <div className="text-sm text-gray-700 mt-1">
-                            {u.role === 'TRAINER' ? `Rate: $${u.price}/hr` : u.role === 'GYM' ? `Fee: $${u.price}/mo` : null}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -669,4 +683,3 @@ function Chip({
         </div>
     );
 }
-

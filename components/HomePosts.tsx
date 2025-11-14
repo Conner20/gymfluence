@@ -1,7 +1,7 @@
 // components/HomePosts.tsx
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Trash2, Heart, MessageCircle, Share2, X, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
@@ -76,7 +76,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
     // -------- Initial fetch (only if no initialPosts from SSR) --------
-    const fetchInitialPosts = async () => {
+    const fetchInitialPosts = useCallback(async () => {
         setError(null);
         setLoading(true);
         try {
@@ -90,14 +90,31 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (!initialPosts || initialPosts.length === 0) {
             fetchInitialPosts();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialPosts]);
+    }, [initialPosts, fetchInitialPosts]);
+
+    // -------- Auto-refresh when a post is created --------
+    useEffect(() => {
+        const handlePostCreated = () => {
+            // Re-fetch first page so new post appears at the top
+            fetchInitialPosts();
+        };
+
+        if (typeof window !== "undefined") {
+            window.addEventListener("post-created", handlePostCreated);
+        }
+
+        return () => {
+            if (typeof window !== "undefined") {
+                window.removeEventListener("post-created", handlePostCreated);
+            }
+        };
+    }, [fetchInitialPosts]);
 
     // -------- Infinite scroll: load more when sentinel is visible --------
     const fetchMorePosts = async () => {

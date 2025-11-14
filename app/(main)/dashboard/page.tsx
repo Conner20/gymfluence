@@ -10,6 +10,7 @@ import {
     addSetServer,
     deleteSetServer,
     saveSplitServer,
+    deleteExerciseServer,
     type SetEntry,
 } from '@/components/workoutActions';
 
@@ -71,12 +72,47 @@ function LineChartDual({
     const w = width - left - right;
     const h = height - top - bottom;
 
-    const minW = Math.min(...weight.filter((v) => v > 0), 0);
-    const maxW = Math.max(...weight, Math.max(1, minW + 1));
+    // --- Dynamic Y scales based on data in the selected time range ---
+
+    // Weight axis
+    const nonZeroWeight = weight.filter((v) => v > 0);
+    let minW: number;
+    let maxW: number;
+
+    if (nonZeroWeight.length === 0) {
+        // No data in this range – use a tiny span so chart doesn't collapse
+        minW = 0;
+        maxW = 1;
+    } else {
+        // Lowest & highest weight in the current time frame
+        minW = Math.min(...nonZeroWeight);
+        maxW = Math.max(...nonZeroWeight);
+
+        // If all values are identical, give a small buffer so the line isn't perfectly flat on the axis
+        if (minW === maxW) {
+            minW = minW - 1;
+            maxW = maxW + 1;
+        }
+    }
     const yW = (v: number) => top + h - ((v - minW) / (maxW - minW || 1)) * h;
 
-    const minR = Math.min(...reps.filter((v) => v > 0), 0);
-    const maxR = Math.max(...reps, Math.max(1, minR + 1));
+    // Reps axis
+    const nonZeroReps = reps.filter((v) => v > 0);
+    let minR: number;
+    let maxR: number;
+
+    if (nonZeroReps.length === 0) {
+        minR = 0;
+        maxR = 1;
+    } else {
+        minR = Math.min(...nonZeroReps);
+        maxR = Math.max(...nonZeroReps);
+
+        if (minR === maxR) {
+            minR = minR - 1;
+            maxR = maxR + 1;
+        }
+    }
     const yR = (v: number) => top + h - ((v - minR) / (maxR - minR || 1)) * h;
 
     const x = (i: number) => left + (i / Math.max(1, labels.length - 1)) * w;
@@ -105,7 +141,7 @@ function LineChartDual({
 
     // --- Tooltip width measurement & centering in CSS pixels ---
     const tipRef = useRef<HTMLDivElement | null>(null);
-    const[tipW, setTipW] = useState(140); // fallback width
+    const [tipW, setTipW] = useState(140); // fallback width
 
     // Keep dependency array length/order stable
     useEffect(() => {
@@ -388,7 +424,11 @@ export default function Dashboard() {
                 const data = await fetchAllDashboardData();
                 setSets(data.sets);
                 setExercises(data.exercises);
-                setExercise(data.exercises[0] || '');
+
+                // Default to second exercise if it exists, else first, else ''
+                const defaultExercise = data.exercises[0] ?? '';
+                setExercise(defaultExercise);
+
                 setSplit(data.split);
             } catch (e) {
                 console.error(e);
@@ -472,15 +512,32 @@ export default function Dashboard() {
         }
     };
 
-    // NEW: remove currently selected exercise from the dropdown (client-side only)
-    const removeExercise = () => {
+    // Remove currently selected exercise (persisted via server)
+    const removeExercise = async () => {
         if (!exercise) return;
-        setExercises((prev) => {
-            const next = prev.filter((ex) => ex !== exercise);
-            // update selected exercise to something valid
-            setExercise(next[0] || '');
-            return next;
-        });
+
+        const ok = confirm(
+            `Remove exercise "${exercise}"? This will also delete all sets logged for this exercise.`
+        );
+        if (!ok) return;
+
+        try {
+            const res = await deleteExerciseServer(exercise);
+            if (!res?.deleted) return;
+
+            // Update exercise list + selection
+            setExercises((prev) => {
+                const next = prev.filter((ex) => ex !== exercise);
+                const defaultExercise = next[1] ?? next[0] ?? '';
+                setExercise(defaultExercise);
+                return next;
+            });
+
+            // Remove its sets from local state so the UI matches DB
+            setSets((prev) => prev.filter((s) => s.exercise !== exercise));
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const customizeSplit = async () => {
