@@ -8,7 +8,7 @@ type Mailer = (to: string, resetUrl: string) => Promise<void>;
  * When neither provider is configured, the reset link is logged to the server console.
  */
 export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
-    const from = process.env.EMAIL_FROM || 'no-reply@gymfluence.app';
+    const from = process.env.EMAIL_FROM || 'onboarding@resend.dev';
     const subject = 'Reset your Gymfluence password';
     const html = `
     <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">

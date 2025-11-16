@@ -44,6 +44,12 @@ export default function SettingsPage() {
     // Trigger to tell SearchProfileEditor to save
     const [searchSaveTrigger, setSearchSaveTrigger] = useState(0);
 
+    // Delete account flow
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletePassword, setDeletePassword] = useState("");
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     useEffect(() => {
         (async () => {
             const res = await fetch("/api/user/profile");
@@ -141,6 +147,39 @@ export default function SettingsPage() {
             // errors already alerted
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!deletePassword) return;
+        setDeleteLoading(true);
+        setDeleteError(null);
+
+        try {
+            const res = await fetch("/api/user/delete", {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ password: deletePassword }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.message || "Failed to delete account.");
+            }
+
+            setDeletePassword("");
+            setShowDeleteConfirm(false);
+            await signOut({ callbackUrl: "/" });
+        } catch (err) {
+            if (err instanceof Error) {
+                setDeleteError(err.message);
+            } else {
+                setDeleteError("Failed to delete account.");
+            }
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -284,6 +323,60 @@ export default function SettingsPage() {
                     >
                         Log Out
                     </button>
+
+                    <div className="mt-6 border-t border-gray-200 pt-6">
+                        <h3 className="font-semibold mb-3">Delete Account</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Permanently remove your account and data. This action cannot be undone.
+                        </p>
+                        {showDeleteConfirm ? (
+                            <div className="space-y-3">
+                                <label htmlFor="delete-password" className="block text-sm text-gray-700">
+                                    Confirm password
+                                </label>
+                                <input
+                                    id="delete-password"
+                                    type="password"
+                                    className="w-full border rounded px-3 py-2"
+                                    value={deletePassword}
+                                    onChange={(e) => setDeletePassword(e.target.value)}
+                                    disabled={deleteLoading}
+                                />
+                                {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        onClick={handleDeleteAccount}
+                                        disabled={!deletePassword || deleteLoading}
+                                        className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                                    >
+                                        {deleteLoading ? "Deleting…" : "Delete my account"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowDeleteConfirm(false);
+                                            setDeletePassword("");
+                                            setDeleteError(null);
+                                        }}
+                                        className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50"
+                                        disabled={deleteLoading}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    setShowDeleteConfirm(true);
+                                    setDeleteError(null);
+                                }}
+                                    className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                            >
+                                Delete Account
+                            </button>
+                        )}
+                    </div>
                 </div>
             </main>
 

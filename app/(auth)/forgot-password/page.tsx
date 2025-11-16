@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { CheckCircle2 } from 'lucide-react';
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,6 @@ type SubmitState = 'idle' | 'loading' | 'sent';
 
 export default function ForgotPasswordPage() {
     const [status, setStatus] = useState<SubmitState>('idle');
-    const [submittedEmail, setSubmittedEmail] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -44,7 +44,6 @@ export default function ForgotPasswordPage() {
                 description: 'If an account exists, a reset link has been sent.',
             });
             setStatus('sent');
-            setSubmittedEmail(values.email.trim());
             form.reset();
         } catch (error) {
             console.error(error);
@@ -55,11 +54,9 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="bg-slate-200 p-10 rounded-md w-full max-w-md mx-auto">
+        <>
+            <div className="bg-slate-200 p-10 rounded-md w-full max-w-md mx-auto">
             <h1 className="text-2xl font-semibold mb-2 text-center">Forgot password</h1>
-            <p className="text-center text-sm text-slate-600 mb-6">
-                Enter your email address and we&apos;ll send you a link to reset your password.
-            </p>
 
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -80,10 +77,12 @@ export default function ForgotPasswordPage() {
                     {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
 
                     {status === 'sent' && (
-                        <p className="text-sm rounded-md bg-white/60 p-3 text-slate-700">
-                            We&apos;ve sent an email to <span className="font-semibold">{submittedEmail}</span>. If it
-                            doesn&apos;t arrive within a few minutes, check your spam folder or try again.
-                        </p>
+                        <div className="flex justify-center">
+                            <div className="sent-indicator flex items-center gap-2 text-green-600 text-sm font-semibold">
+                                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                                <span>Sent</span>
+                            </div>
+                        </div>
                     )}
 
                     <Button type="submit" disabled={status === 'loading'} className="w-full">
@@ -99,6 +98,35 @@ export default function ForgotPasswordPage() {
                     </Button>
                 </Link>
             </div>
-        </div>
+            </div>
+            <style jsx>{`
+            @keyframes sent-pop {
+                0% {
+                    transform: scale(0.6);
+                    opacity: 0;
+                }
+                60% {
+                    transform: scale(1.05);
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(1);
+                }
+            }
+
+            @keyframes sent-glow {
+                0% {
+                    filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0.25));
+                }
+                100% {
+                    filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.55));
+                }
+            }
+
+            .sent-indicator {
+                animation: sent-pop 320ms ease-out, sent-glow 1.2s ease-in-out infinite alternate;
+            }
+            `}</style>
+        </>
     );
 }
