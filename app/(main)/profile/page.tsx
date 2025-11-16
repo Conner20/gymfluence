@@ -8,7 +8,6 @@ import { TraineeProfile } from "@/components/TraineeProfile";
 import { TrainerProfile } from "@/components/TrainerProfile";
 import { GymProfile } from "@/components/GymProfile";
 import Navbar from "@/components/Navbar";
-// ...import your icons, clsx, etc
 
 export default function ProfilePage() {
     const { data: session } = useSession();
@@ -30,46 +29,54 @@ export default function ProfilePage() {
     if (loading) return <div className="p-8 text-gray-500">Loading profile...</div>;
     if (!user) return <div className="p-8 text-red-500">User not found</div>;
 
-    // Render based on role
+    const username = session?.user?.username ?? user?.username ?? "Profile";
+
+    const Shell = ({ children }: { children: React.ReactNode }) => (
+        <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
+            {/* 🔒 Always-sticky header */}
+            <header className="sticky top-0 z-30 w-full bg-white py-6 flex justify-start pl-[40px]">
+                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+                    <span>{username}</span>
+                </h1>
+            </header>
+
+            {/* Scrollable content */}
+            <main className="flex-1">
+                {children}
+            </main>
+
+            <Navbar />
+        </div>
+    );
+
     switch (user.role) {
         case "TRAINEE":
-            return <div className="min-h-screen bg-[#f8f8f8]">
-                <header className="w-full bg-white py-6 flex justify-start pl-[40px] z-20">
-                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
-                        <span>{session?.user.username}</span>
-                    </h1>
-                </header>
-                <TraineeProfile user={user} posts={posts} />;
-                <Navbar />
-            </div>
-            
+            return (
+                <Shell>
+                    <TraineeProfile user={user} posts={posts} />
+                </Shell>
+            );
+
         case "TRAINER":
-            return <div className="min-h-screen bg-[#f8f8f8]">
-                <header className="w-full bg-white py-6 flex justify-start pl-[40px] z-20">
-                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
-                        <span>{session?.user.username}</span>
-                    </h1>
-                </header>
-                <TrainerProfile user={user} posts={posts} />;
-                <Navbar />
-            </div>
+            return (
+                <Shell>
+                    <TrainerProfile user={user} posts={posts} />
+                </Shell>
+            );
+
         case "GYM":
-            return <div className="min-h-screen bg-[#f8f8f8]">
-                <header className="w-full bg-white py-6 flex justify-start pl-[40px] z-20">
-                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
-                        <span>{session?.user.username}</span>
-                    </h1>
-                </header>
-                <GymProfile user={user} posts={posts} />;
-                <Navbar />
-            </div>
+            return (
+                <Shell>
+                    <GymProfile user={user} posts={posts} />
+                </Shell>
+            );
+
         default:
-            return <div className="p-8 text-red-500">
-                Unknown role
-                <Navbar />
-            </div>;
-            
+            return (
+                <div className="p-8 text-red-500">
+                    Unknown role
+                    <Navbar />
+                </div>
+            );
     }
-
-
 }

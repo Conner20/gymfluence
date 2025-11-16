@@ -39,18 +39,24 @@ export default async function UserProfilePage({
 
     if (!user) return notFound();
 
-    const shell = (
-        children: React.ReactNode,
-    ) => (
-        <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="w-full bg-white py-6 flex justify-start pl-[40px] z-20">
-                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
-                    <span>{user.username}</span>
-                </h1>
+    const shell = (children: React.ReactNode) => (
+        <div className="min-h-screen flex flex-col bg-[#f8f8f8]">
+            {/* Sticky header at top */}
+            <header className="sticky top-0 z-30 w-full bg-white">
+                <div className="py-6 flex justify-start pl-[40px]">
+                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+                        <span>{user.username}</span>
+                    </h1>
+                </div>
             </header>
-            {children}
+
+            {/* Content; page (body) will handle scrolling */}
+            <main className="flex-1">
+                {children}
+            </main>
         </div>
     );
+
 
     switch (user.role) {
         case "TRAINEE":

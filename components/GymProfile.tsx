@@ -16,6 +16,7 @@ import {
   Star,
   X,
   Trash2,
+  MapPin,
 } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
@@ -226,10 +227,9 @@ function ManageGymRatingsModal({
       } catch {
         setPending((prev) => prev.filter((r) => r.id !== id));
         setTab("history");
-        const rows: HistoryRow[] = await fetch(
-          "/api/ratings?historyFor=gym",
-          { cache: "no-store" }
-        ).then((r) => r.json());
+        const rows: HistoryRow[] = await fetch("/api/ratings?historyFor=gym", {
+          cache: "no-store",
+        }).then((r) => r.json());
         setHistory(rows || []);
       }
 
@@ -295,16 +295,14 @@ function ManageGymRatingsModal({
             {pending.map((r) => (
               <li key={r.id} className="border rounded p-3">
                 <div className="flex items-center justify-between">
-                  <div className="font-medium">
-                    {who(r)} left a rating
-                  </div>
+                  <div className="font-medium">{who(r)} left a rating</div>
                   <div className="text-xs text-neutral-500">
                     {new Date(r.createdAt).toLocaleString()}
                   </div>
                 </div>
                 <div className="mt-3 flex gap-2">
                   <button
-                    className="px-3 py-1.5 rounded bg-black text-white"
+                    className="px-3 py-1.5 rounded bg-black text.white text-white"
                     onClick={() => act(r.id, "APPROVE")}
                   >
                     Approve
@@ -336,9 +334,7 @@ function ManageGymRatingsModal({
                   {"★".repeat(r.stars)}
                   {"☆".repeat(Math.max(0, 5 - r.stars))}
                 </div>
-                {r.comment && (
-                  <p className="mt-2 text-sm">{r.comment}</p>
-                )}
+                {r.comment && <p className="mt-2 text-sm">{r.comment}</p>}
               </li>
             ))}
           </ul>
@@ -379,12 +375,8 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
   const gym = user.gymProfile;
 
   // keep local rating/clients in sync after approvals
-  const [localRating, setLocalRating] = useState<number | null>(
-    gym?.rating ?? null
-  );
-  const [localClients, setLocalClients] = useState<number>(
-    gym?.clients ?? 0
-  );
+  const [localRating, setLocalRating] = useState<number | null>(gym?.rating ?? null);
+  const [localClients, setLocalClients] = useState<number>(gym?.clients ?? 0);
 
   useEffect(() => {
     if (!isOwnProfile && searchParams?.get("rate") === "1") {
@@ -553,171 +545,222 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
   const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <aside className="w-72 h-screen bg-white flex flex-col items-center pt-8">
-        {/* avatar */}
-        <div className="flex justify-center items-center mb-3">
-          {user.image ? (
-            <img
-              src={user.image}
-              alt={user.username || user.name || "Profile picture"}
-              className="w-24 h-24 rounded-full object-cover border-4 border-white"
-            />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-              <span className="text-green-700 font-bold text-xl select-none text-center px-2 break-words leading-6">
-                {user.username || user.name || "User"}
-              </span>
+    <div className="flex min-h-screen w-full">
+      {/* Sidebar – same dimensions & style as TraineeProfile */}
+      <aside
+        className="
+          w-72
+          bg-white
+          flex flex-col
+          items-center
+          pt-8
+          sticky
+          top-[84px]
+          self-start
+          h-[calc(100vh-84px)]
+        "
+      >
+        <div className="w-full px-6 flex flex-col items-center gap-4">
+          {/* Avatar */}
+          <div className="flex justify-center items-center">
+            {user.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.image}
+                alt={user.username || user.name || "Profile picture"}
+                className="w-20 h-20 rounded-full object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                <span className="text-green-700 font-semibold text-lg select-none">
+                  {(user.name || user.username || "U").slice(0, 2)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Name / handle / role */}
+          <div className="text-center space-y-1">
+            <h2 className="font-semibold text-lg text-zinc-900 truncate max-w-[200px]">
+              {user.name || user.username || "User"}
+            </h2>
+            {user.role && (
+              <div className="text-xs uppercase tracking-wide text-gray-400">
+                {user.role.toLowerCase()}
+              </div>
+            )}
+          </div>
+
+          {/* Location */}
+          {user.location && (
+            <div className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
+              <MapPin size={15} />
+              <span>{user.location}</span>
             </div>
           )}
-        </div>
 
-        <h2 className="font-bold text-xl">{user.name}</h2>
-        <div className="text-gray-500 text-sm mb-3">{user.role?.toLowerCase()}</div>
+          {/* Rating / fee / clients + Followers / Following / Posts */}
+          <div className="w-full mt-2 space-y-3">
+            <ProfileStat
+              label="rating"
+              value={localRating != null ? localRating.toFixed(1) : "N/A"}
+            />
+            <ProfileStat
+              label="monthly fee"
+              value={gym?.fee ? `$${gym.fee}/mo` : "N/A"}
+            />
+            <ProfileStat label="clients" value={localClients ?? 0} />
 
-        {!isOwnProfile && (
-          <>
-            <div className="flex flex-wrap items-center gap-2 mb-4 justify-center">
-              <button
-                onClick={handleFollowButton}
-                disabled={loading}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                title={
-                  user.isPrivate
-                    ? isFollowing
-                      ? "Unfollow"
-                      : "Requested"
-                    : isFollowing
-                      ? "Unfollow"
-                      : "Follow"
-                }
-                aria-label="Follow toggle"
-              >
-                {user.isPrivate ? (
-                  isFollowing ? (
-                    <>
-                      <UserMinus size={18} />
-                      <span>Unfollow</span>
-                    </>
-                  ) : requested ? (
-                    <span className="text-xs font-medium">Requested</span>
-                  ) : (
-                    <>
-                      <UserPlus size={18} />
-                      <span>Follow</span>
-                    </>
-                  )
-                ) : isFollowing ? (
-                  <>
-                    <UserMinus size={18} />
-                    <span>Unfollow</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus size={18} />
-                    <span>Follow</span>
-                  </>
-                )}
-              </button>
-
-              <div className="flex items-center gap-2">
+            <div className="pt-1 border-t border-gray-100">
+              <div className="flex items-center justify-between text-center text-xs text-gray-500">
                 <button
-                  onClick={handleMessage}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                  title="Message"
+                  onClick={openFollowers}
+                  disabled={!canViewPrivate}
+                  className={clsx(
+                    "flex-1 flex flex-col py-1 rounded-md",
+                    canViewPrivate
+                      ? "hover:bg-gray-50 transition"
+                      : "opacity-60 cursor-not-allowed"
+                  )}
+                  title={canViewPrivate ? "View followers" : "Private"}
                 >
-                  <MessageSquare size={20} />
+                  <span className="text-sm font-semibold text-zinc-900">
+                    {followers}
+                  </span>
+                  <span>Followers</span>
                 </button>
-
+                <div className="w-px h-8 bg-gray-200" />
                 <button
-                  onClick={handleShare}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                  title="Share profile"
+                  onClick={openFollowing}
+                  disabled={!canViewPrivate}
+                  className={clsx(
+                    "flex-1 flex flex-col py-1 rounded-md",
+                    canViewPrivate
+                      ? "hover:bg-gray-50 transition"
+                      : "opacity-60 cursor-not-allowed"
+                  )}
+                  title={canViewPrivate ? "View following" : "Private"}
                 >
-                  <Share2 size={20} />
+                  <span className="text-sm font-semibold text-zinc-900">
+                    {following}
+                  </span>
+                  <span>Following</span>
                 </button>
-
-                <button
-                  onClick={() => setShowRate(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                  title="Rate this gym"
-                >
-                  <Star size={16} />
-                </button>
+                <div className="w-px h-8 bg-gray-200" />
+                <div className="flex-1 flex flex-col py-1">
+                  <span className="text-sm font-semibold text-zinc-900">
+                    {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
+                  </span>
+                  <span>Posts</span>
+                </div>
               </div>
             </div>
-            {shareHint && <div className="text-xs text-gray-500 mb-2">{shareHint}</div>}
-          </>
-        )}
-
-        {/* bio & location */}
-        <div className="text-center mt-6 mb-4 px-4">{gym?.bio || "this is my bio"}</div>
-        <div className="text-center text-sm text-gray-600 mb-2">{user.location}</div>
-
-        {/* stats */}
-        <div className="flex flex-col gap-2 my-4 w-full px-6">
-          <ProfileStat
-            label="rating"
-            value={localRating != null ? localRating.toFixed(1) : "N/A"}
-          />
-          <ProfileStat
-            label="monthly fee"
-            value={gym?.fee ? `$${gym.fee}/mo` : "N/A"}
-          />
-          <button
-            onClick={openFollowers}
-            disabled={!canViewPrivate}
-            className={clsx(
-              "flex justify-between",
-              canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
-            )}
-            title={canViewPrivate ? "View followers" : "Private"}
-          >
-            <span className="font-semibold">{followers}</span>
-            <span className="text-gray-500">followers</span>
-          </button>
-          <button
-            onClick={openFollowing}
-            disabled={!canViewPrivate}
-            className={clsx(
-              "flex justify-between",
-              canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
-            )}
-            title={canViewPrivate ? "View following" : "Private"}
-          >
-            <span className="font-semibold">{following}</span>
-            <span className="text-gray-500">following</span>
-          </button>
-          <ProfileStat
-            label="posts"
-            value={canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
-          />
-          <ProfileStat label="clients" value={localClients ?? 0} />
-        </div>
-
-        {isOwnProfile && (
-          <div className="flex flex-col gap-2 mb-6">
-            <button
-              className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-              onClick={() => setShowNotifications(true)}
-            >
-              View Notifications
-            </button>
-            <button
-              className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-              onClick={() => setShowManageRatings(true)}
-            >
-              Manage Ratings
-            </button>
-            <button
-              className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-              onClick={() => router.push("/settings")}
-            >
-              Edit Profile
-            </button>
           </div>
-        )}
+
+          {/* Bio */}
+          {gym?.bio && (
+            <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4">
+              {gym.bio}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="w-full mt-4 space-y-2">
+            {!isOwnProfile ? (
+              <>
+                <button
+                  onClick={handleFollowButton}
+                  disabled={loading}
+                  className={clsx(
+                    "w-full py-2 rounded-full text-sm font-medium transition",
+                    "border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white",
+                    "disabled:opacity-60 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {user.isPrivate ? (
+                    isFollowing ? (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <UserMinus size={16} />
+                        <span>Unfollow</span>
+                      </span>
+                    ) : requested ? (
+                      <span className="inline-flex items-center justify-center">
+                        Request sent
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <UserPlus size={16} />
+                        <span>Request to follow</span>
+                      </span>
+                    )
+                  ) : isFollowing ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <UserMinus size={16} />
+                      <span>Unfollow</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <UserPlus size={16} />
+                      <span>Follow</span>
+                    </span>
+                  )}
+                </button>
+
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleMessage}
+                    className="flex-1 py-1.5 rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1"
+                  >
+                    <MessageSquare size={16} />
+                    <span>Message</span>
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="w-9 h-9 rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center"
+                    title="Copy profile link"
+                  >
+                    <Share2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => setShowRate(true)}
+                    className="w-9 h-9 rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center"
+                    title="Rate this gym"
+                  >
+                    <Star size={16} />
+                  </button>
+                </div>
+
+                {shareHint && (
+                  <div className="text-[11px] text-gray-500 text-center">
+                    {shareHint}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                  onClick={() => setShowNotifications(true)}
+                >
+                  View notifications
+                </button>
+                <button
+                  className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                  onClick={() => setShowManageRatings(true)}
+                >
+                  Manage ratings
+                </button>
+                <button
+                  className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                  onClick={() => router.push("/settings")}
+                >
+                  Edit profile
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </aside>
 
       {/* Main */}
@@ -739,7 +782,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                   </button>
                 )}
               </div>
-              <div className="inline-flex rounded-full border bg-white p-1">
+              <div className="inline-flex rounded-full border bg.white bg-white p-1">
                 <button
                   className={clsx(
                     "px-3 py-1 text-sm rounded-full",
@@ -779,10 +822,9 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                 onOpen={(id) => setFocusPostId(id)}
                 onLike={async (id) => {
                   try {
-                    await fetch(
-                      `/api/posts/${encodeURIComponent(id)}/like`,
-                      { method: "POST" }
-                    );
+                    await fetch(`/api/posts/${encodeURIComponent(id)}/like`, {
+                      method: "POST",
+                    });
                     await refreshPosts();
                   } catch {
                     /* ignore */
@@ -862,9 +904,9 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
 
 function ProfileStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between">
-      <span className="font-semibold">{value}</span>
-      <span className="text-gray-500">{label}</span>
+    <div className="flex justify-between text-xs text-gray-500">
+      <span className="capitalize">{label}</span>
+      <span className="font-semibold text-zinc-900">{value}</span>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
     Heart,
     MessageCircle,
     Trash2,
+    MapPin,
 } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
@@ -211,168 +212,217 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
     return (
-        <div className="flex min-h-screen">
-            {/* Sidebar */}
-            <aside className="w-72 bg-white flex flex-col items-center pt-8">
-                {/* Avatar */}
-                <div className="flex justify-center items-center mb-3">
-                    {user.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={user.image}
-                            alt={user.username || user.name || "Profile picture"}
-                            className="w-24 h-24 rounded-full object-cover border-4 border-white"
-                        />
-                    ) : (
-                        <div className="w-24 h-24 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                            <span className="text-green-700 font-bold text-xl select-none text-center px-2 break-words leading-6">
-                                {user.username || user.name || "User"}
-                            </span>
+        <div className="flex min-h-screen w-full">
+            {/* Sidebar (profile content) – now sticky */}
+                        {/* Sidebar (profile content) – same dimensions, simpler content */}
+            <aside
+                className="
+        w-72
+        bg-white
+        flex flex-col
+        items-center
+        pt-8
+        sticky
+        top-[84px]
+        self-start
+        h-[calc(100vh-84px)]
+    "
+            >
+                <div className="w-full px-6 flex flex-col items-center gap-4">
+                    {/* Avatar */}
+                    <div className="flex justify-center items-center">
+                        {user.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={user.image}
+                                alt={user.username || user.name || "Profile picture"}
+                                className="w-20 h-20 rounded-full object-cover border border-gray-200"
+                            />
+                        ) : (
+                            <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                                <span className="text-green-700 font-semibold text-lg select-none">
+                                    {(user.name || user.username || "U").slice(0, 2)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Name / handle / role */}
+                    <div className="text-center space-y-1">
+                        <h2 className="font-semibold text-lg text-zinc-900 truncate max-w-[200px]">
+                            {user.name || user.username || "User"}
+                        </h2>
+                        {user.role && (
+                            <div className="text-xs uppercase tracking-wide text-gray-400">
+                                {user.role.toLowerCase()}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Location (subtle) */}
+                    {user.location && (
+                        <div className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
+                            <MapPin size={15} />
+                            <span>{user.location}</span>
                         </div>
                     )}
-                </div>
 
-                <h2 className="font-bold text-xl">{user.name}</h2>
-                <div className="text-gray-500 text-sm mb-3">{user.role?.toLowerCase()}</div>
 
-                {/* Action buttons */}
-                {!isOwnProfile && (
-                    <>
-                        <div className="flex flex-wrap.items-center gap-2 mb-4 justify-center">
+                    {/* Stats row */}
+                    <div className="w-full mt-2">
+                        <div className="flex items-center justify-between text-center text-xs text-gray-500">
                             <button
-                                onClick={handleFollowButton}
-                                disabled={loading}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={
-                                    user.isPrivate
-                                        ? isFollowing
-                                            ? "Unfollow"
-                                            : "Requested"
-                                        : isFollowing
-                                            ? "Unfollow"
-                                            : "Follow"
-                                }
-                                aria-label="Follow toggle"
-                            >
-                                {user.isPrivate ? (
-                                    isFollowing ? (
-                                        <>
-                                            <UserMinus size={18} />
-                                            <span>Unfollow</span>
-                                        </>
-                                    ) : requested ? (
-                                        <span className="text-xs font-medium">Requested</span>
-                                    ) : (
-                                        <>
-                                            <UserPlus size={18} />
-                                            <span>Follow</span>
-                                        </>
-                                    )
-                                ) : isFollowing ? (
-                                    <>
-                                        <UserMinus size={18} />
-                                        <span>Unfollow</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <UserPlus size={18} />
-                                        <span>Follow</span>
-                                    </>
+                                onClick={openFollowers}
+                                disabled={!canViewPrivate}
+                                className={clsx(
+                                    "flex-1 flex flex-col py-1 rounded-md",
+                                    canViewPrivate
+                                        ? "hover:bg-gray-50 transition"
+                                        : "opacity-60 cursor-not-allowed"
                                 )}
+                                title={canViewPrivate ? "View followers" : "Private"}
+                            >
+                                <span className="text-sm font-semibold text-zinc-900">
+                                    {followers}
+                                </span>
+                                <span>Followers</span>
                             </button>
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handleMessage}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                                    title="Message"
-                                >
-                                    <MessageSquare size={20} />
-                                </button>
-
-                                <button
-                                    onClick={handleShare}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-[#f8f8f8] transition"
-                                    title="Share profile"
-                                >
-                                    <Share2 size={20} />
-                                </button>
+                            <div className="w-px h-8 bg-gray-200" />
+                            <button
+                                onClick={openFollowing}
+                                disabled={!canViewPrivate}
+                                className={clsx(
+                                    "flex-1 flex flex-col py-1 rounded-md",
+                                    canViewPrivate
+                                        ? "hover:bg-gray-50 transition"
+                                        : "opacity-60 cursor-not-allowed"
+                                )}
+                                title={canViewPrivate ? "View following" : "Private"}
+                            >
+                                <span className="text-sm font-semibold text-zinc-900">
+                                    {following}
+                                </span>
+                                <span>Following</span>
+                            </button>
+                            <div className="w-px h-8 bg-gray-200" />
+                            <div className="flex-1 flex flex-col py-1">
+                                <span className="text-sm font-semibold text-zinc-900">
+                                    {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
+                                </span>
+                                <span className="">Posts</span>
                             </div>
                         </div>
-                        {shareHint && <div className="text-xs text-gray-500 mb-2">{shareHint}</div>}
-                    </>
-                )}
-
-                {/* Bio & location */}
-                <div className="text-center mt-6 mb-4 px-4">{trainee?.bio || "this is my bio"}</div>
-                <div className="text-center text-sm text-gray-600 mb-2">{user.location}</div>
-
-                {/* Stats */}
-                <div className="flex flex-col gap-2 my-4 w-full px-6">
-                    <button
-                        onClick={openFollowers}
-                        disabled={!canViewPrivate}
-                        className={clsx(
-                            "flex justify-between",
-                            canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
-                        )}
-                        title={canViewPrivate ? "View followers" : "Private"}
-                    >
-                        <span className="font-semibold">{followers}</span>
-                        <span className="text-gray-500">followers</span>
-                    </button>
-                    <button
-                        onClick={openFollowing}
-                        disabled={!canViewPrivate}
-                        className={clsx(
-                            "flex justify-between",
-                            canViewPrivate ? "hover:underline" : "opacity-60 cursor-not-allowed"
-                        )}
-                        title={canViewPrivate ? "View following" : "Private"}
-                    >
-                        <span className="font-semibold">{following}</span>
-                        <span className="text-gray-500">following</span>
-                    </button>
-                    <ProfileStat
-                        label="posts"
-                        value={canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
-                    />
-                </div>
-
-                {/* Own profile buttons */}
-                {isOwnProfile && (
-                    <div className="flex flex-col gap-2 mb-6">
-                        <button
-                            className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-                            onClick={() => setShowNotifications(true)}
-                        >
-                            View Notifications
-                        </button>
-                        <button
-                            className="w-44 py-2 border rounded-xl bg-white hover:bg-[#f8f8f8] transition font-medium"
-                            onClick={() => router.push("/settings")}
-                        >
-                            Edit Profile
-                        </button>
                     </div>
-                )}
+
+                    {/* Bio – trimmed & subtle */}
+                    {trainee?.bio && (
+                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4">
+                            {trainee.bio}
+                        </p>
+                    )}
+
+                    {/* Actions */}
+                    <div className="w-full mt-4 space-y-2">
+                        {!isOwnProfile ? (
+                            <>
+                                <button
+                                    onClick={handleFollowButton}
+                                    disabled={loading}
+                                    className={clsx(
+                                        "w-full py-2 rounded-full text-sm font-medium transition",
+                                        "border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white",
+                                        "disabled:opacity-60 disabled:cursor-not-allowed"
+                                    )}
+                                >
+                                    {user.isPrivate ? (
+                                        isFollowing ? (
+                                            <span className="inline-flex items-center justify-center gap-2">
+                                                <UserMinus size={16} />
+                                                <span>Unfollow</span>
+                                            </span>
+                                        ) : requested ? (
+                                            <span className="inline-flex items-center justify-center">
+                                                Request sent
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center justify-center gap-2">
+                                                <UserPlus size={16} />
+                                                <span>Request to follow</span>
+                                            </span>
+                                        )
+                                    ) : isFollowing ? (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <UserMinus size={16} />
+                                            <span>Unfollow</span>
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <UserPlus size={16} />
+                                            <span>Follow</span>
+                                        </span>
+                                    )}
+                                </button>
+
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleMessage}
+                                        className="flex-1 py-1.5 rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1"
+                                    >
+                                        <MessageSquare size={16} />
+                                        <span>Message</span>
+                                    </button>
+                                    <button
+                                        onClick={handleShare}
+                                        className="w-9 h-9 rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center"
+                                        title="Copy profile link"
+                                    >
+                                        <Share2 size={16} />
+                                    </button>
+                                </div>
+
+                                {shareHint && (
+                                    <div className="text-[11px] text-gray-500 text-center">
+                                        {shareHint}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                        className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                                    onClick={() => router.push("/settings")}
+                                >
+                                    Edit profile
+                                </button>
+                                <button
+                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                                    onClick={() => setShowNotifications(true)}
+                                >
+                                    View notifications
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
             </aside>
 
+
             {/* Main Content + overlay */}
-            <main className="flex-1 p-8 relative bg-[#f8f8f8]">
+            <main className="flex-1 p-8 relative bg-[#f8f8f8] min-h-screen">
                 {!canViewPrivate ? (
                     <PrivatePlaceholder />
                 ) : (
                     <>
-                        {/* Header row */}
-                        <div className="mb-4 flex items-center justify-between">
+                        {/* Header row – now sticky */}
+                        <div className="mb-4 flex items-center justify-between sticky top-0 z-10 bg-[#f8f8f8] py-2">
                             <div className="flex items-center gap-3">
                                 <h3 className="text-lg font-semibold.text-zinc-900">Posts</h3>
                                 {isOwnProfile && (
                                     <button
                                         type="button"
                                         onClick={() => setShowCreatePost(true)}
-                                        className="px-3 py-1.5 rounded-full border text-xs font-medium bg-white hover:bg-zinc-50 transition"
+                                        className="px-3 py-1.5 rounded-full border text-xs font-medium bg-white.hover:bg-zinc-50 transition"
                                     >
                                         + Add Post
                                     </button>
