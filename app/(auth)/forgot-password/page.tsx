@@ -1,51 +1,95 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+
+const FormSchema = z.object({
+    email: z.string().min(1, 'Email is required').email('Invalid email'),
+});
+
+type BannerState = { type: 'success' | 'error'; message: string } | null;
 
 export default function ForgotPasswordPage() {
-    const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
+    const form = useForm<z.infer<typeof FormSchema>>({
+        resolver: zodResolver(FormSchema),
+        defaultValues: { email: '' },
+    });
+    const [banner, setBanner] = useState<BannerState>(null);
 
-    const onSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    const onSubmit = async (values: z.infer<typeof FormSchema>) => {
+        setBanner(null);
         try {
-            const res = await fetch('/api/auth/forgot-password', {
+            const response = await fetch('/api/auth/password-reset/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
+                body: JSON.stringify(values),
             });
-            if (!res.ok) throw new Error();
-            toast('Check your email', { description: 'If an account exists, a reset link has been sent.' });
-            setEmail('');
-        } catch {
-            toast('Done', { description: 'If an account exists, a reset link has been sent.' });
-        } finally {
-            setLoading(false);
+
+            if (!response.ok) {
+                throw new Error('Request failed');
+            }
+
+            form.reset();
+            setBanner({
+                type: 'success',
+                message: 'If an account exists for that email, a reset link has been sent.',
+            });
+        } catch (error) {
+            setBanner({
+                type: 'error',
+                message: 'We could not send the reset email. Please try again later.',
+            });
         }
     };
 
     return (
         <div className="bg-slate-200 p-10 rounded-md w-full max-w-md mx-auto">
             <h1 className="text-2xl font-semibold mb-4 text-center">Forgot password</h1>
-            <form onSubmit={onSubmit} className="space-y-4">
-                <label className="text-sm">Email</label>
-                <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    required
-                    className="bg-white"
-                />
-                <Button type="submit" disabled={loading} className="w-full">
-                    {loading ? 'Sending…' : 'Send reset link'}
-                </Button>
-            </form>
+
+            {banner && (
+                <div
+                    role="status"
+                    className={`mb-4 rounded-md border px-4 py-2 text-sm ${
+                        banner.type === 'success'
+                            ? 'border-green-200 bg-green-50 text-green-700'
+                            : 'border-red-200 bg-red-50 text-red-700'
+                    }`}
+                >
+                    {banner.message}
+                </div>
+            )}
+
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-sm">Email</FormLabel>
+                                <FormControl className="bg-white">
+                                    <Input type="email" placeholder="you@example.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={form.formState.isSubmitting}
+                    >
+                        {form.formState.isSubmitting ? 'Sending…' : 'Send reset link'}
+                    </Button>
+                </form>
+            </Form>
 
             <div className="mt-4">
                 <Link href="/log-in">

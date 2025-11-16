@@ -60,12 +60,7 @@ const LogInForm = () => {
                         name="password"
                         render={({ field }) => (
                             <FormItem>
-                                <div className="flex items-center justify-between">
-                                    <FormLabel className="mb-2">Password</FormLabel>
-                                    <Link href="/forgot-password" className="text-xs text-green-600 hover:underline">
-                                        Forgot password?
-                                    </Link>
-                                </div>
+                                <FormLabel className="mb-2">Password</FormLabel>
                                 <FormControl className="bg-white">
                                     <Input placeholder="Enter your password" type='password' {...field} />
                                 </FormControl>
@@ -76,6 +71,11 @@ const LogInForm = () => {
                 </div>
 
                 <Button className='w-full mt-6' type="submit">Log In</Button>
+                <div className="mt-3 text-right">
+                    <Link href="/forgot-password" className="text-sm text-green-600 hover:underline">
+                        Forgot password?
+                    </Link>
+                </div>
             </form>
 
             <div className="mx-auto my-4 flex w-full items-center justify-evenly before:mr-4 before:block
