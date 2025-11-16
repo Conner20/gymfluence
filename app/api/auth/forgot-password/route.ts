@@ -1,45 +1,49 @@
-// app/api/auth/forgot-password/route.ts
 import { NextResponse } from 'next/server';
+
 import { sendPasswordResetEmail } from '@/lib/mail';
-import { db as prisma } from '@/prisma/client';
+import { getBaseUrl } from '@/lib/base-url';
 import { generateRawToken, sha256Hex } from '@/lib/token';
+import { db as prisma } from '@/prisma/client';
 
 export async function POST(req: Request) {
     try {
         const { email } = (await req.json()) as { email?: string };
-        if (!email) return NextResponse.json({ error: 'Missing email' }, { status: 400 });
+        const normalizedEmail = email?.trim().toLowerCase();
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        if (!normalizedEmail) {
+            return NextResponse.json({ error: 'Missing email' }, { status: 400 });
+        }
 
-        // Always return 200 to avoid email enumeration
-        if (!user) return NextResponse.json({ ok: true });
+        const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
-        // Invalidate any prior tokens for this identifier
-        await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+        // Always respond with 200 to avoid email enumeration even when user is missing.
+        if (!user) {
+            return NextResponse.json({ ok: true });
+        }
 
-        // Create raw token (sent to user) and a hashed version (stored)
+        await prisma.verificationToken.deleteMany({ where: { identifier: normalizedEmail } });
+
         const rawToken = generateRawToken(32);
         const tokenHash = sha256Hex(rawToken);
-        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-        // Store the HASH in the `token` column (do not store raw)
         await prisma.verificationToken.create({
-            data: { identifier: email, token: tokenHash, expires },
+            data: {
+                identifier: normalizedEmail,
+                token: tokenHash,
+                expires,
+            },
         });
 
-        const baseUrl =
-            process.env.NEXT_PUBLIC_APP_URL ||
-            process.env.NEXTAUTH_URL ||
-            '';
-
-        // If baseUrl is empty, we still respond ok — but you’ll want this set for real emails
+        const baseUrl = getBaseUrl();
         const resetUrl = `${baseUrl}/reset-password/${rawToken}`;
 
-        await sendPasswordResetEmail(email, resetUrl);
+        await sendPasswordResetEmail(normalizedEmail, resetUrl);
 
         return NextResponse.json({ ok: true });
-    } catch {
-        // Still 200 to prevent probing; log server-side if desired
+    } catch (error) {
+        console.error('[forgot-password]', error);
+        // Still return 200 to prevent probing attacks.
         return NextResponse.json({ ok: true });
     }
 }

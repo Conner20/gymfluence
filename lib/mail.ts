@@ -5,6 +5,7 @@ type Mailer = (to: string, resetUrl: string) => Promise<void>;
 /**
  * Sends a password reset email.
  * Uses Resend if RESEND_API_KEY is present; otherwise falls back to SMTP via Nodemailer.
+ * When neither provider is configured, the reset link is logged to the server console.
  */
 export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
     const from = process.env.EMAIL_FROM || 'no-reply@gymfluence.app';
@@ -18,7 +19,6 @@ export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
     </div>
   `;
 
-    // Prefer Resend in environments where it's configured
     if (process.env.RESEND_API_KEY) {
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY);
@@ -26,17 +26,22 @@ export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
         return;
     }
 
-    // Fallback: Nodemailer SMTP
-    const nodemailer = await import('nodemailer');
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: false,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        }
-    });
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        const nodemailer = await import('nodemailer');
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT || 587),
+            secure: Number(process.env.SMTP_PORT) === 465,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
+        });
 
-    await transporter.sendMail({ from, to, subject, html });
+        await transporter.sendMail({ from, to, subject, html });
+        return;
+    }
+
+    console.warn('No email provider configured. Password reset link logged to console.');
+    console.info(`[password-reset] ${to}: ${resetUrl}`);
 };
