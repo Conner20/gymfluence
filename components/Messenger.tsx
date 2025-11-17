@@ -161,7 +161,7 @@ function Avatar({
 export default function Messenger() {
     const { data: session } = useSession();
     const router = useRouter();
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '/messages';
     const searchParams = useSearchParams();
 
     // Left: conversations
@@ -442,6 +442,7 @@ export default function Messenger() {
 
     // Parse share params (only from share buttons)
     useEffect(() => {
+        if (!searchParams) return;
         const shareType = searchParams.get('shareType');
         const shareId = searchParams.get('shareId'); // for posts (post id)
         const shareUrl = searchParams.get('shareUrl'); // for profile (full url)
@@ -770,7 +771,7 @@ export default function Messenger() {
 
                 setShareDraft(null);
                 // remove share params from URL
-                const sp = new URLSearchParams(searchParams.toString());
+                const sp = new URLSearchParams(searchParams?.toString());
                 sp.delete('shareType');
                 sp.delete('shareId');
                 sp.delete('shareUrl');
@@ -810,6 +811,7 @@ export default function Messenger() {
 
     // Deep-links
     useEffect(() => {
+        if (!searchParams) return;
         const cid = searchParams.get('convoId');
         const to = searchParams.get('to');
         if (cid) {
@@ -1412,7 +1414,7 @@ export default function Messenger() {
                                     className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
                                     onClick={() => {
                                         setShareDraft(null);
-                                        const sp = new URLSearchParams(searchParams.toString());
+                                        const sp = new URLSearchParams(searchParams?.toString());
                                         sp.delete('shareType');
                                         sp.delete('shareId');
                                         sp.delete('shareUrl');

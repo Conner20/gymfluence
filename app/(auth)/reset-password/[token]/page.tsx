@@ -27,7 +27,8 @@ type FormValues = z.infer<typeof schema>;
 type PageState = 'checking' | 'invalid' | 'valid' | 'success';
 
 export default function ResetPasswordPage() {
-    const { token } = useParams<{ token: string }>();
+    const params = useParams<{ token?: string }>();
+    const token = params?.token;
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [pageState, setPageState] = useState<PageState>('checking');

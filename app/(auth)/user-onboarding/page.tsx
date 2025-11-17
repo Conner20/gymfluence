@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -28,6 +28,7 @@ const GymFormSchema = z.object({
     website: z.string().min(1),
     fee: z.coerce.number().positive("Fee must be a positive number"),
 });
+type GymFormValues = z.infer<typeof GymFormSchema>;
 
 
 
@@ -78,22 +79,21 @@ const roleOptions = [
 export default function UserOnboarding() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const userName = searchParams.get('username') || 'there';
+    const userName = searchParams?.get('username') ?? 'there';
 
     const [step, setStep] = useState(1);
     const [role, setRole] = useState<string | null>(null);
     const [selections, setSelections] = useState<string[]>([]);
-    const [gymForm, setGymForm] = useState({ name: '', address: '', phone: '', website: '', fee: '' });
 
-    const gymFormHook = useForm({
-        resolver: zodResolver(GymFormSchema),
+    const gymFormHook = useForm<GymFormValues>({
+        resolver: zodResolver(GymFormSchema) as any,
         defaultValues: {
             name: "",
             address: "",
             phone: "",
             website: "",
-            fee: "",
-        }
+            fee: 0,
+        },
     });
 
     const handleRoleCardSelect = (r: string) => {
@@ -110,10 +110,6 @@ export default function UserOnboarding() {
                 ? selections.filter(o => o !== option)
                 : [...selections, option]
         );
-    };
-
-    const handleGymInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setGymForm({ ...gymForm, [e.target.name]: e.target.value });
     };
 
     const handleGymProfileSubmit = gymFormHook.handleSubmit(async (values) => {
@@ -345,7 +341,22 @@ export default function UserOnboarding() {
                                     <FormItem>
                                         <FormLabel className="mb-2">Monthly Membership Fee</FormLabel>
                                         <FormControl className="bg-white">
-                                            <Input placeholder="Monthly Membership Fee" {...field} />
+                                            <Input
+                                                type="number"
+                                                placeholder="Monthly Membership Fee"
+                                                value={
+                                                    field.value === undefined || Number.isNaN(field.value)
+                                                        ? ''
+                                                        : field.value
+                                                }
+                                                onChange={(e) =>
+                                                    field.onChange(
+                                                        e.target.value === ''
+                                                            ? undefined
+                                                            : Number(e.target.value)
+                                                    )
+                                                }
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

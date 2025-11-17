@@ -10,8 +10,7 @@ import { authOptions } from "@/lib/auth";
 export const runtime = "nodejs";
 
 import { randomUUID } from "crypto";
-import path from "path";
-import fs from "fs/promises";
+import { storeImageFile } from "@/lib/storage";
 
 // ---- Config ----
 const S3_REGION = process.env.AWS_REGION || "";
@@ -24,22 +23,8 @@ const MAX_FILES = 10;
 const MAX_BYTES = Number(process.env.S3_MAX_IMAGE_BYTES || 8 * 1024 * 1024); // 8MB
 const ALLOWED_PREFIX = "image/";
 
-// ---- Helpers ----
 function safeName(name: string) {
     return name.replace(/\s+/g, "_").replace(/[^\w.\-]/g, "");
-}
-
-async function saveToLocal(file: File) {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const keyPart = `${Date.now()}-${randomUUID()}-${safeName(file.name || "upload")}`;
-    const relPath = path.join("messages", keyPart); // uploads/messages/<file>
-    const baseDir = path.join(process.cwd(), "public", "uploads");
-    const outDir = path.join(baseDir, "messages");
-    await fs.mkdir(outDir, { recursive: true });
-    const outPath = path.join(baseDir, relPath);
-    await fs.writeFile(outPath, bytes);
-    // Served by Next.js static file server from /public
-    return `/uploads/${relPath.replace(/\\/g, "/")}`;
 }
 
 // Lazy-load AWS SDK only if configured AND installed
@@ -130,7 +115,11 @@ export async function POST(req: Request) {
                     // fall through to local
                 }
             }
-            urls.push(await saveToLocal(f));
+            const uploaded = await storeImageFile(f, {
+                folder: "messages",
+                prefix: `message-${randomUUID()}`,
+            });
+            urls.push(uploaded.url);
         }
 
         return NextResponse.json({ urls });

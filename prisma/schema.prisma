@@ -94,6 +94,8 @@ model User {
 
   ratingsAuthored Rating[] @relation("RatingsByUser")
 
+  searchGalleryImages SearchGalleryImage[]
+
   // --- Workouts ---
   workoutExercises WorkoutExercise[]
   workoutSets      WorkoutSet[]
@@ -248,6 +250,14 @@ model Notification {
   followId String?
 
   isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SearchGalleryImage {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  url       String
   createdAt DateTime @default(now())
 }
 

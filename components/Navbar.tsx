@@ -67,19 +67,6 @@ export default function Sidebar() {
     const pathname = usePathname();
     const [showModal, setShowModal] = useState(false);
 
-    const handleCreatePost = async (title: string, content: string) => {
-        try {
-            const res = await fetch("/api/posts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title, content }),
-            });
-            if (!res.ok) throw new Error("Failed to create post");
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     return (
         <>
             <nav className="fixed top-0 right-0 h-screen w-20 bg-white flex flex-col items-center z-50">
@@ -127,7 +114,6 @@ export default function Sidebar() {
                         </button>
                         <CreatePost
                             onClose={() => setShowModal(false)}
-                            onCreatePost={handleCreatePost}
                         />
                     </div>
                 </div>

@@ -135,14 +135,18 @@ function SleepLine({
     const [hover, setHover] = useState<{ i: number; cx: number; cy: number } | null>(null);
     const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
         const rect = svgRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const localX = clamp(e.clientX - rect.left, pad.left, pad.left + innerW);
+        if (!rect || rect.width === 0) return;
+        const scaleX = W / rect.width; // translate screen pixels into SVG viewBox units
+        const pointerX = (e.clientX - rect.left) * scaleX;
+        const localX = clamp(pointerX, pad.left, pad.left + innerW);
         const ratio = (localX - pad.left) / innerW;
         const i = Math.round(ratio * (xs.length - 1));
         const safeI = clamp(i, 0, xs.length - 1);
-        const h = xs[safeI].hours ?? yMin;
-        setHover({ i: safeI, cx: x(safeI), cy: y(h as number) });
+        const h = xs[safeI].hours;
+        const safeHours = typeof h === "number" ? h : yMin;
+        setHover({ i: safeI, cx: x(safeI), cy: y(safeHours) });
     };
+    const hoveredPoint = hover ? xs[hover.i] : null;
 
     const avg7 = useMemo(() => {
         const last = xs.slice(-7);
@@ -298,7 +302,7 @@ function SleepLine({
                     {xs.map((p, i) => (p.hours != null ? <Dot key={i} cx={x(i)} cy={y(p.hours)} /> : null))}
 
                     {/* hover guide */}
-                    {hover && (
+                    {hover && hoveredPoint && (
                         <>
                             <line
                                 x1={hover.cx}
@@ -308,8 +312,8 @@ function SleepLine({
                                 stroke="#d1d5db"
                                 strokeDasharray="4 4"
                             />
-                            {xs[hover.i].hours != null && (
-                                <Dot cx={hover.cx} cy={y(xs[hover.i].hours!)} r={4} color="#7c3aed" />
+                            {hoveredPoint.hours != null && (
+                                <Dot cx={hover.cx} cy={y(hoveredPoint.hours)} r={4} color="#7c3aed" />
                             )}
                         </>
                     )}
@@ -330,7 +334,7 @@ function SleepLine({
                 </svg>
 
                 {/* tooltip */}
-                {hover && (
+                {hover && hoveredPoint && (
                     <TooltipFlip
                         cx={hover.cx}
                         cy={hover.cy}
@@ -339,10 +343,10 @@ function SleepLine({
                         pad={pad}
                         content={
                             <div className="leading-tight">
-                                <div className="font-medium">{xs[hover.i].date}</div>
+                                <div className="font-medium">{hoveredPoint.date}</div>
                                 <div>
-                                    {xs[hover.i].hours != null
-                                        ? `${xs[hover.i].hours.toFixed(1)} hrs`
+                                    {hoveredPoint.hours != null
+                                        ? `${hoveredPoint.hours.toFixed(1)} hrs`
                                         : '—'}
                                 </div>
                             </div>
@@ -420,6 +424,7 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
     // hover for bars
     const wrapRef = useRef<HTMLDivElement>(null);
     const [hover, setHover] = useState<{ i: number; left: number; top: number } | null>(null);
+    const hoveredBar = hover ? xs[hover.i] : null;
 
     const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = wrapRef.current?.getBoundingClientRect();
@@ -453,12 +458,12 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
                     </div>
                 ))}
 
-                {hover && (
+                {hover && hoveredBar && (
                     <div
                         className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] shadow-sm"
                         style={{ left: hover.left, top: hover.top }}
                     >
-                        <div>{xs[hover.i].liters.toFixed(1)} L</div>
+                        <div>{hoveredBar.liters.toFixed(1)} L</div>
                     </div>
                 )}
             </div>

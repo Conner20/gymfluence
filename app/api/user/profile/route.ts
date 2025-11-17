@@ -3,15 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
-import fs from "node:fs/promises";
-import path from "node:path";
-import crypto from "node:crypto";
-
-async function ensureUploadsDir() {
-    const dir = path.join(process.cwd(), "public", "uploads", "avatars");
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
-}
+import { storeImageFile, deleteStoredFile } from "@/lib/storage";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -83,6 +75,7 @@ export async function PATCH(req: Request) {
         select: {
             id: true,
             role: true,
+            image: true,
             traineeProfile: { select: { userId: true } },
             trainerProfile: { select: { userId: true } },
             gymProfile: { select: { userId: true } },
@@ -95,6 +88,7 @@ export async function PATCH(req: Request) {
     let location: string | undefined;
     let bio: string | undefined;
     let newImageUrl: string | undefined;
+    let shouldDeleteOldImage = false;
 
     // NEW: structured location fields
     let city: string | undefined;
@@ -132,19 +126,14 @@ export async function PATCH(req: Request) {
                 return NextResponse.json({ message: "Image too large (8MB max)" }, { status: 400 });
             }
 
-            const buf = Buffer.from(await file.arrayBuffer());
-            const ext =
-                file.type === "image/png"
-                    ? "png"
-                    : file.type === "image/webp"
-                        ? "webp"
-                        : file.type === "image/gif"
-                            ? "gif"
-                            : "jpg";
-            const base = `avatar-${me.id}-${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-            const dir = await ensureUploadsDir();
-            await fs.writeFile(path.join(dir, base), buf);
-            newImageUrl = `/uploads/avatars/${base}`;
+            const uploaded = await storeImageFile(file, {
+                folder: "avatars",
+                prefix: `avatar-${me.id}`,
+            });
+            newImageUrl = uploaded.url;
+            if (me.image && me.image !== newImageUrl) {
+                shouldDeleteOldImage = true;
+            }
         }
     } else {
         const body = await req.json().catch(() => ({}));
@@ -172,6 +161,10 @@ export async function PATCH(req: Request) {
             ...(newImageUrl ? { image: newImageUrl } : {}),
         },
     });
+
+    if (shouldDeleteOldImage) {
+        await deleteStoredFile(me.image);
+    }
 
     // NEW: update city/state/country/lat/lng on the correct profile row
     const hasGeoUpdate =

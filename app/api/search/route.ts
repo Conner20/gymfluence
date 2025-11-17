@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
-import path from "node:path";
-import fs from "node:fs/promises";
 
 type Role = "TRAINEE" | "TRAINER" | "GYM";
 
@@ -24,22 +22,6 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
         Math.sin(dLng / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(sa), Math.sqrt(1 - sa));
     return R * c;
-}
-
-// NEW: read gallery images from /public/uploads/search-gallery/:userId
-async function readSearchGallery(userId: string): Promise<string[]> {
-    const dir = path.join(process.cwd(), "public", "uploads", "search-gallery", userId);
-    try {
-        const entries = await fs.readdir(dir);
-        return entries
-            .filter((f) => !f.startsWith("."))
-            .sort()
-            .reverse()
-            .slice(0, 18)
-            .map((f) => `/uploads/search-gallery/${userId}/${f}`);
-    } catch {
-        return [];
-    }
 }
 
 export async function GET(req: Request) {
@@ -214,55 +196,57 @@ export async function GET(req: Request) {
                     lng: true,
                 },
             },
+            searchGalleryImages: {
+                select: { url: true },
+                orderBy: { createdAt: "desc" },
+                take: 18,
+            },
         },
     });
 
     const haveViewerPoint = viewerLat != null && viewerLng != null;
 
     // Build result objects (including gallery) asynchronously
-    const processed = await Promise.all(
-        raw.map(async (u) => {
-            const p = u.traineeProfile || u.trainerProfile || u.gymProfile || ({} as any);
-            const lat: number | undefined = p.lat ?? undefined;
-            const lng: number | undefined = p.lng ?? undefined;
+    const processed = raw.map((u) => {
+        const p = u.traineeProfile || u.trainerProfile || u.gymProfile || ({} as any);
+        const lat: number | undefined = p.lat ?? undefined;
+        const lng: number | undefined = p.lng ?? undefined;
 
-            let distance: number | null = null;
-            if (haveViewerPoint && lat != null && lng != null) {
-                distance = haversineKm({ lat: viewerLat!, lng: viewerLng! }, { lat, lng });
-            }
+        let distance: number | null = null;
+        if (haveViewerPoint && lat != null && lng != null) {
+            distance = haversineKm({ lat: viewerLat!, lng: viewerLng! }, { lat, lng });
+        }
 
-            const price =
-                u.role === "TRAINER"
-                    ? u.trainerProfile?.hourlyRate ?? null
-                    : u.role === "GYM"
-                        ? u.gymProfile?.fee ?? null
-                        : null;
+        const price =
+            u.role === "TRAINER"
+                ? u.trainerProfile?.hourlyRate ?? null
+                : u.role === "GYM"
+                    ? u.gymProfile?.fee ?? null
+                    : null;
 
-            return {
-                id: u.id,
-                username: u.username,
-                name: u.name,
-                image: u.image,
-                role: u.role,
-                isPrivate: u.isPrivate,
-                location: u.location,
-                price,
-                city: p.city || null,
-                state: p.state || null,
-                country: p.country || null,
-                goals: u.traineeProfile?.goals ?? null,
-                services: u.trainerProfile?.services ?? null,
-                rating: u.trainerProfile?.rating ?? null,
-                clients: u.trainerProfile?.clients ?? null,
-                amenities: u.gymProfile?.amenities ?? null,
-                amenitiesText: u.gymProfile?.amenities?.[0] ?? null, // NEW: free-form description
-                distanceKm: distance,
-                about: u.bio ?? null,
-                // NEW
-                gallery: await readSearchGallery(u.id),
-            };
-        })
-    );
+        return {
+            id: u.id,
+            username: u.username,
+            name: u.name,
+            image: u.image,
+            role: u.role,
+            isPrivate: u.isPrivate,
+            location: u.location,
+            price,
+            city: p.city || null,
+            state: p.state || null,
+            country: p.country || null,
+            goals: u.traineeProfile?.goals ?? null,
+            services: u.trainerProfile?.services ?? null,
+            rating: u.trainerProfile?.rating ?? null,
+            clients: u.trainerProfile?.clients ?? null,
+            amenities: u.gymProfile?.amenities ?? null,
+            amenitiesText: u.gymProfile?.amenities?.[0] ?? null, // NEW: free-form description
+            distanceKm: distance,
+            about: u.bio ?? null,
+            gallery: u.searchGalleryImages?.map((img) => img.url) ?? [],
+        };
+    });
 
     // distance filter (client provided)
     const filtered = processed.filter((r) => {

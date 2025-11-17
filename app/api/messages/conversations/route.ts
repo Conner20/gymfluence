@@ -1,19 +1,26 @@
 // app/api/messages/conversations/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email && !(session?.user as any)?.id) {
+    const sessionUser = session?.user as (Session["user"] & { id?: string }) | undefined;
+
+    const where = sessionUser?.id
+        ? { id: sessionUser.id }
+        : sessionUser?.email
+            ? { email: sessionUser.email }
+            : null;
+
+    if (!where) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const me = await db.user.findFirst({
-        where: (session?.user as any)?.id
-            ? { id: (session?.user as any).id }
-            : { email: session.user!.email as string },
+        where,
         select: { id: true },
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });

@@ -3,29 +3,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import fs from "node:fs/promises";
-import path from "node:path";
-import crypto from "node:crypto";
+import { storeImageFile, deleteStoredFile } from "@/lib/storage";
 
 const PAGE_SIZE = 10; // 🔹 10 posts per request
-
-// Helpers
-async function ensureUploadsDir() {
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    try {
-        await fs.mkdir(uploadsDir, { recursive: true });
-    } catch { }
-    return uploadsDir;
-}
-
-function safeExt(mime: string, fallback = "bin") {
-    // Very small allowlist; extend as you like
-    if (mime === "image/png") return "png";
-    if (mime === "image/jpeg") return "jpg";
-    if (mime === "image/webp") return "webp";
-    if (mime === "image/gif") return "gif";
-    return fallback;
-}
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -71,17 +51,11 @@ export async function POST(req: Request) {
                     );
                 }
 
-                const buf = Buffer.from(await file.arrayBuffer());
-                const ext = safeExt(mime);
-                const hash = crypto.randomBytes(8).toString("hex");
-                const base = `post-${user.id}-${Date.now()}-${hash}.${ext}`;
-
-                const uploadsDir = await ensureUploadsDir();
-                const outPath = path.join(uploadsDir, base);
-                await fs.writeFile(outPath, buf);
-
-                // Public URL under /public
-                imageUrl = `/uploads/${base}`;
+                const uploaded = await storeImageFile(file, {
+                    folder: "posts",
+                    prefix: `post-${user.id}`,
+                });
+                imageUrl = uploaded.url;
             }
         } else {
             // Back-compat: JSON body (no file)
@@ -345,6 +319,9 @@ export async function DELETE(req: Request) {
     }
 
     await db.post.delete({ where: { id } });
+    if (post.imageUrl) {
+        await deleteStoredFile(post.imageUrl);
+    }
 
     return NextResponse.json({ message: "Post deleted." }, { status: 200 });
 }

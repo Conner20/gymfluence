@@ -3,9 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
-import path from "node:path";
-import fs from "node:fs/promises";
-import crypto from "node:crypto";
+import { storeImageFile, deleteStoredFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,28 +22,19 @@ async function resolveUserIdFromSession(): Promise<{ userId: string } | null> {
     return { userId: me.id };
 }
 
-async function galleryDirFor(userId: string) {
-    const dir = path.join(process.cwd(), "public", "uploads", "search-gallery", userId);
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
-}
-
-function toPublicUrl(userId: string, filename: string) {
-    return `/uploads/search-gallery/${userId}/${filename}`;
-}
-
 // GET: list my gallery images
 export async function GET() {
     const me = await resolveUserIdFromSession();
     if (!me) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-    const dir = await galleryDirFor(me.userId);
-    const entries = await fs.readdir(dir).catch(() => []);
-    const urls = entries
-        .filter((f) => !f.startsWith("."))
-        .map((f) => toPublicUrl(me.userId, f));
+    const images = await db.searchGalleryImage.findMany({
+        where: { userId: me.userId },
+        orderBy: { createdAt: "desc" },
+        take: 60,
+        select: { url: true },
+    });
 
-    return NextResponse.json({ urls });
+    return NextResponse.json({ urls: images.map((img) => img.url) });
 }
 
 // POST: upload images (multipart/form-data, field name: "images")
@@ -68,7 +57,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Maximum 12 files per upload" }, { status: 400 });
     }
 
-    const dir = await galleryDirFor(me.userId);
+    const existingCount = await db.searchGalleryImage.count({ where: { userId: me.userId } });
+    if (existingCount + files.length > 60) {
+        return NextResponse.json({ message: "Gallery limit reached (max 60 images)" }, { status: 400 });
+    }
+
     const urls: string[] = [];
 
     for (const file of files) {
@@ -79,18 +72,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Image too large (8MB max)" }, { status: 400 });
         }
 
-        const buf = Buffer.from(await file.arrayBuffer());
-        const ext =
-            file.type === "image/png"
-                ? "png"
-                : file.type === "image/webp"
-                    ? "webp"
-                    : file.type === "image/gif"
-                        ? "gif"
-                        : "jpg";
-        const base = `sg-${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-        await fs.writeFile(path.join(dir, base), buf);
-        urls.push(toPublicUrl(me.userId, base));
+        const uploaded = await storeImageFile(file, {
+            folder: `search-gallery/${me.userId}`,
+            prefix: `sg-${me.userId}`,
+        });
+
+        await db.searchGalleryImage.create({
+            data: {
+                userId: me.userId,
+                url: uploaded.url,
+            },
+        });
+
+        urls.push(uploaded.url);
     }
 
     return NextResponse.json({ urls });
@@ -115,20 +109,19 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ message: "Missing url" }, { status: 400 });
     }
 
-    // Ensure the file is inside the caller's gallery
-    const prefix = `/uploads/search-gallery/${me.userId}/`;
-    if (!url.startsWith(prefix)) {
-        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    const image = await db.searchGalleryImage.findFirst({
+        where: {
+            userId: me.userId,
+            url,
+        },
+        select: { id: true, url: true },
+    });
+    if (!image) {
+        return NextResponse.json({ message: "Image not found" }, { status: 404 });
     }
 
-    const rel = url.slice(prefix.length);
-    const filePath = path.join(process.cwd(), "public", "uploads", "search-gallery", me.userId, rel);
-
-    try {
-        await fs.unlink(filePath);
-    } catch {
-        // ignore missing
-    }
+    await db.searchGalleryImage.delete({ where: { id: image.id } });
+    await deleteStoredFile(image.url);
 
     return NextResponse.json({ ok: true });
 }
