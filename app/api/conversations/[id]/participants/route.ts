@@ -22,10 +22,7 @@ async function resolveUserId(idOrUsername: string) {
 }
 
 // -------------------- ADD PARTICIPANTS --------------------
-export async function POST(
-    req: Request,
-    { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
     const meIdFromSession = (session?.user as any)?.id as string | undefined;
     const meEmail = session?.user?.email ?? undefined;
@@ -39,7 +36,7 @@ export async function POST(
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    const convoId = params.id;
+    const { id: convoId } = await params;
 
     // Caller must be a current participant
     const meParticipant = await db.conversationParticipant.findFirst({
@@ -135,10 +132,7 @@ export async function POST(
 }
 
 // -------------------- REMOVE PARTICIPANT --------------------
-export async function DELETE(
-    req: Request,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
     const meIdFromSession = (session?.user as any)?.id as string | undefined;
     const meEmail = session?.user?.email ?? undefined;
@@ -152,7 +146,7 @@ export async function DELETE(
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    const convoId = params.id;
+    const { id: convoId } = await params;
 
     let body: any;
     try {

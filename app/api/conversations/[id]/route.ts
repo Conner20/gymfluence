@@ -5,10 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
 /** Leave / delete conversation */
-export async function DELETE(
-    req: Request,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
     const meIdFromSession = (session?.user as any)?.id as string | undefined;
     const meEmail = session?.user?.email ?? undefined;
@@ -22,7 +19,7 @@ export async function DELETE(
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    const convoId = params.id;
+    const { id: convoId } = await params;
 
     const myRow = await db.conversationParticipant.findFirst({
         where: { conversationId: convoId, userId: me.id },
@@ -74,10 +71,7 @@ export async function DELETE(
 }
 
 /** Rename group conversation + post a system notice with old → new */
-export async function PATCH(
-    req: Request,
-    { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
     const meIdFromSession = (session?.user as any)?.id as string | undefined;
     const meEmail = session?.user?.email ?? undefined;
@@ -91,7 +85,7 @@ export async function PATCH(
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    const convoId = params.id;
+    const { id: convoId } = await params;
 
     const member = await db.conversationParticipant.findFirst({
         where: { conversationId: convoId, userId: me.id },

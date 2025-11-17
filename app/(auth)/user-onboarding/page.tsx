@@ -1,12 +1,8 @@
 'use client'
 
-import { useState, type JSX } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, type JSX } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
-import { useSession } from 'next-auth/react';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { useSearchParams } from 'next/navigation';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "../../../components/ui/form";
 import { Input } from '../../../components/ui/input';
 import { Button } from "../../../components/ui/button";
@@ -76,7 +72,7 @@ const roleOptions = [
 
 
 
-export default function UserOnboarding() {
+function UserOnboardingContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const userName = searchParams?.get('username') ?? 'there';
@@ -371,5 +367,13 @@ export default function UserOnboarding() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function UserOnboarding() {
+    return (
+        <Suspense fallback={<div className="w-full min-h-screen flex items-center justify-center">Loading...</div>}>
+            <UserOnboardingContent />
+        </Suspense>
     );
 }

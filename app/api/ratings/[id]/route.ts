@@ -9,7 +9,7 @@ function extractUserId(session: any): string | null {
 }
 
 // GET single rating — used after approval to reveal stars/comment to the ratee
-export async function GET(req: Request, ctx: { params: { id: string } }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +24,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
         }
         if (!userId) return NextResponse.json({ error: "Cannot resolve current user id" }, { status: 401 });
 
-        const { id } = ctx.params;
+        const { id } = await ctx.params;
 
         const rating = await db.rating.findUnique({
             where: { id },
@@ -85,7 +85,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 }
 
 // PATCH { action: "APPROVE" | "DECLINE" }
-export async function PATCH(req: Request, ctx: { params: { id: string } }) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -100,7 +100,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
         }
         if (!userId) return NextResponse.json({ error: "Cannot resolve current user id" }, { status: 401 });
 
-        const { id } = ctx.params;
+        const { id } = await ctx.params;
         const body = await req.json().catch(() => ({}));
         const action = body?.action as "APPROVE" | "DECLINE";
 
