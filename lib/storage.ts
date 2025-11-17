@@ -89,7 +89,17 @@ export async function storeImageFile(
     const filename = `${prefix}-${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${ext}`;
     const fullPath = path.join(folderPath, filename);
 
-    await fs.writeFile(fullPath, buffer);
+    try {
+        await fs.writeFile(fullPath, buffer);
+    } catch (err: any) {
+        // Common on Vercel/readonly runtimes
+        if (err?.code === "EROFS" || err?.code === "EACCES") {
+            throw new Error(
+                "Local uploads are not supported in this environment. Configure UploadThing (UPLOADTHING_TOKEN) or another remote storage provider."
+            );
+        }
+        throw err;
+    }
 
     const relativeFolder = opts.folder
         ? `/${opts.folder.replace(/^\/*/, "")}`

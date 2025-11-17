@@ -126,13 +126,21 @@ export async function PATCH(req: Request) {
                 return NextResponse.json({ message: "Image too large (8MB max)" }, { status: 400 });
             }
 
-            const uploaded = await storeImageFile(file, {
-                folder: "avatars",
-                prefix: `avatar-${me.id}`,
-            });
-            newImageUrl = uploaded.url;
-            if (me.image && me.image !== newImageUrl) {
-                shouldDeleteOldImage = true;
+            try {
+                const uploaded = await storeImageFile(file, {
+                    folder: "avatars",
+                    prefix: `avatar-${me.id}`,
+                });
+                newImageUrl = uploaded.url;
+                if (me.image && me.image !== newImageUrl) {
+                    shouldDeleteOldImage = true;
+                }
+            } catch (err: any) {
+                const msg =
+                    typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
+                        ? err.message
+                        : "Failed to upload image";
+                return NextResponse.json({ message: msg }, { status: 503 });
             }
         }
     } else {
