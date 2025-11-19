@@ -216,6 +216,19 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
         try {
             const res = await fetch(`/api/posts/${id}/like`, { method: "POST" });
             if (!res.ok) throw new Error();
+            const data = await res.json().catch(() => ({}));
+            if (typeof data.likeCount === "number" && typeof data.liked === "boolean") {
+                setPosts(prev =>
+                    prev.map(post => {
+                        if (post.id !== id) return post;
+                        return {
+                            ...post,
+                            didLike: data.liked,
+                            likeCount: data.likeCount,
+                        };
+                    })
+                );
+            }
         } catch {
             // rollback on failure
             setPosts(prev =>
@@ -238,6 +251,16 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
 
     const toggleComments = (postId: string) => {
         setOpenComments((prev) => ({ ...prev, [postId]: !prev[postId] }));
+    };
+
+    const handleCommentCount = (postId: string, count: number) => {
+        setPosts((prev) =>
+            prev.map((p) =>
+                p.id === postId
+                    ? { ...p, commentCount: count }
+                    : p
+            )
+        );
     };
 
     // -------- Share modal helpers --------
@@ -484,7 +507,10 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                             {/* Comments */}
                             {openComments[post.id] && (
                                 <div className="mt-3">
-                                    <PostComments postId={post.id} />
+                                    <PostComments
+                                        postId={post.id}
+                                        onCountChange={(count) => handleCommentCount(post.id, count)}
+                                    />
                                 </div>
                             )}
                         </div>

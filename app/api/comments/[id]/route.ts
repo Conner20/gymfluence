@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -28,7 +29,7 @@ export async function DELETE(
     // Find the comment to ensure it exists and belongs to this user
     const comment = await db.comment.findUnique({
         where: { id: commentId },
-        select: { id: true, authorId: true },
+        select: { id: true, authorId: true, postId: true },
     });
 
     if (!comment) {
@@ -49,5 +50,13 @@ export async function DELETE(
         where: { id: commentId },
     });
 
-    return NextResponse.json({ message: "Comment deleted." }, { status: 200 });
+    const commentCount = comment.postId
+        ? await db.comment.count({ where: { postId: comment.postId } })
+        : undefined;
+    revalidateTag("posts");
+
+    return NextResponse.json(
+        { message: "Comment deleted.", commentCount },
+        { status: 200 }
+    );
 }

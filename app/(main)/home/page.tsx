@@ -58,9 +58,36 @@ export default async function Home() {
                     isPrivate: true,
                 },
             },
+            likes: { select: { userId: true } },
+            comments: {
+                where: { parentId: null },
+                orderBy: { createdAt: "asc" },
+                include: {
+                    author: { select: { username: true, email: true } },
+                    replies: {
+                        orderBy: { createdAt: "asc" },
+                        include: {
+                            author: { select: { username: true, email: true } },
+                        },
+                    },
+                },
+            },
         },
         orderBy: { createdAt: "desc" },
         take: 10, // 🔹 only 10 posts on initial load
+    });
+
+    const formatted = posts.map((p) => {
+        const commentCount =
+            p.comments.length +
+            p.comments.reduce((s, c) => s + (c.replies?.length ?? 0), 0);
+
+        return {
+            ...p,
+            likeCount: p.likes.length,
+            didLike: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
+            commentCount,
+        };
     });
 
     return (
@@ -75,7 +102,7 @@ export default async function Home() {
 
             <main className="flex-1 w-full flex justify-center">
                 {/* Pass the filtered posts down; component can use or ignore this prop */}
-                <HomePosts initialPosts={posts as any} />
+                <HomePosts initialPosts={formatted as any} />
             </main>
             <Navbar />
         </div>

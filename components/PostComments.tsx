@@ -16,7 +16,13 @@ type Comment = {
     replies?: Comment[];
 };
 
-export function PostComments({ postId }: { postId: string }) {
+export function PostComments({
+    postId,
+    onCountChange,
+}: {
+    postId: string;
+    onCountChange?: (count: number) => void;
+}) {
     const { data: session } = useSession();
     const [comments, setComments] = useState<Comment[]>([]);
     const [content, setContent] = useState("");
@@ -25,10 +31,15 @@ export function PostComments({ postId }: { postId: string }) {
     const fetchComments = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/posts/${postId}/comments`);
+            const res = await fetch(`/api/posts/${postId}/comments`, { cache: "no-store" });
             if (!res.ok) throw new Error();
             const data: Comment[] = await res.json();
             setComments(data);
+            const total = data.reduce(
+                (sum, c) => sum + 1 + (c.replies?.length ?? 0),
+                0
+            );
+            onCountChange?.(total);
         } catch {
             // optional: add error UI
         } finally {
@@ -44,11 +55,16 @@ export function PostComments({ postId }: { postId: string }) {
     const handleAdd = async (content: string, parentId?: string) => {
         if (!content.trim()) return;
         try {
-            await fetch(`/api/posts/${postId}/comments`, {
+            const res = await fetch(`/api/posts/${postId}/comments`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content, parentId }),
             });
+            if (!res.ok) throw new Error();
+            const payload = await res.json().catch(() => ({}));
+            if (typeof payload.commentCount === "number") {
+                onCountChange?.(payload.commentCount);
+            }
             setContent("");
             await fetchComments();
         } catch {
@@ -62,6 +78,10 @@ export function PostComments({ postId }: { postId: string }) {
                 method: "DELETE",
             });
             if (!res.ok) throw new Error();
+            const payload = await res.json().catch(() => ({}));
+            if (typeof payload.commentCount === "number") {
+                onCountChange?.(payload.commentCount);
+            }
             await fetchComments();
         } catch {
             alert("Failed to delete comment.");

@@ -17,10 +17,27 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     // Fetch posts for media grid
-    const posts = await db.post.findMany({
+    const postsRaw = await db.post.findMany({
         where: { authorId: user.id },
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        include: {
+            likes: { select: { userId: true } },
+            comments: {
+                where: { parentId: null },
+                include: {
+                    replies: true,
+                },
+            },
+        },
     });
+
+    const posts = postsRaw.map((p) => ({
+        ...p,
+        likeCount: p.likes.length,
+        commentCount:
+            p.comments.length +
+            p.comments.reduce((s, c) => s + (c.replies?.length ?? 0), 0),
+    }));
 
     return NextResponse.json({ user, posts });
 }

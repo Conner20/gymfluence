@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -24,7 +25,9 @@ export async function GET(
         orderBy: { createdAt: "asc" },
     });
 
-    return NextResponse.json(comments);
+    return NextResponse.json(comments, {
+        headers: { "Cache-Control": "no-store" },
+    });
 }
 
 export async function POST(
@@ -56,7 +59,10 @@ export async function POST(
         },
     });
 
-    return NextResponse.json(comment, { status: 201 });
+    const commentCount = await db.comment.count({ where: { postId } });
+    revalidateTag("posts");
+
+    return NextResponse.json({ comment, commentCount }, { status: 201 });
 }
 
 export async function DELETE(
@@ -104,6 +110,8 @@ export async function DELETE(
 
     // Assuming cascading is handled in DB for replies; otherwise you'd delete children here too
     await db.comment.delete({ where: { id: commentId } });
+    const commentCount = await db.comment.count({ where: { postId } });
+    revalidateTag("posts");
 
-    return NextResponse.json({ message: "Comment deleted" }, { status: 200 });
+    return NextResponse.json({ message: "Comment deleted", commentCount }, { status: 200 });
 }

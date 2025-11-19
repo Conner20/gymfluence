@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -36,7 +37,9 @@ export async function POST(
     if (existing) {
         // Only remove the like for the current user
         await db.like.delete({ where: { id: existing.id } });
-        return NextResponse.json({ liked: false });
+        const likeCount = await db.like.count({ where: { postId } });
+        revalidateTag("posts");
+        return NextResponse.json({ liked: false, likeCount });
     } else {
         await db.like.create({
             data: {
@@ -44,6 +47,8 @@ export async function POST(
                 userId: user.id,
             },
         });
-        return NextResponse.json({ liked: true });
+        const likeCount = await db.like.count({ where: { postId } });
+        revalidateTag("posts");
+        return NextResponse.json({ liked: true, likeCount });
     }
 }

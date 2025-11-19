@@ -4,6 +4,10 @@ import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { storeImageFile, deleteStoredFile } from "@/lib/storage";
+import { revalidateTag } from "next/cache";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const PAGE_SIZE = 10; // 🔹 10 posts per request
 
@@ -80,6 +84,8 @@ export async function POST(req: Request) {
                 authorId: user.id,
             },
         });
+
+        revalidateTag("posts");
 
         return NextResponse.json(
             { post: newPost, message: "Post created!" },
@@ -224,7 +230,9 @@ export async function GET(req: Request) {
             });
 
             const formatted = formatPosts(posts);
-            return NextResponse.json(formatted);
+            return NextResponse.json(formatted, {
+                headers: { "Cache-Control": "no-store" },
+            });
         }
 
         // ---------- HOME FEED (no authorId) ----------
@@ -281,7 +289,9 @@ export async function GET(req: Request) {
         });
 
         const formatted = formatPosts(posts);
-        return NextResponse.json(formatted);
+        return NextResponse.json(formatted, {
+            headers: { "Cache-Control": "no-store" },
+        });
     } catch (e) {
         console.error("GET /api/posts error:", e);
         return NextResponse.json(
@@ -322,6 +332,8 @@ export async function DELETE(req: Request) {
     if (post.imageUrl) {
         await deleteStoredFile(post.imageUrl);
     }
+
+    revalidateTag("posts");
 
     return NextResponse.json({ message: "Post deleted." }, { status: 200 });
 }
