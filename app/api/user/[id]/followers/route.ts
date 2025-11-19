@@ -34,6 +34,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         orderBy: { createdAt: "desc" },
     });
 
-    const users = rows.map((r) => r.follower);
+    const users = rows.map((r: typeof rows[number]) => r.follower);
     return NextResponse.json(users);
 }

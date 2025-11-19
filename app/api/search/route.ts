@@ -207,7 +207,7 @@ export async function GET(req: Request) {
     const haveViewerPoint = viewerLat != null && viewerLng != null;
 
     // Build result objects (including gallery) asynchronously
-    const processed = raw.map((u) => {
+    const processed = raw.map((u: typeof raw[number]) => {
         const p = u.traineeProfile || u.trainerProfile || u.gymProfile || ({} as any);
         const lat: number | undefined = p.lat ?? undefined;
         const lng: number | undefined = p.lng ?? undefined;
@@ -244,12 +244,15 @@ export async function GET(req: Request) {
             amenitiesText: u.gymProfile?.amenities?.[0] ?? null, // NEW: free-form description
             distanceKm: distance,
             about: u.bio ?? null,
-            gallery: u.searchGalleryImages?.map((img) => img.url) ?? [],
+            gallery:
+                u.searchGalleryImages?.map(
+                    (img: typeof u.searchGalleryImages[number]) => img.url
+                ) ?? [],
         };
     });
 
     // distance filter (client provided)
-    const filtered = processed.filter((r) => {
+    const filtered = processed.filter((r: typeof processed[number]) => {
         if (distanceKm && distanceKm > 0) {
             if (r.distanceKm != null) return r.distanceKm <= distanceKm;
             return false;
@@ -258,7 +261,7 @@ export async function GET(req: Request) {
     });
 
     // sort by distance if present, otherwise alphabetically
-    filtered.sort((a, b) => {
+    filtered.sort((a: typeof filtered[number], b: typeof filtered[number]) => {
         if (a.distanceKm != null && b.distanceKm != null) return a.distanceKm - b.distanceKm;
         if (a.distanceKm != null) return -1;
         if (b.distanceKm != null) return 1;

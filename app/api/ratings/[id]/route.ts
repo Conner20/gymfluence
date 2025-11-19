@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
+import { Prisma } from "@prisma/client";
 
 function extractUserId(session: any): string | null {
     return session?.user?.id ?? session?.user?.sub ?? session?.sub ?? null;
@@ -148,7 +149,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         }
 
         // APPROVE: mark approved, recompute average for target, increment clients
-        const result = await db.$transaction(async (tx) => {
+        const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
             const approved = await tx.rating.update({
                 where: { id },
                 data: { status: "APPROVED" },

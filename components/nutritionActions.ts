@@ -98,7 +98,7 @@ export async function fetchAllNutritionData(): Promise<{
     ]);
 
     return {
-        entries: entries.map((e) => ({
+        entries: entries.map((e: typeof entries[number]) => ({
             id: e.id,
             date: toISODate(e.date),
             meal: e.meal,
@@ -111,8 +111,11 @@ export async function fetchAllNutritionData(): Promise<{
             time: e.time,
             customFoodId: e.customFoodId ?? null,
         })),
-        bodyweights: bodyweights.map((b) => ({ date: toISODate(b.date), weight: b.weight })),
-        customFoods: customFoods.map((cf) => ({
+        bodyweights: bodyweights.map((b: typeof bodyweights[number]) => ({
+            date: toISODate(b.date),
+            weight: b.weight,
+        })),
+        customFoods: customFoods.map((cf: typeof customFoods[number]) => ({
             id: cf.id,
             name: cf.name,
             grams: cf.grams,

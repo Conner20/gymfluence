@@ -42,8 +42,10 @@ export async function GET() {
 
     // Build payloads + unread counts
     const payloads = await Promise.all(
-        rows.map(async (c) => {
-            const others = c.participants.filter((p) => p.userId !== me.id).map((p) => p.user);
+        rows.map(async (c: typeof rows[number]) => {
+            const others = c.participants
+                .filter((p: typeof c.participants[number]) => p.userId !== me.id)
+                .map((p: typeof c.participants[number]) => p.user);
             const isGroup = others.length >= 2;
             const last = c.messages[0] ?? null;
 

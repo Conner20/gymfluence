@@ -22,7 +22,7 @@ export async function GET() {
     });
 
     return NextResponse.json(
-        notifications.map((n) => ({
+        notifications.map((n: typeof notifications[number]) => ({
             id: n.id,
             type: n.type,          // FOLLOW_REQUEST | FOLLOWED_YOU | REQUEST_ACCEPTED
             isRead: n.isRead,

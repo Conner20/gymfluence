@@ -34,7 +34,9 @@ export async function GET() {
         select: { url: true },
     });
 
-    return NextResponse.json({ urls: images.map((img) => img.url) });
+    return NextResponse.json({
+        urls: images.map((img: typeof images[number]) => img.url),
+    });
 }
 
 // POST: upload images (multipart/form-data, field name: "images")

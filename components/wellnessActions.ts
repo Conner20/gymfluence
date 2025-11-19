@@ -68,8 +68,14 @@ export async function fetchWellnessData(): Promise<{
     ]);
 
     return {
-        sleep: sleepRows.map((r) => ({ date: toISODate(r.date), hours: r.hours ?? null })),
-        water: waterRows.map((r) => ({ date: toISODate(r.date), liters: r.liters })),
+        sleep: sleepRows.map((r: typeof sleepRows[number]) => ({
+            date: toISODate(r.date),
+            hours: r.hours ?? null,
+        })),
+        water: waterRows.map((r: typeof waterRows[number]) => ({
+            date: toISODate(r.date),
+            liters: r.liters,
+        })),
         settings: {
             waterGoal: settings.waterGoal,
             unit: (settings.unit as 'lbs' | 'kg' | null) ?? undefined,

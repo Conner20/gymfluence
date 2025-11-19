@@ -84,12 +84,16 @@ export async function GET(req: Request) {
         });
         if (!convo) return NextResponse.json({ message: "Conversation not found" }, { status: 404 });
 
-        const amIn = convo.participants.some((p) => p.userId === me.id);
+        const amIn = convo.participants.some(
+            (p: typeof convo.participants[number]) => p.userId === me.id
+        );
         if (!amIn) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
         convoId = convo.id;
 
-        const others = convo.participants.filter((p) => p.userId !== me.id).map((p) => p.user);
+        const others = convo.participants
+            .filter((p: typeof convo.participants[number]) => p.userId !== me.id)
+            .map((p: typeof convo.participants[number]) => p.user);
         if (convo.dmKey) {
             other = others[0] ?? null;
         } else {
@@ -139,7 +143,7 @@ export async function GET(req: Request) {
         conversationId: convoId,
         other,
         group,
-        messages: messages.map((m) => ({
+        messages: messages.map((m: typeof messages[number]) => ({
             id: m.id,
             content: m.content,
             imageUrls: m.imageUrls,

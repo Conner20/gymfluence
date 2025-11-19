@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
+import { Prisma } from "@prisma/client";
 
 /** Leave / delete conversation */
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -130,7 +131,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     // Update name + create system message atomically
-    const updated = await db.$transaction(async (tx) => {
+    const updated = await db.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.conversation.update({ where: { id: convoId }, data: { name: newName } });
         await tx.message.create({
             data: {

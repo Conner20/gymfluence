@@ -129,7 +129,9 @@ export async function POST(req: Request) {
         select: { id: true, participants: { select: { userId: true } } },
     });
 
-    const exact = candidates.find((c) => c.participants.length === desiredSet.length);
+    const exact = candidates.find(
+        (c: typeof candidates[number]) => c.participants.length === desiredSet.length
+    );
     if (exact) {
         return NextResponse.json({ conversationId: exact.id, isGroup: true, existed: true });
     }

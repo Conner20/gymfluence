@@ -31,12 +31,15 @@ export async function GET(req: Request) {
         },
     });
 
-    const posts = postsRaw.map((p) => ({
+    const posts = postsRaw.map((p: typeof postsRaw[number]) => ({
         ...p,
         likeCount: p.likes.length,
         commentCount:
             p.comments.length +
-            p.comments.reduce((s, c) => s + (c.replies?.length ?? 0), 0),
+            p.comments.reduce(
+                (s: number, c: typeof p.comments[number]) => s + (c.replies?.length ?? 0),
+                0
+            ),
     }));
 
     return NextResponse.json({ user, posts });

@@ -57,7 +57,7 @@ export async function fetchAllDashboardData() {
         },
     });
 
-    const setEntries: SetEntry[] = sets.map((s) => ({
+    const setEntries: SetEntry[] = sets.map((s: typeof sets[number]) => ({
         id: s.id,
         date: s.date.toISOString().slice(0, 10),
         weight: s.weight,
@@ -73,7 +73,7 @@ export async function fetchAllDashboardData() {
     });
 
     return {
-        exercises: exercises.map((e) => e.name),
+        exercises: exercises.map((e: typeof exercises[number]) => e.name),
         sets: setEntries,
         split: splitRow?.items ?? ['rest', 'legs', 'push', 'pull'],
     };

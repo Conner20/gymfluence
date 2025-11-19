@@ -82,11 +82,16 @@ export async function GET(
             name: post.author.name,
         },
         likeCount: post.likes.length,
-        didLike: viewerId ? post.likes.some((l) => l.userId === viewerId) : false,
+        didLike: viewerId
+            ? post.likes.some((l: typeof post.likes[number]) => l.userId === viewerId)
+            : false,
         commentCount:
             post.comments.length +
-            post.comments.reduce((s, c) => s + (c.replies?.length ?? 0), 0),
-        comments: post.comments.map((c) => ({
+            post.comments.reduce(
+                (s: number, c: typeof post.comments[number]) => s + (c.replies?.length ?? 0),
+                0
+            ),
+        comments: post.comments.map((c: typeof post.comments[number]) => ({
             id: c.id,
             content: c.content,
             createdAt: c.createdAt,
@@ -94,7 +99,7 @@ export async function GET(
                 username: c.author?.username ?? null,
                 email: c.author?.email ?? null,
             },
-            replies: c.replies.map((r) => ({
+            replies: c.replies.map((r: typeof c.replies[number]) => ({
                 id: r.id,
                 content: r.content,
                 createdAt: r.createdAt,

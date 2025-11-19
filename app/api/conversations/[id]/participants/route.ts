@@ -70,7 +70,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         where: { conversationId: convoId },
         select: { userId: true },
     });
-    const existingIds = new Set(existing.map((r) => r.userId));
+    const existingIds = new Set(existing.map((r: typeof existing[number]) => r.userId));
     const toAdd = Array.from(new Set(resolved)).filter((id) => id !== me.id && !existingIds.has(id));
 
     if (toAdd.length === 0) {
@@ -88,7 +88,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // Add participants + system message + bump updatedAt
     const actorLabel = me.username || me.name || "Someone";
-    const addedLabels = found.map((u) => u.username || u.name || "a user");
+    const addedLabels = found.map(
+        (u: typeof found[number]) => u.username || u.name || "a user"
+    );
     const listText =
         addedLabels.length === 1
             ? addedLabels[0]
@@ -122,7 +124,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({
         ok: true,
         conversationId: convoId,
-        participants: participants.map((p) => ({
+        participants: participants.map((p: typeof participants[number]) => ({
             id: p.user.id,
             username: p.user.username,
             name: p.user.name,
@@ -220,7 +222,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         ok: true,
         deleted: false,
         conversationId: convoId,
-        participants: participants.map((p) => ({
+        participants: participants.map((p: typeof participants[number]) => ({
             id: p.user.id,
             username: p.user.username,
             name: p.user.name,

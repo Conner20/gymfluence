@@ -77,15 +77,21 @@ export default async function Home() {
         take: 10, // 🔹 only 10 posts on initial load
     });
 
-    const formatted = posts.map((p) => {
+    const formatted = posts.map((p: typeof posts[number]) => {
         const commentCount =
             p.comments.length +
-            p.comments.reduce((s, c) => s + (c.replies?.length ?? 0), 0);
+            p.comments.reduce(
+                (s: number, c: typeof p.comments[number]) =>
+                    s + (c.replies?.length ?? 0),
+                0
+            );
 
         return {
             ...p,
             likeCount: p.likes.length,
-            didLike: viewerId ? p.likes.some((l) => l.userId === viewerId) : false,
+            didLike: viewerId
+                ? p.likes.some((l: typeof p.likes[number]) => l.userId === viewerId)
+                : false,
             commentCount,
         };
     });

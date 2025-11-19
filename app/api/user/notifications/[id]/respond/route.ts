@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 /**
  * Path: /api/user/notifications/[id]/respond
@@ -68,7 +69,7 @@ export async function POST(
 
         if (action === "accept") {
             if (follow && follow.followingId === me.id) {
-                await db.$transaction(async (tx) => {
+                await db.$transaction(async (tx: Prisma.TransactionClient) => {
                     // Accept the follow
                     await tx.follow.update({
                         where: { id: follow.id },
@@ -101,7 +102,7 @@ export async function POST(
         }
 
         // action === "decline"
-        await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx: Prisma.TransactionClient) => {
             // If the pending follow still exists and targets me, remove it
             if (follow && follow.followingId === me.id) {
                 await tx.follow.deleteMany({ where: { id: follow.id } }); // idempotent-safe

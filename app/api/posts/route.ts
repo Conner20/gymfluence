@@ -253,7 +253,7 @@ export async function GET(req: Request) {
                 where: { followerId: viewerId, status: "ACCEPTED" },
                 select: { followingId: true },
             });
-            followedIds = following.map((f) => f.followingId);
+            followedIds = following.map((f: typeof following[number]) => f.followingId);
         }
 
         const baseWhere =
