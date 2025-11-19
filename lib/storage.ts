@@ -92,8 +92,8 @@ export async function storeImageFile(
     try {
         await fs.writeFile(fullPath, buffer);
     } catch (err: any) {
-        // Common on Vercel/readonly runtimes
-        if (err?.code === "EROFS" || err?.code === "EACCES") {
+        // Common on Vercel/readonly runtimes or missing writable path
+        if (err?.code === "EROFS" || err?.code === "EACCES" || err?.code === "ENOENT") {
             throw new Error(
                 "Local uploads are not supported in this environment. Configure UploadThing (UPLOADTHING_TOKEN) or another remote storage provider."
             );

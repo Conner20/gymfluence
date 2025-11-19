@@ -55,11 +55,22 @@ export async function POST(req: Request) {
                     );
                 }
 
-                const uploaded = await storeImageFile(file, {
-                    folder: "posts",
-                    prefix: `post-${user.id}`,
-                });
-                imageUrl = uploaded.url;
+                try {
+                    const uploaded = await storeImageFile(file, {
+                        folder: "posts",
+                        prefix: `post-${user.id}`,
+                    });
+                    imageUrl = uploaded.url;
+                } catch (err: any) {
+                    const msg =
+                        typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
+                            ? err.message
+                            : "Failed to upload image";
+                    return NextResponse.json(
+                        { message: msg },
+                        { status: 503 }
+                    );
+                }
             }
         } else {
             // Back-compat: JSON body (no file)
