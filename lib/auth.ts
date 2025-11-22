@@ -52,6 +52,28 @@ export const authOptions: NextAuthOptions = {
         })
     ],
     callbacks: {
+        async signIn({ user, account }) {
+            if (account?.provider === "google" && user?.id) {
+                const dbUser = await db.user.findUnique({
+                    where: { id: user.id as string },
+                    select: { id: true, username: true, role: true, email: true, name: true },
+                });
+
+                if (!dbUser?.username || !dbUser?.role) {
+                    const params = new URLSearchParams();
+                    params.set("google", "1");
+                    if (dbUser?.email || user.email) {
+                        params.set("email", String(dbUser?.email ?? user.email));
+                    }
+                    if (dbUser?.username || dbUser?.name || user.name) {
+                        params.set("name", String(dbUser?.username ?? dbUser?.name ?? user.name ?? ""));
+                    }
+                    return `/sign-up?${params.toString()}`;
+                }
+            }
+
+            return true;
+        },
         async jwt({ token, user }) {
             console.log(token, user);
             if(user) {

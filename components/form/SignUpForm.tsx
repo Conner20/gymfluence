@@ -9,7 +9,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import GoogleSignInButton from "../GoogleSignInButton";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
 
@@ -39,6 +39,10 @@ type LocationSuggestion = {
 
 const SignUpForm = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const googleMode = searchParams?.get("google") === "1";
+    const googleEmail = searchParams?.get("email") ?? "";
+    const googleName = searchParams?.get("name") ?? "";
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
@@ -98,6 +102,38 @@ const SignUpForm = () => {
             });
         }
     };
+
+    if (googleMode) {
+        return (
+            <div className="flex flex-col gap-4 text-center">
+                <h1 className="text-3xl text-center mb-2">Sign Up</h1>
+                <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                    <p className="font-semibold mb-1">Finish linking your Google account</p>
+                    <p>
+                        We found a Google sign-in for <span className="font-semibold">{googleEmail || "your email"}</span>, but it
+                        hasn&apos;t been onboarded yet. Please complete onboarding to finish setting up your profile.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    className="w-full"
+                    onClick={() =>
+                        router.push(
+                            `/user-onboarding${googleName ? `?username=${encodeURIComponent(googleName)}` : ""}`
+                        )
+                    }
+                >
+                    Continue to onboarding
+                </Button>
+                <p className="text-sm text-gray-600">
+                    Need to try a different account?{" "}
+                    <Link className="text-green-600 hover:underline" href="/log-in">
+                        Return to log in
+                    </Link>
+                </p>
+            </div>
+        );
+    }
 
     return (
         <Form {...form}>

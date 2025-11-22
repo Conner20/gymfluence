@@ -4,6 +4,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { TraineeProfile } from "@/components/TraineeProfile";
 import { TrainerProfile } from "@/components/TrainerProfile";
 import { GymProfile } from "@/components/GymProfile";
@@ -11,6 +12,7 @@ import Navbar from "@/components/Navbar";
 
 export default function ProfilePage() {
     const { data: session } = useSession();
+    const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -25,6 +27,18 @@ export default function ProfilePage() {
             setLoading(false);
         })();
     }, [session?.user?.email]);
+
+    useEffect(() => {
+        if (!loading && user && !user.role) {
+            const params = new URLSearchParams();
+            params.set("google", "1");
+            if (user.email) params.set("email", user.email as string);
+            if (user.username || user.name) {
+                params.set("name", user.username ?? user.name ?? "");
+            }
+            router.push(`/sign-up?${params.toString()}`);
+        }
+    }, [loading, router, user]);
 
     if (loading) return <div className="p-8 text-gray-500">Loading profile...</div>;
     if (!user) return <div className="p-8 text-red-500">User not found</div>;
@@ -72,11 +86,6 @@ export default function ProfilePage() {
             );
 
         default:
-            return (
-                <div className="p-8 text-red-500">
-                    Unknown role
-                    <Navbar />
-                </div>
-            );
+            return <div className="p-8 text-gray-500">Redirecting to finish onboarding…</div>;
     }
 }
