@@ -50,6 +50,15 @@ export default function SettingsPage() {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
+    // Password management
+    const [hasPassword, setHasPassword] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+    const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
     useEffect(() => {
         (async () => {
             const res = await fetch("/api/user/profile");
@@ -59,6 +68,7 @@ export default function SettingsPage() {
                 setLocation(me.location || "");
                 setBio(me.bio || "");
                 setImageUrl(me.image || null);
+                setHasPassword(Boolean(me.hasPassword));
 
                 // NEW: hydrate structured location from API
                 setCity(me.city || "");
@@ -147,6 +157,49 @@ export default function SettingsPage() {
             // errors already alerted
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handlePasswordUpdate = async () => {
+        setPasswordError(null);
+        setPasswordSuccess(null);
+
+        if (newPassword.length < 8) {
+            setPasswordError("New password must be at least 8 characters long.");
+            return;
+        }
+        if (newPassword !== confirmNewPassword) {
+            setPasswordError("New password and confirmation must match.");
+            return;
+        }
+
+        setPasswordLoading(true);
+        try {
+            const res = await fetch("/api/user/password", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    currentPassword: hasPassword ? currentPassword : undefined,
+                    newPassword,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.message || "Failed to update password.");
+            }
+            setPasswordSuccess("Password saved.");
+            setHasPassword(true);
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmNewPassword("");
+        } catch (err) {
+            if (err instanceof Error) {
+                setPasswordError(err.message);
+            } else {
+                setPasswordError("Failed to update password.");
+            }
+        } finally {
+            setPasswordLoading(false);
         }
     };
 
@@ -305,6 +358,65 @@ export default function SettingsPage() {
                         onSaveAll={saveBoth}
                         externalSaveTrigger={searchSaveTrigger}
                     />
+                </div>
+
+                {/* Password management */}
+                <div className="bg-white rounded-xl shadow p-6 space-y-4">
+                    <h2 className="font-semibold">Password</h2>
+                    <p className="text-sm text-gray-600">
+                        {hasPassword
+                            ? "Update your password below."
+                            : "Create a password so you can log in without Google."}
+                    </p>
+                    {hasPassword && (
+                        <div>
+                            <label className="block text-sm text-gray-600 mb-1">Current password</label>
+                            <input
+                                type="password"
+                                className="w-full border rounded px-3 py-2"
+                                value={currentPassword}
+                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                disabled={passwordLoading}
+                                placeholder="Enter current password"
+                            />
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm text-gray-600 mb-1">New password</label>
+                        <input
+                            type="password"
+                            className="w-full border rounded px-3 py-2"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            disabled={passwordLoading}
+                            placeholder="At least 8 characters"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-gray-600 mb-1">Confirm new password</label>
+                        <input
+                            type="password"
+                            className="w-full border rounded px-3 py-2"
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            disabled={passwordLoading}
+                        />
+                    </div>
+                    {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+                    {passwordSuccess && <p className="text-sm text-green-600">{passwordSuccess}</p>}
+                    <button
+                        type="button"
+                        onClick={handlePasswordUpdate}
+                        disabled={
+                            passwordLoading ||
+                            newPassword.length === 0 ||
+                            confirmNewPassword.length === 0 ||
+                            (hasPassword && currentPassword.length === 0)
+                        }
+                        className="px-4 py-2 rounded bg-gray-900 text-white hover:bg-black disabled:opacity-50"
+                    >
+                        {passwordLoading ? "Saving…" : hasPassword ? "Update Password" : "Create Password"}
+                    </button>
                 </div>
 
                 {/* Log Out */}

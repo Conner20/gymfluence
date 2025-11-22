@@ -21,6 +21,7 @@ export async function GET() {
             location: true,
             email: true,
             role: true,
+            password: true,
             traineeProfile: {
                 select: { bio: true, city: true, state: true, country: true, lat: true, lng: true },
             },
@@ -55,6 +56,7 @@ export async function GET() {
         email: me.email,
         role: me.role,
         bio,
+        hasPassword: Boolean(me.password),
         // NEW: structured location fields for the settings page
         city: profile?.city ?? null,
         state: profile?.state ?? null,
