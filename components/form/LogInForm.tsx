@@ -84,7 +84,7 @@ const LogInForm = () => {
                 or
             </div>
 
-            <GoogleSignInButton>Log In with Google</GoogleSignInButton>
+            <GoogleSignInButton callbackUrl="/home">Log In with Google</GoogleSignInButton>
 
             <p className="text-center text-sm text-gray-600 mt-2">
                 If you don&apos;t have an account, please&nbsp;

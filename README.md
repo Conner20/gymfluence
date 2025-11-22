@@ -15,3 +15,16 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Environment variables
+
+Create a `.env.local` (or configure variables in Vercel) containing at least:
+
+```
+DATABASE_URL=postgres://...
+NEXTAUTH_SECRET=your-secret
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+```
+
+Without the Google keys NextAuth disables OAuth and Google sign-in buttons will remain inactive.
