@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Camera } from 'lucide-react';
 
 // --- SharedPostModal (auto-resizes to the real post height) ---
 function SharedPostModal({
@@ -1047,8 +1047,7 @@ export default function Messenger() {
     return (
         <>
             <div
-                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow ring-1 ring-black/5 overflow-hidden flex flex-col lg:flex-row"
-                style={{ minHeight: 'calc(100vh - 180px)' }}
+                className="w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row lg:min-h-[83vh]"
             >
                 {/* Left column */}
                 <aside
@@ -1501,14 +1500,15 @@ export default function Messenger() {
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={!(activeConvoId || activeOther) || !session}
                                 className={clsx(
-                                    'px-3 py-2 rounded-full text-sm font-medium border',
+                                    'px-3 py-2 rounded-full text-sm font-medium border flex items-center justify-center',
                                     !(activeConvoId || activeOther) || !session
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                         : 'bg-white hover:bg-gray-50'
                                 )}
                                 title="Attach images"
                             >
-                                + Image
+                                <span className="sr-only">Add image</span>
+                                <Camera size={18} />
                             </button>
                             <button
                                 onClick={send}

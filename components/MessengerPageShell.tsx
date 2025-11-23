@@ -26,7 +26,7 @@ export default function MessengerPageShell() {
                     {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
                 </button>
             </header>
-            <main className="flex-1 flex justify-center px-4 py-6 w-full">
+            <main className="flex-1 flex justify-center px-0 sm:px-4 py-6 w-full">
                 <Messenger />
             </main>
             <Navbar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
