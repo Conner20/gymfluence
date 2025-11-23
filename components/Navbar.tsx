@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from "react";
 import CreatePost from "./CreatePost";
 
-const navItems = [
+export const navItems = [
     {
         label: "Home",
         href: "/home",
@@ -68,7 +68,7 @@ type NavbarProps = {
     onMobileClose?: () => void;
 };
 
-export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProps) {
+export default function Sidebar({ mobileOpen = false, onMobileClose }: NavbarProps) {
     const pathname = usePathname();
     const [showModal, setShowModal] = useState(false);
 
@@ -106,12 +106,6 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
 
     return (
         <>
-            <nav className="fixed top-0 right-0 h-screen w-20 bg-white flex-col items-center z-50 hidden lg:flex">
-                <div className="flex flex-col justify-center items-center gap-8 h-full w-full">
-                    {navContent}
-                </div>
-            </nav>
-
             <div
                 className={`lg:hidden fixed bottom-0 inset-x-0 bg-white border-t z-50 transition-transform duration-200 ${
                     mobileOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
