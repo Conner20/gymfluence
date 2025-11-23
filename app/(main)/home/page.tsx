@@ -2,9 +2,7 @@
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { db } from "@/prisma/client";
-import HomePosts from "@/components/HomePosts";
-import Navbar from "@/components/Navbar";
-import Link from "next/link";
+import HomePageShell from "@/components/HomePageShell";
 
 export const revalidate = 0; // always fresh server render
 
@@ -96,21 +94,5 @@ export default async function Home() {
         };
     });
 
-    return (
-        <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="w-full bg-white py-6 flex justify-center items-center z-20">
-                <h1 className="font-serif font-bold text-3xl text-green-700 tracking-tight select-none">
-                    <Link href="/">
-                        <span className="cursor-pointer">gymfluence</span>
-                    </Link>
-                </h1>
-            </header>
-
-            <main className="flex-1 w-full flex justify-center">
-                {/* Pass the filtered posts down; component can use or ignore this prop */}
-                <HomePosts initialPosts={formatted as any} />
-            </main>
-            <Navbar />
-        </div>
-    );
+    return <HomePageShell posts={formatted as any} />;
 }
