@@ -1047,8 +1047,8 @@ export default function Messenger() {
     return (
         <>
             <div
-                className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex flex-col lg:flex-row"
-                style={{ height: '83vh' }}
+                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow ring-1 ring-black/5 overflow-hidden flex flex-col lg:flex-row"
+                style={{ minHeight: 'calc(100vh - 180px)' }}
             >
                 {/* Left column */}
                 <aside
@@ -1469,7 +1469,7 @@ export default function Messenger() {
                             <input
                                 key={activeConvoId || activeOther?.id || 'no-thread'}
                                 ref={inputRef}
-                                className="flex-1 h-full border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40"
+                                className="flex-1 h-full border rounded-full px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40"
                                 placeholder="Type a message..."
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
