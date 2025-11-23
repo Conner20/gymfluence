@@ -216,6 +216,9 @@ export default function Messenger() {
     // Shared post modal
     const [openPostId, setOpenPostId] = useState<string | null>(null);
 
+    // Mobile view state
+    const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
+
     // guards
     const threadAbortRef = useRef<AbortController | null>(null);
     const threadReqIdRef = useRef(0);
@@ -528,6 +531,7 @@ export default function Messenger() {
                 setActiveGroupMembers(data.group?.members ?? null);
                 setActiveGroupName(data.group?.name ?? null);
                 setMessages(data.messages);
+                setMobileView('thread');
 
                 setConvos((prev) =>
                     normalizeConvos(
@@ -580,6 +584,7 @@ export default function Messenger() {
                 setActiveGroupMembers(null);
                 setActiveGroupName(null);
                 setMessages(data.messages);
+                setMobileView('thread');
 
                 setConvos((prev) => {
                     const newest = data.messages.at(-1) || null;
@@ -843,6 +848,12 @@ export default function Messenger() {
         return () => clearInterval(t);
     }, [activeConvoId, pollThreadSince]);
 
+    useEffect(() => {
+        if (!activeConvoId) {
+            setMobileView('list');
+        }
+    }, [activeConvoId]);
+
     // ---------------- actions ----------------
 
     const onPick = (row: ConversationRow) => {
@@ -858,6 +869,7 @@ export default function Messenger() {
             setActiveConvoId(row.id);
             router.replace(`${pathname}?convoId=${encodeURIComponent(row.id)}`);
             loadByConversationId(row.id);
+            setMobileView('thread');
         } else if (row.other) {
             setActiveOther(row.other);
             setActiveGroupMembers(null);
@@ -866,6 +878,7 @@ export default function Messenger() {
             const pretty = row.other.username || row.other.id;
             router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
             loadByTo(row.other.id);
+            setMobileView('thread');
         }
     };
 
@@ -881,6 +894,7 @@ export default function Messenger() {
         loadByTo(user.id);
         setSearch('');
         setSearchFollowers([]);
+        setMobileView('thread');
     };
 
     // NEW: delete conversation handler
@@ -1033,11 +1047,16 @@ export default function Messenger() {
     return (
         <>
             <div
-                className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex"
+                className="w-full max-w-6xl bg-white rounded-2xl shadow ring-1 ring-black/5 overflow-hidden flex flex-col lg:flex-row"
                 style={{ height: '83vh' }}
             >
                 {/* Left column */}
-                <aside className="border-r w-[340px] flex-shrink-0 flex flex-col h-full">
+                <aside
+                    className={clsx(
+                        'border-b lg:border-b-0 lg:border-r w-full lg:w-[340px] flex-shrink-0 flex flex-col h-full',
+                        mobileView === 'thread' ? 'hidden lg:flex' : 'flex'
+                    )}
+                >
                     <div className="px-4 py-3 flex items-center justify-between">
                         <div className="font-semibold">Messages</div>
                         <button
@@ -1184,9 +1203,25 @@ export default function Messenger() {
                 </aside>
 
                 {/* Right column */}
-                <section className="flex flex-col h-full flex-1 overflow-hidden">
+                <section
+                    className={clsx(
+                        'flex flex-col h-full flex-1 overflow-hidden w-full',
+                        mobileView === 'thread' ? 'flex' : 'hidden',
+                        'lg:flex'
+                    )}
+                >
                     {/* Header */}
                     <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
+                        <button
+                            type="button"
+                            className={clsx(
+                                'lg:hidden text-sm text-gray-600 mr-2',
+                                mobileView === 'thread' ? 'block' : 'hidden'
+                            )}
+                            onClick={() => setMobileView('list')}
+                        >
+                            ← Back
+                        </button>
                         {activeConvoId ? (
                             <>
                                 {activeGroupMembers ? (
