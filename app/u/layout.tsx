@@ -7,13 +7,11 @@ interface AuthLayoutProps {
 
 const AuthLayout: FC<AuthLayoutProps> = ({ children }) => {
     return (
-        <div className="flex">
-
-            <div className="flex-1 min-h-screen mr-20 bg-zinc-100">
-
+        <div className="flex min-h-screen w-full">
+            <div className="flex-1 bg-zinc-100 mr-0 lg:mr-20">
                 {children}
             </div>
-            <Navbar />
+            <Navbar mobileOpen={false} />
         </div>
     );
 };
