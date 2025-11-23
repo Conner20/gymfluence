@@ -1543,7 +1543,7 @@ export default function Messenger() {
                                                 className="h-24 w-full object-cover rounded-lg"
                                             />
                                             <button
-                                                className="absolute -top-2 -right-2 bg-black/70 text-white text-[10px] rounded-full px-1.5 py-0.5 opacity-0 group-hover:opacity-100"
+                                                className="absolute -top-2 -right-2 bg-black/70 text-white text-[10px] rounded-full px-1.5 py-0.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                                                 onClick={() => {
                                                     setFiles((prev) => prev.filter((_, idx) => idx !== i));
                                                     setPreviews((prev) =>
