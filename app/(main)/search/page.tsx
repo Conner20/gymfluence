@@ -289,24 +289,21 @@ export default function SearchPage() {
         </div>
     );
 
-    const handleResultSelect = (userId: string, context: 'desktop' | 'mobile') => {
+    const handleMobileSelect = (userId: string) => {
         setSelectedId(userId);
-        if (context === 'mobile') {
-            setMobileView('details');
-        }
+        setMobileView('details');
     };
 
-    const renderResultCard = (u: SearchUser, context: 'desktop' | 'mobile') => {
+    const renderMobileCard = (u: SearchUser) => {
         const isSelected = selectedId === u.id;
         return (
             <button
-                key={`${context}-${u.id}`}
+                key={`mobile-${u.id}`}
                 className={clsx(
-                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                    isSelected ? "ring-2 ring-gray-900" : "hover:shadow",
-                    context === 'mobile' && "shadow-sm"
+                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 shadow-sm",
+                    isSelected && "ring-2 ring-gray-900"
                 )}
-                onClick={() => handleResultSelect(u.id, context)}
+                onClick={() => handleMobileSelect(u.id)}
             >
                 <div className="flex items-start gap-3">
                     {u.image ? (
@@ -527,7 +524,7 @@ export default function SearchPage() {
                                 <div className="p-4 text-sm text-red-500 bg-white rounded-xl border">{error}</div>
                             ) : data?.results.length ? (
                                 <div className="space-y-3">
-                                    {data.results.map((u) => renderResultCard(u, 'mobile'))}
+                                    {data.results.map((u) => renderMobileCard(u))}
                                 </div>
                             ) : (
                                 <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border">No results.</div>
@@ -569,10 +566,87 @@ export default function SearchPage() {
                                             <div className="p-4 text-sm text-gray-500">Loading…</div>
                                         ) : error ? (
                                             <div className="p-4 text-sm text-red-500">{error}</div>
-                                        ) : data?.results.length ? (
-                                            data.results.map((u) => renderResultCard(u, 'desktop'))
-                                        ) : (
+                                        ) : !data || data.results.length === 0 ? (
                                             <div className="p-4 text-sm text-gray-500">No results.</div>
+                                        ) : (
+                                            data.results.map((u) => {
+                                                const slug = u.username || u.id;
+                                                const display = u.name || u.username || 'User';
+
+                                                return (
+                                                    <button
+                                                        key={u.id}
+                                                        onClick={() => setSelectedId(u.id)}
+                                                        className={clsx(
+                                                            'w-full text-left p-3 hover:bg-gray-50 flex items-start gap-3',
+                                                            selectedId === u.id && 'bg-gray-50'
+                                                        )}
+                                                        title={display}
+                                                    >
+                                                        {u.image ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img
+                                                                src={u.image}
+                                                                alt={display}
+                                                                className="w-10 h-10 rounded-full object-cover border"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-semibold">
+                                                                {(u.name || u.username || 'U').slice(0, 2)}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="min-w-0 flex items-center gap-2">
+                                                                    <Link
+                                                                        href={`/u/${encodeURIComponent(slug)}`}
+                                                                        className="truncate font-medium hover:underline"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        title={display}
+                                                                    >
+                                                                        {display}
+                                                                    </Link>
+                                                                    <span className="text-xs text-gray-500">
+                                                                        {u.role?.toLowerCase()}
+                                                                    </span>
+                                                                </div>
+
+                                                                {u.isPrivate && (
+                                                                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border whitespace-nowrap">
+                                                                        private
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                                                {u.about?.trim()
+                                                                    ? u.about
+                                                                    : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
+                                                            </div>
+
+                                                            <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2">
+                                                                {(u.city || u.state) && (
+                                                                    <span>
+                                                                        {u.city}
+                                                                        {u.state ? `, ${u.state}` : ''}
+                                                                    </span>
+                                                                )}
+                                                                {u.price != null && (
+                                                                    <span>
+                                                                        {(u.city || u.state) ? '· ' : ''}
+                                                                        {u.role === 'TRAINER'
+                                                                            ? `$${u.price}/hr`
+                                                                            : u.role === 'GYM'
+                                                                                ? `$${u.price}/mo`
+                                                                                : `$${u.price}`}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })
                                         )}
                                     </div>
                                 </div>
