@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
 import clsx from 'clsx';
+import Navbar from "@/components/Navbar";
 import { createPortal } from 'react-dom';
-import PageShell from "@/components/PageShell";
 
 type Role = 'TRAINEE' | 'TRAINER' | 'GYM';
 
@@ -160,10 +160,16 @@ export default function SearchPage() {
         return () => window.removeEventListener('keydown', onKey);
     }, [lightboxUrl]);
 
-    const filterHeader = (
-        <div className="bg-white border-b border-gray-200">
-            <div className="mx-auto max-w-[1400px] w-full flex items-center gap-4 py-6 pl-[40px] pr-4">
-                <div className="flex items-center gap-3 flex-1 justify-end">
+    return (
+        <div className="min-h-screen bg-[#f8f8f8]">
+            {/* Messenger-style header with title at left + controls to the right */}
+            <header className="sticky top-0 z-20 w-full bg-white border-b">
+                <div className="mx-auto max-w-[1400px] w-full flex items-center gap-4 py-6 pl-[40px] pr-4">
+                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+                        <span>search</span>
+                    </h1>
+
+                    <div className="flex items-center gap-3 flex-1 justify-end">
                         <div className="flex items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2">
                             <SearchIcon size={18} className="text-gray-500" />
                             <input
@@ -290,13 +296,11 @@ export default function SearchPage() {
                         >
                             Reset
                         </button>
+                    </div>
                 </div>
-            </div>
-        </div>
-    );
+            </header>
 
-    return (
-        <PageShell title="search" href="/search" subHeader={filterHeader} mainClassName="w-full">
+            {/* SIDE-BY-SIDE LAYOUT */}
             <div className="mx-auto max-w-[1400px] px-4 py-4">
                 <div className="flex gap-6">
                     {/* LEFT: list */}
@@ -446,7 +450,9 @@ export default function SearchPage() {
                 </div>,
                 document.body
             )}
-        </PageShell>
+
+            <Navbar />
+        </div>
     );
 }
 
