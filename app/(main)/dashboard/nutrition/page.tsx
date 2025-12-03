@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
+import MobileHeader from '@/components/MobileHeader';
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Plus, X, Trash2, ArrowUpRight, ArrowDownRight, Sliders } from 'lucide-react';
 
@@ -212,10 +212,26 @@ export default function Nutrition() {
     }, []);
 
     /** Layout */
+    const mobileTabs = (
+        <div className="px-4 py-3 flex gap-2 text-sm">
+            <Link href="/dashboard" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
+                workouts
+            </Link>
+            <Link href="/dashboard/wellness" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
+                wellness
+            </Link>
+            <Link href="/dashboard/nutrition" className="flex-1 rounded-full px-4 py-2 text-center bg-black text-white">
+                nutrition
+            </Link>
+        </div>
+    );
+
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-[#f8f8f8]">
+        <div className="flex min-h-screen flex-col overflow-hidden bg-[#f8f8f8]">
+            <MobileHeader title="nutrition log" href="/dashboard/nutrition" subContent={mobileTabs} />
+
             {/* Header */}
-            <header className="flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
+            <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
                 <h1 className="select-none font-roboto text-3xl text-black tracking-tight">nutrition log</h1>
                 <nav className="flex gap-2">
                     <Link href="/dashboard" className="px-6 py-2 text-black hover:underline">workouts</Link>
@@ -225,7 +241,7 @@ export default function Nutrition() {
             </header>
 
             {/* Content */}
-            <div className="h-full w-full flex-1 overflow-hidden px-6 pb-4 pt-4">
+            <div className="w-full flex-1 overflow-hidden px-6 pb-4 pt-4">
                 <div className="grid h-full min-w-0 grid-cols-12 gap-6">
                     {/* LEFT — Macros flip card (with date switcher) */}
                     <section className="col-span-4 min-h-0">
@@ -372,8 +388,6 @@ export default function Nutrition() {
                     onSave={(next) => { setHeatmapLevels(next); setOpenEditLevels(false); }}
                 />
             )}
-
-            <Navbar />
         </div>
     );
 }

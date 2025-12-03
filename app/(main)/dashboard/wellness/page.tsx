@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
+import MobileHeader from '@/components/MobileHeader';
 import { Moon, Droplet, Flame, Plus, X } from 'lucide-react';
 
 import {
@@ -745,9 +745,25 @@ function WellnessPage() {
         return streak;
     }, [water, sleep, waterGoal]);
 
+    const mobileTabs = (
+        <div className="px-4 py-3 flex gap-2 text-sm">
+            <Link href="/dashboard" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
+                workouts
+            </Link>
+            <Link href="/dashboard/wellness" className="flex-1 rounded-full px-4 py-2 text-center bg-black text-white">
+                wellness
+            </Link>
+            <Link href="/dashboard/nutrition" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
+                nutrition
+            </Link>
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="flex w-full items-center justify-between bg-white px-[40px] py-5">
+        <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
+            <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
+
+            <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none">
                 <h1 className="select-none font-roboto text-3xl text-black tracking-tight">
                     wellness log
                 </h1>
@@ -765,7 +781,7 @@ function WellnessPage() {
             </header>
 
             {/* Full-height dashboard area fills viewport minus header */}
-            <main className="mx-auto grid h-[calc(100vh-128px)] max-w-[1400px] grid-cols-12 gap-6 p-4">
+            <main className="mx-auto grid w-full flex-1 max-w-[1400px] grid-cols-12 gap-6 p-4 lg:h-[calc(100vh-128px)]">
                 {/* Left column — Sleep bigger, Water smaller */}
                 <section className="col-span-12 grid grid-rows-[2fr_1fr] gap-6 overflow-hidden lg:col-span-7">
                     <SleepLine
@@ -824,8 +840,6 @@ function WellnessPage() {
                     />
                 </section>
             </main>
-
-            <Navbar />
         </div>
     );
 }

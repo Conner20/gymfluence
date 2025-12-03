@@ -372,11 +372,74 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
         <>
             <div className="w-full max-w-xl mx-auto mt-6">
                 <div className="space-y-6">
-                    {posts.map((post) => (
-                        <div
-                            key={post.id}
-                            className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
-                        >
+                    {posts.map((post) => {
+                        const actionButtons = (
+                            <>
+                                <button
+                                    className={clsx(
+                                        "flex items-center gap-1 text-xs transition",
+                                        post.didLike
+                                            ? "text-red-500 font-bold"
+                                            : "text-gray-400 hover:text-red-400"
+                                    )}
+                                    onClick={() => handleLike(post.id)}
+                                    disabled={!session}
+                                    title={
+                                        session
+                                            ? post.didLike
+                                                ? "Unlike"
+                                                : "Like"
+                                            : "Sign in to like"
+                                    }
+                                >
+                                    <Heart
+                                        size={18}
+                                        fill={post.didLike ? "currentColor" : "none"}
+                                        strokeWidth={2}
+                                    />
+                                    {post.likeCount ?? 0}
+                                </button>
+
+                                <button
+                                    className={clsx(
+                                        "flex items-center gap-1 text-xs transition",
+                                        openComments[post.id]
+                                            ? "text-green-600 font-semibold"
+                                            : "text-gray-400 hover:text-green-600"
+                                    )}
+                                    onClick={() => toggleComments(post.id)}
+                                    title="Show comments"
+                                >
+                                    <MessageCircle size={16} />
+                                    {post.commentCount ?? 0}
+                                </button>
+
+                                <button
+                                    className={clsx(
+                                        "flex items-center gap-1 text-xs transition",
+                                        canShare
+                                            ? "text-gray-500 hover:text-green-700"
+                                            : "text-gray-300 cursor-not-allowed"
+                                    )}
+                                    onClick={() => canShare && openShareModal(post.id)}
+                                    disabled={!canShare}
+                                    title={
+                                        canShare
+                                            ? "Share via Messenger"
+                                            : "Sign in to share"
+                                    }
+                                >
+                                    <Share2 size={16} />
+                                    Share
+                                </button>
+                            </>
+                        );
+
+                        return (
+                            <div
+                                key={post.id}
+                                className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
+                            >
                             {post.author?.username === username && (
                                 <button
                                     onClick={() => handleDelete(post.id)}
@@ -391,97 +454,58 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                 <span className="font-bold text-lg text-gray-800">
                                     {post.title}
                                 </span>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs text-gray-500">
-                                        by{" "}
-                                        {post.author?.username ? (
-                                            post.author.username === username ? (
-                                                <Link
-                                                    href="/profile"
-                                                    className="font-semibold hover:underline"
-                                                    title="View your profile"
-                                                >
-                                                    {post.author.username}
-                                                </Link>
-                                            ) : (
-                                                <Link
-                                                    href={`/u/${encodeURIComponent(
-                                                        post.author.username
-                                                    )}`}
-                                                    className="font-semibold hover:underline"
-                                                    title={`View ${post.author.username}'s profile`}
-                                                >
-                                                    {post.author.username}
-                                                </Link>
-                                            )
-                                        ) : (
-                                            <span className="font-semibold">Unknown</span>
-                                        )}
-                                    </span>
-                                    <span className="text-xs text-gray-400">
-                                        · {new Date(post.createdAt).toLocaleString()}
-                                    </span>
+                                {(() => {
+                                    const authorBits = (
+                                        <>
+                                            <span className="text-xs text-gray-500">
+                                                by{" "}
+                                                {post.author?.username ? (
+                                                    post.author.username === username ? (
+                                                        <Link
+                                                            href="/profile"
+                                                            className="font-semibold hover:underline"
+                                                            title="View your profile"
+                                                        >
+                                                            {post.author.username}
+                                                        </Link>
+                                                    ) : (
+                                                        <Link
+                                                            href={`/u/${encodeURIComponent(
+                                                                post.author.username
+                                                            )}`}
+                                                            className="font-semibold hover:underline"
+                                                            title={`View ${post.author.username}'s profile`}
+                                                        >
+                                                            {post.author.username}
+                                                        </Link>
+                                                    )
+                                                ) : (
+                                                    <span className="font-semibold">Unknown</span>
+                                                )}
+                                            </span>
+                                            <span className="text-xs text-gray-400">
+                                                · {new Date(post.createdAt).toLocaleString()}
+                                            </span>
+                                        </>
+                                    );
 
-                                    {/* Like */}
-                                    <button
-                                        className={clsx(
-                                            "flex items-center ml-3 gap-1 text-xs transition",
-                                            post.didLike
-                                                ? "text-red-500 font-bold"
-                                                : "text-gray-400 hover:text-red-400"
-                                        )}
-                                        onClick={() => handleLike(post.id)}
-                                        disabled={!session}
-                                        title={
-                                            session
-                                                ? post.didLike
-                                                    ? "Unlike"
-                                                    : "Like"
-                                                : "Sign in to like"
-                                        }
-                                    >
-                                        <Heart
-                                            size={18}
-                                            fill={post.didLike ? "currentColor" : "none"}
-                                            strokeWidth={2}
-                                        />
-                                        {post.likeCount ?? 0}
-                                    </button>
+                                    return (
+                                        <>
+                                            <div className="flex flex-wrap items-center gap-2 md:hidden">
+                                                {authorBits}
+                                            </div>
+                                            <div className="hidden md:flex flex-wrap items-center gap-3">
+                                                {authorBits}
+                                                <div className="flex flex-wrap items-center gap-4">
+                                                    {actionButtons}
+                                                </div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
 
-                                    {/* Comments toggle */}
-                                    <button
-                                        className={clsx(
-                                            "flex items-center gap-1 text-xs ml-2 transition",
-                                            openComments[post.id]
-                                                ? "text-green-600 font-semibold"
-                                                : "text-gray-400 hover:text-green-600"
-                                        )}
-                                        onClick={() => toggleComments(post.id)}
-                                        title="Show comments"
-                                    >
-                                        <MessageCircle size={16} />
-                                        {post.commentCount ?? 0}
-                                    </button>
-
-                                    {/* Share */}
-                                    <button
-                                        className={clsx(
-                                            "flex items-center gap-1 text-xs ml-2 transition",
-                                            canShare
-                                                ? "text-gray-500 hover:text-green-700"
-                                                : "text-gray-300 cursor-not-allowed"
-                                        )}
-                                        onClick={() => canShare && openShareModal(post.id)}
-                                        disabled={!canShare}
-                                        title={
-                                            canShare
-                                                ? "Share via Messenger"
-                                                : "Sign in to share"
-                                        }
-                                    >
-                                        <Share2 size={16} />
-                                        Share
-                                    </button>
+                                <div className="mt-2 flex md:hidden flex-wrap items-center gap-4">
+                                    {actionButtons}
                                 </div>
                             </div>
 
@@ -514,7 +538,8 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                 </div>
                             )}
                         </div>
-                    ))}
+                        );
+                    })}
 
                     {posts.length === 0 && !loading && (
                         <div className="text-gray-400 text-center py-12">

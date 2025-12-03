@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
+import MobileHeader from '@/components/MobileHeader';
 import { Trash2 } from 'lucide-react';
 import {
     fetchAllDashboardData,
@@ -665,10 +665,26 @@ export default function Dashboard() {
     const reqClass = (empty: boolean) =>
         `w-full border rounded px-2 py-1 text-sm mt-1 ${showRequired && empty ? 'text-red-600 placeholder-red-400' : ''}`;
 
+    const mobileTabs = (
+        <div className="px-4 py-3 flex gap-2 text-sm">
+            <Link href="/dashboard" className="flex-1 rounded-full px-4 py-2 text-center bg-black text-white">
+                workouts
+            </Link>
+            <Link href="/dashboard/wellness" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
+                wellness
+            </Link>
+            <Link href="/dashboard/nutrition" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
+                nutrition
+            </Link>
+        </div>
+    );
+
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-[#f8f8f8]">
+            <MobileHeader title="workouts log" href="/dashboard" subContent={mobileTabs} />
+
             {/* Header (fixed height) */}
-            <header className="flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
+            <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
                 <h1 className="select-none font-roboto text-3xl tracking-tight text-black">workouts log</h1>
                 <nav className="flex gap-2">
                     <Link href="/dashboard" className="bg-black px-6 py-2 text-white">
@@ -986,7 +1002,6 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <Navbar />
         </div>
     );
 }

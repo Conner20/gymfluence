@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { TraineeProfile } from "@/components/TraineeProfile";
 import { TrainerProfile } from "@/components/TrainerProfile";
 import { GymProfile } from "@/components/GymProfile";
-import Navbar from "@/components/Navbar";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function ProfilePage() {
     const { data: session } = useSession();
@@ -47,19 +47,19 @@ export default function ProfilePage() {
 
     const Shell = ({ children }: { children: React.ReactNode }) => (
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
-            {/* 🔒 Always-sticky header */}
-            <header className="sticky top-0 z-30 w-full bg-white py-6 flex justify-start pl-[40px]">
+            <MobileHeader title={username} href="/profile" />
+
+            {/* Desktop header */}
+            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white py-6 justify-start pl-[40px] border-b">
                 <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
                     <span>{username}</span>
                 </h1>
             </header>
 
             {/* Scrollable content */}
-            <main className="flex-1">
+            <main className="flex-1 w-full">
                 {children}
             </main>
-
-            <Navbar />
         </div>
     );
 

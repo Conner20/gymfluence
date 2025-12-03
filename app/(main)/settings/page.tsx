@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import PrivacyToggle from "./privacy-toggle";
-import Navbar from "@/components/Navbar";
+import MobileHeader from "@/components/MobileHeader";
 import SearchProfileEditor from "@/components/SearchProfileEditor";
 
 type LocationSuggestion = {
@@ -242,10 +242,12 @@ export default function SettingsPage() {
     const displayImage = previewUrl || imageUrl;
 
     return (
-        <div className="min-h-screen bg-[#f8f8f8]">
-            <header className="w-full bg-white py-6 flex justify-start pl-[40px] z-20">
+        <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
+            <MobileHeader title="settings" href="/settings" />
+
+            <header className="hidden lg:flex w-full bg-white py-6 justify-start pl-[40px] z-20 border-b">
                 <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
-                    <span>profile</span>
+                    <span>settings</span>
                 </h1>
             </header>
 
@@ -492,7 +494,6 @@ export default function SettingsPage() {
                 </div>
             </main>
 
-            <Navbar />
         </div>
     );
 }
