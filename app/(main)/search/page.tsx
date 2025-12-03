@@ -173,118 +173,131 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div className="flex flex-wrap gap-2">
-                <Chip
-                    label="Distance"
-                    value={distanceKm ? `${distanceKm} km` : 'Any'}
-                    menu={
-                        <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                            {['', '5', '10', '25', '50', '100'].map((d) => (
-                                <button
-                                    key={d || 'any'}
-                                    onClick={() => setDistanceKm(d)}
-                                    className={clsx(
-                                        'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                        (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
-                                    )}
-                                >
-                                    {d ? `${d} km` : 'Any'}
-                                </button>
-                            ))}
-                        </div>
-                    }
-                />
-                <Chip
-                    label="Role"
-                    value={role === 'ALL' ? 'All' : role.toLowerCase()}
-                    menu={
-                        <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                            {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
-                                <button
-                                    key={r}
-                                    onClick={() => setRole(r)}
-                                    className={clsx(
-                                        'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                        role === r ? 'bg-gray-900 text-white' : 'bg-white'
-                                    )}
-                                >
-                                    {r.toLowerCase()}
-                                </button>
-                            ))}
-                        </div>
-                    }
-                />
-                <Chip
-                    label="Budget"
-                    value={`${minBudget || 0}–${maxBudget || '∞'}`}
-                    menu={
-                        <div className="p-3 w-72">
-                            <div className="text-xs text-gray-500 mb-2">
-                                Trainers: hourly • Gyms: monthly fee
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    min={0}
-                                    className="w-28 border rounded px-2 py-1 text-sm"
-                                    placeholder="min"
-                                    value={minBudget}
-                                    onChange={(e) => setMinBudget(e.target.value)}
-                                />
-                                <span className="text-gray-400">—</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    className="w-28 border rounded px-2 py-1 text-sm"
-                                    placeholder="max"
-                                    value={maxBudget}
-                                    onChange={(e) => setMaxBudget(e.target.value)}
-                                />
-                            </div>
-                            <div className="mt-3 flex justify-end">
-                                <button
-                                    onClick={() => {
-                                        setMinBudget('');
-                                        setMaxBudget('');
-                                    }}
-                                    className="text-xs text-gray-600 underline"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-                    }
-                />
-                <Chip
-                    label="Goals"
-                    value={goals.length ? `${goals.length} selected` : 'Any'}
-                    menu={
-                        <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
-                            {allGoals.map((g) => (
-                                <label key={g} className="text-sm flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={goals.includes(g)}
-                                        onChange={() => toggleGoal(g)}
-                                    />
-                                    <span>{g}</span>
-                                </label>
-                            ))}
-                            <div className="flex justify-end mt-1">
-                                <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-                    }
-                />
-                <button
-                    onClick={resetFilters}
-                    className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50"
-                    title="Reset filters"
-                >
-                    Reset
-                </button>
+            <div
+                className="flex gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none]"
+                style={{ scrollbarWidth: "none" }}
+            >
+                <div className="flex gap-2 pr-4">
+                    <div className="shrink-0">
+                        <Chip
+                            label="Distance"
+                            value={distanceKm ? `${distanceKm} km` : 'Any'}
+                            menu={
+                                <div className="grid grid-cols-2 gap-2 p-2 w-52">
+                                    {['', '5', '10', '25', '50', '100'].map((d) => (
+                                        <button
+                                            key={d || 'any'}
+                                            onClick={() => setDistanceKm(d)}
+                                            className={clsx(
+                                                'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
+                                                (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
+                                            )}
+                                        >
+                                            {d ? `${d} km` : 'Any'}
+                                        </button>
+                                    ))}
+                                </div>
+                            }
+                        />
+                    </div>
+                    <div className="shrink-0">
+                        <Chip
+                            label="Role"
+                            value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                            menu={
+                                <div className="grid grid-cols-2 gap-2 p-2 w-52">
+                                    {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
+                                        <button
+                                            key={r}
+                                            onClick={() => setRole(r)}
+                                            className={clsx(
+                                                'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
+                                                role === r ? 'bg-gray-900 text-white' : 'bg-white'
+                                            )}
+                                        >
+                                            {r.toLowerCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            }
+                        />
+                    </div>
+                    <div className="shrink-0">
+                        <Chip
+                            label="Budget"
+                            value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                            menu={
+                                <div className="p-3 w-72">
+                                    <div className="text-xs text-gray-500 mb-2">
+                                        Trainers: hourly • Gyms: monthly fee
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="w-28 border rounded px-2 py-1 text-sm"
+                                            placeholder="min"
+                                            value={minBudget}
+                                            onChange={(e) => setMinBudget(e.target.value)}
+                                        />
+                                        <span className="text-gray-400">—</span>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="w-28 border rounded px-2 py-1 text-sm"
+                                            placeholder="max"
+                                            value={maxBudget}
+                                            onChange={(e) => setMaxBudget(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="mt-3 flex justify-end">
+                                        <button
+                                            onClick={() => {
+                                                setMinBudget('');
+                                                setMaxBudget('');
+                                            }}
+                                            className="text-xs text-gray-600 underline"
+                                        >
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        />
+                    </div>
+                    <div className="shrink-0">
+                        <Chip
+                            label="Goals"
+                            value={goals.length ? `${goals.length} selected` : 'Any'}
+                            menu={
+                                <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
+                                    {allGoals.map((g) => (
+                                        <label key={g} className="text-sm flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={goals.includes(g)}
+                                                onChange={() => toggleGoal(g)}
+                                            />
+                                            <span>{g}</span>
+                                        </label>
+                                    ))}
+                                    <div className="flex justify-end mt-1">
+                                        <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        />
+                    </div>
+                    <button
+                        onClick={resetFilters}
+                        className="shrink-0 text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50"
+                        title="Reset filters"
+                    >
+                        Reset
+                    </button>
+                </div>
             </div>
         </div>
     );
