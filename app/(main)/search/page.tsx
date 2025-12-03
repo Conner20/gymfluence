@@ -173,10 +173,7 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div
-                className="flex gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none]"
-                style={{ scrollbarWidth: "none" }}
-            >
+            <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 [-ms-overflow-style:none]" style={{ scrollbarWidth: "none" }}>
                 <div className="flex gap-2 pr-4">
                     <div className="shrink-0">
                         <Chip
