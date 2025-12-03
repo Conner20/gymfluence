@@ -163,7 +163,7 @@ export default function SearchPage() {
     }, [lightboxUrl]);
 
     const mobileFilters = (
-        <div className="px-4 py-4 space-y-3">
+        <div className="px-4 py-4 space-y-2">
             <div className="flex items-center gap-2 rounded-full border px-3 py-2">
                 <SearchIcon size={18} className="text-gray-500" />
                 <input
@@ -540,7 +540,7 @@ export default function SearchPage() {
                             >
                                 <span className="text-lg">&larr;</span> Back
                             </button>
-                            <div className="bg-white border rounded-xl p-4">
+                            <div className="bg-white border rounded-xl p-4 overflow-hidden">
                                 {!selected ? (
                                     <div className="text-gray-500 text-sm">Select a result to see details.</div>
                                 ) : (
@@ -549,6 +549,7 @@ export default function SearchPage() {
                                         onMessage={handleMessage}
                                         onShare={handleShareProfile}
                                         onOpenImage={(url) => setLightboxUrl(url)}
+                                        variant="mobile"
                                     />
                                 )}
                             </div>
@@ -708,27 +709,30 @@ export default function SearchPage() {
 }
 
 
-function UserDetails({
-    u,
-    onMessage,
-    onShare,
-    onOpenImage,
-}: {
+type UserDetailsProps = {
     u: SearchUser;
     onMessage: (u: SearchUser) => void;
     onShare: (u: SearchUser) => void;
     onOpenImage: (url: string) => void;
-}) {
+    variant?: 'desktop' | 'mobile';
+};
+
+function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }: UserDetailsProps) {
     const slug = u.username || u.id;
     const display = u.name || u.username || 'User';
 
     return (
-        <div className="max-w-[820px]">
+        <div className={clsx("max-w-[820px]", variant === 'mobile' && "max-w-full space-y-4")}>
             {/* Header: name + actions on the RIGHT */}
-            <div className="flex items-start gap-4">
+            <div
+                className={clsx(
+                    "flex items-start gap-4",
+                    variant === 'mobile' && "flex-col gap-3"
+                )}
+            >
                 {u.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={u.image} alt="" className="w-16 h-16 rounded-full object-cover border" />
+                    <img src={u.image} alt="" className="w-16 h-16 rounded-full object-cover border shrink-0" />
                 ) : (
                     <div className="w-16 h-16 rounded-full bg-gray-200 border flex items-center justify-center text-sm font-semibold">
                         {(u.name || u.username || 'U').slice(0, 2)}
@@ -736,19 +740,39 @@ function UserDetails({
                 )}
 
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="text-2xl font-semibold min-w-0">
+                    <div
+                        className={clsx(
+                            "flex items-center justify-between gap-3",
+                            variant === 'mobile' && "flex-col items-start gap-2"
+                        )}
+                    >
+                        <div className={clsx("font-semibold min-w-0", variant === 'mobile' ? "text-xl" : "text-2xl")}>
                             <Link
                                 href={`/u/${encodeURIComponent(slug)}`}
-                                className="hover:underline truncate align-middle"
+                                className={clsx(
+                                    "hover:underline align-middle",
+                                    variant === 'mobile' ? "break-words" : "truncate"
+                                )}
                                 title={display}
                             >
                                 {display}
                             </Link>
-                            <span className="ml-3 text-base text-gray-500 align-middle">{u.role?.toLowerCase()}</span>
+                            <span
+                                className={clsx(
+                                    "text-base text-gray-500",
+                                    variant === 'mobile' ? "block mt-1" : "ml-3 align-middle"
+                                )}
+                            >
+                                {u.role?.toLowerCase()}
+                            </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div
+                            className={clsx(
+                                "flex items-center gap-2",
+                                variant === 'mobile' && "w-full flex-wrap gap-2"
+                            )}
+                        >
                             <button
                                 className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
                                 title="Message"
@@ -785,8 +809,7 @@ function UserDetails({
                         </div>
                     </div>
 
-                    {/* UPDATED: only city, state + rate/fee; no country, no km away */}
-                    <div className="text-sm text-gray-600 mt-1">
+                    <div className={clsx("text-sm text-gray-600 mt-1", variant === 'mobile' && "break-words")}>
                         {u.city}
                         {u.state ? `, ${u.state}` : ''}
                         {u.price != null && (
@@ -803,19 +826,19 @@ function UserDetails({
                 </div>
             </div>
 
-            <hr className="my-5" />
+            <hr className={clsx("my-5", variant === 'mobile' && "my-4")} />
 
             {/* About */}
             <div>
                 <h3 className="font-semibold mb-2">About</h3>
-                <p className="text-gray-800 whitespace-pre-wrap">
+                <p className="text-gray-800 whitespace-pre-wrap break-words">
                     {u.about?.trim() || 'No description provided.'}
                 </p>
             </div>
 
             {/* TRAINEE — Goals on its own line */}
             {u.role === 'TRAINEE' && u.goals && (
-                <section className="mt-6">
+                <section className={clsx("mt-6", variant === 'mobile' && "mt-4")}>
                     <h3 className="font-semibold mb-2">Goals</h3>
                     <TagList items={u.goals} />
                 </section>
@@ -823,7 +846,12 @@ function UserDetails({
 
             {/* TRAINER — Services, Clients, Rating all on the same line */}
             {u.role === 'TRAINER' && (
-                <section className="mt-6 grid grid-cols-3 gap-4 text-sm items-start">
+                <section
+                    className={clsx(
+                        "mt-6 grid grid-cols-3 gap-4 text-sm items-start",
+                        variant === 'mobile' && "grid-cols-1 gap-3"
+                    )}
+                >
                     <div className="min-w-0">
                         <div className="font-semibold mb-1">Services</div>
                         <TagList items={u.services ?? []} />
@@ -841,7 +869,7 @@ function UserDetails({
 
             {/* GYM — Amenities on its own line (description preferred) */}
             {u.role === 'GYM' && (
-                <section className="mt-6">
+                <section className={clsx("mt-6", variant === 'mobile' && "mt-4")}>
                     <h3 className="font-semibold mb-2">Amenities</h3>
                     {u.amenitiesText?.trim() ? (
                         <p className="text-gray-800 whitespace-pre-wrap">{u.amenitiesText}</p>
@@ -855,9 +883,9 @@ function UserDetails({
 
             {/* Photos (click to enlarge in modal) — on its own line */}
             {!!u.gallery?.length && (
-                <section className="mt-6">
+                <section className={clsx("mt-6", variant === 'mobile' && "mt-4")}>
                     <h3 className="font-semibold mb-2">Photos</h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className={clsx("grid gap-2", variant === 'mobile' ? "grid-cols-2" : "grid-cols-3")}>
                         {u.gallery.map((url) => (
                             <button
                                 key={url}
