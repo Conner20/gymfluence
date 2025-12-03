@@ -25,7 +25,7 @@ export default function PageShell({
 
     return (
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
-            <header className="w-full bg-white py-6 px-4 sm:px-6 relative flex items-center justify-center z-20">
+            <header className="w-full bg-white py-6 px-4 sm:px-6 relative flex items-center justify-center z-20 lg:hidden">
                 <h1 className="font-serif font-bold text-3xl text-green-700 tracking-tight select-none text-center">
                     <Link href={href}>
                         <span className="cursor-pointer">{title}</span>
