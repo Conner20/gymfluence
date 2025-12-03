@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
 import clsx from 'clsx';
-import Navbar from "@/components/Navbar";
 import { createPortal } from 'react-dom';
+import PageShell from "@/components/PageShell";
 
 type Role = 'TRAINEE' | 'TRAINER' | 'GYM';
 
