@@ -391,97 +391,101 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                 <span className="font-bold text-lg text-gray-800">
                                     {post.title}
                                 </span>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs text-gray-500">
-                                        by{" "}
-                                        {post.author?.username ? (
-                                            post.author.username === username ? (
-                                                <Link
-                                                    href="/profile"
-                                                    className="font-semibold hover:underline"
-                                                    title="View your profile"
-                                                >
-                                                    {post.author.username}
-                                                </Link>
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                        <span>
+                                            by{" "}
+                                            {post.author?.username ? (
+                                                post.author.username === username ? (
+                                                    <Link
+                                                        href="/profile"
+                                                        className="font-semibold hover:underline"
+                                                        title="View your profile"
+                                                    >
+                                                        {post.author.username}
+                                                    </Link>
+                                                ) : (
+                                                    <Link
+                                                        href={`/u/${encodeURIComponent(
+                                                            post.author.username
+                                                        )}`}
+                                                        className="font-semibold hover:underline"
+                                                        title={`View ${post.author.username}'s profile`}
+                                                    >
+                                                        {post.author.username}
+                                                    </Link>
+                                                )
                                             ) : (
-                                                <Link
-                                                    href={`/u/${encodeURIComponent(
-                                                        post.author.username
-                                                    )}`}
-                                                    className="font-semibold hover:underline"
-                                                    title={`View ${post.author.username}'s profile`}
-                                                >
-                                                    {post.author.username}
-                                                </Link>
-                                            )
-                                        ) : (
-                                            <span className="font-semibold">Unknown</span>
-                                        )}
-                                    </span>
-                                    <span className="text-xs text-gray-400">
-                                        · {new Date(post.createdAt).toLocaleString()}
-                                    </span>
+                                                <span className="font-semibold">Unknown</span>
+                                            )}
+                                        </span>
+                                        <span className="text-gray-400">
+                                            · {new Date(post.createdAt).toLocaleString()}
+                                        </span>
+                                    </div>
 
-                                    {/* Like */}
-                                    <button
-                                        className={clsx(
-                                            "flex items-center ml-3 gap-1 text-xs transition",
-                                            post.didLike
-                                                ? "text-red-500 font-bold"
-                                                : "text-gray-400 hover:text-red-400"
-                                        )}
-                                        onClick={() => handleLike(post.id)}
-                                        disabled={!session}
-                                        title={
-                                            session
-                                                ? post.didLike
-                                                    ? "Unlike"
-                                                    : "Like"
-                                                : "Sign in to like"
-                                        }
-                                    >
-                                        <Heart
-                                            size={18}
-                                            fill={post.didLike ? "currentColor" : "none"}
-                                            strokeWidth={2}
-                                        />
-                                        {post.likeCount ?? 0}
-                                    </button>
+                                    <div className="flex items-center gap-4 text-xs md:ml-4">
+                                        {/* Like */}
+                                        <button
+                                            className={clsx(
+                                                "flex items-center gap-1 transition",
+                                                post.didLike
+                                                    ? "text-red-500 font-bold"
+                                                    : "text-gray-400 hover:text-red-400"
+                                            )}
+                                            onClick={() => handleLike(post.id)}
+                                            disabled={!session}
+                                            title={
+                                                session
+                                                    ? post.didLike
+                                                        ? "Unlike"
+                                                        : "Like"
+                                                    : "Sign in to like"
+                                            }
+                                        >
+                                            <Heart
+                                                size={18}
+                                                fill={post.didLike ? "currentColor" : "none"}
+                                                strokeWidth={2}
+                                            />
+                                            {post.likeCount ?? 0}
+                                        </button>
 
-                                    {/* Comments toggle */}
-                                    <button
-                                        className={clsx(
-                                            "flex items-center gap-1 text-xs ml-2 transition",
-                                            openComments[post.id]
-                                                ? "text-green-600 font-semibold"
-                                                : "text-gray-400 hover:text-green-600"
-                                        )}
-                                        onClick={() => toggleComments(post.id)}
-                                        title="Show comments"
-                                    >
-                                        <MessageCircle size={16} />
-                                        {post.commentCount ?? 0}
-                                    </button>
+                                        {/* Comments toggle */}
+                                        <button
+                                            className={clsx(
+                                                "flex items-center gap-1 transition",
+                                                openComments[post.id]
+                                                    ? "text-green-600 font-semibold"
+                                                    : "text-gray-400 hover:text-green-600"
+                                            )}
+                                            onClick={() => toggleComments(post.id)}
+                                            title="Show comments"
+                                        >
+                                            <MessageCircle size={16} />
+                                            {post.commentCount ?? 0}
+                                        </button>
 
-                                    {/* Share */}
-                                    <button
-                                        className={clsx(
-                                            "flex items-center gap-1 text-xs ml-2 transition",
-                                            canShare
-                                                ? "text-gray-500 hover:text-green-700"
-                                                : "text-gray-300 cursor-not-allowed"
-                                        )}
-                                        onClick={() => canShare && openShareModal(post.id)}
-                                        disabled={!canShare}
-                                        title={
-                                            canShare
-                                                ? "Share via Messenger"
-                                                : "Sign in to share"
-                                        }
-                                    >
-                                        <Share2 size={16} />
-                                        Share
-                                    </button>
+                                        {/* Share */}
+                                        <button
+                                            className={clsx(
+                                                "flex items-center gap-1 transition",
+                                                canShare
+                                                    ? "text-gray-500 hover:text-green-700"
+                                                    : "text-gray-300 cursor-not-allowed"
+                                            )}
+                                            onClick={() => canShare && openShareModal(post.id)}
+                                            disabled={!canShare}
+                                            title={
+                                                canShare
+                                                    ? "Share via Messenger"
+                                                    : "Sign in to share"
+                                            }
+                                        >
+                                            <Share2 size={16} />
+                                            Share
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
