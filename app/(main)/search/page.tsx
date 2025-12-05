@@ -173,9 +173,8 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-
-            {/* HORIZONTAL SCROLLING FILTER STRIP (MOBILE) */}
-            <div className="flex gap-2 overflow-x-auto flex-nowrap">
+            {/* Horizontally swipeable filter strip on mobile */}
+            <div className="flex gap-2 overflow-x-auto flex-nowrap snap-x snap-mandatory">
                 <Chip
                     label="Distance"
                     value={distanceKm ? `${distanceKm} km` : 'Any'}
@@ -282,7 +281,7 @@ export default function SearchPage() {
                 />
                 <button
                     onClick={resetFilters}
-                    className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50 shrink-0"
+                    className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50 shrink-0 snap-start"
                     title="Reset filters"
                 >
                     Reset
@@ -936,7 +935,7 @@ function Chip({
 }) {
     const [open, setOpen] = useState(false);
     return (
-        <div className="relative shrink-0 lg:shrink">
+        <div className="relative shrink-0 snap-start lg:shrink">
             <button
                 onClick={() => setOpen((v) => !v)}
                 className="flex items-center gap-1 px-3 py-2 rounded-full border bg-white hover:bg-gray-50 text-sm max-w-[220px]"
