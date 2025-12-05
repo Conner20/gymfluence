@@ -173,123 +173,120 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div
-                className="w-full overflow-x-auto pb-1"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-                <div className="inline-flex gap-2 pr-2">
-                    <Chip
-                        label="Distance"
-                        value={distanceKm ? `${distanceKm} km` : 'Any'}
-                        menu={
-                            <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                                {['', '5', '10', '25', '50', '100'].map((d) => (
-                                    <button
-                                        key={d || 'any'}
-                                        onClick={() => setDistanceKm(d)}
-                                        className={clsx(
-                                            'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                            (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
-                                        )}
-                                    >
-                                        {d ? `${d} km` : 'Any'}
-                                    </button>
-                                ))}
+
+            {/* HORIZONTAL SCROLLING FILTER STRIP (MOBILE) */}
+            <div className="flex gap-2 overflow-x-auto flex-nowrap">
+                <Chip
+                    label="Distance"
+                    value={distanceKm ? `${distanceKm} km` : 'Any'}
+                    menu={
+                        <div className="grid grid-cols-2 gap-2 p-2 w-52">
+                            {['', '5', '10', '25', '50', '100'].map((d) => (
+                                <button
+                                    key={d || 'any'}
+                                    onClick={() => setDistanceKm(d)}
+                                    className={clsx(
+                                        'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
+                                        (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
+                                    )}
+                                >
+                                    {d ? `${d} km` : 'Any'}
+                                </button>
+                            ))}
+                        </div>
+                    }
+                />
+                <Chip
+                    label="Role"
+                    value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                    menu={
+                        <div className="grid grid-cols-2 gap-2 p-2 w-52">
+                            {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
+                                <button
+                                    key={r}
+                                    onClick={() => setRole(r)}
+                                    className={clsx(
+                                        'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
+                                        role === r ? 'bg-gray-900 text-white' : 'bg-white'
+                                    )}
+                                >
+                                    {r.toLowerCase()}
+                                </button>
+                            ))}
+                        </div>
+                    }
+                />
+                <Chip
+                    label="Budget"
+                    value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                    menu={
+                        <div className="p-3 w-72">
+                            <div className="text-xs text-gray-500 mb-2">
+                                Trainers: hourly • Gyms: monthly fee
                             </div>
-                        }
-                    />
-                    <Chip
-                        label="Role"
-                        value={role === 'ALL' ? 'All' : role.toLowerCase()}
-                        menu={
-                            <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
-                                    <button
-                                        key={r}
-                                        onClick={() => setRole(r)}
-                                        className={clsx(
-                                            'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                            role === r ? 'bg-gray-900 text-white' : 'bg-white'
-                                        )}
-                                    >
-                                        {r.toLowerCase()}
-                                    </button>
-                                ))}
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    className="w-28 border rounded px-2 py-1 text-sm"
+                                    placeholder="min"
+                                    value={minBudget}
+                                    onChange={(e) => setMinBudget(e.target.value)}
+                                />
+                                <span className="text-gray-400">—</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    className="w-28 border rounded px-2 py-1 text-sm"
+                                    placeholder="max"
+                                    value={maxBudget}
+                                    onChange={(e) => setMaxBudget(e.target.value)}
+                                />
                             </div>
-                        }
-                    />
-                    <Chip
-                        label="Budget"
-                        value={`${minBudget || 0}–${maxBudget || '∞'}`}
-                        menu={
-                            <div className="p-3 w-72">
-                                <div className="text-xs text-gray-500 mb-2">
-                                    Trainers: hourly • Gyms: monthly fee
-                                </div>
-                                <div className="flex items-center gap-2">
+                            <div className="mt-3 flex justify-end">
+                                <button
+                                    onClick={() => {
+                                        setMinBudget('');
+                                        setMaxBudget('');
+                                    }}
+                                    className="text-xs text-gray-600 underline"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    }
+                />
+                <Chip
+                    label="Goals"
+                    value={goals.length ? `${goals.length} selected` : 'Any'}
+                    menu={
+                        <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
+                            {allGoals.map((g) => (
+                                <label key={g} className="text-sm flex items-center gap-2">
                                     <input
-                                        type="number"
-                                        min={0}
-                                        className="w-28 border rounded px-2 py-1 text-sm"
-                                        placeholder="min"
-                                        value={minBudget}
-                                        onChange={(e) => setMinBudget(e.target.value)}
+                                        type="checkbox"
+                                        checked={goals.includes(g)}
+                                        onChange={() => toggleGoal(g)}
                                     />
-                                    <span className="text-gray-400">—</span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        className="w-28 border rounded px-2 py-1 text-sm"
-                                        placeholder="max"
-                                        value={maxBudget}
-                                        onChange={(e) => setMaxBudget(e.target.value)}
-                                    />
-                                </div>
-                                <div className="mt-3 flex justify-end">
-                                    <button
-                                        onClick={() => {
-                                            setMinBudget('');
-                                            setMaxBudget('');
-                                        }}
-                                        className="text-xs text-gray-600 underline"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
+                                    <span>{g}</span>
+                                </label>
+                            ))}
+                            <div className="flex justify-end mt-1">
+                                <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
+                                    Clear
+                                </button>
                             </div>
-                        }
-                    />
-                    <Chip
-                        label="Goals"
-                        value={goals.length ? `${goals.length} selected` : 'Any'}
-                        menu={
-                            <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
-                                {allGoals.map((g) => (
-                                    <label key={g} className="text-sm flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={goals.includes(g)}
-                                            onChange={() => toggleGoal(g)}
-                                        />
-                                        <span>{g}</span>
-                                    </label>
-                                ))}
-                                <div className="flex justify-end mt-1">
-                                    <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                    />
-                    <button
-                        onClick={resetFilters}
-                        className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50"
-                        title="Reset filters"
-                    >
-                        Reset
-                    </button>
-                </div>
+                        </div>
+                    }
+                />
+                <button
+                    onClick={resetFilters}
+                    className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50 shrink-0"
+                    title="Reset filters"
+                >
+                    Reset
+                </button>
             </div>
         </div>
     );
@@ -939,7 +936,7 @@ function Chip({
 }) {
     const [open, setOpen] = useState(false);
     return (
-        <div className="relative">
+        <div className="relative shrink-0 lg:shrink">
             <button
                 onClick={() => setOpen((v) => !v)}
                 className="flex items-center gap-1 px-3 py-2 rounded-full border bg-white hover:bg-gray-50 text-sm max-w-[220px]"
