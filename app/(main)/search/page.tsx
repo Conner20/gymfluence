@@ -174,10 +174,10 @@ export default function SearchPage() {
                 />
             </div>
             <div
-                className="overflow-x-auto pb-1"
+                className="w-full overflow-x-auto pb-1"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-                <div className="flex gap-2 min-w-max">
+                <div className="flex gap-2 min-w-max pr-2">
                     <Chip
                         label="Distance"
                         value={distanceKm ? `${distanceKm} km` : 'Any'}
