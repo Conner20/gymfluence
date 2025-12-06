@@ -1047,7 +1047,7 @@ export default function Messenger() {
     return (
         <>
             <div
-                className="w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row lg:min-h-[83vh]"
+                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row lg:min-h-[83vh]"
             >
                 {/* Left column */}
                 <aside
@@ -1204,13 +1204,13 @@ export default function Messenger() {
                 {/* Right column */}
                 <section
                     className={clsx(
-                        'flex flex-col h-full flex-1 overflow-hidden w-full',
+                        'flex flex-col h-full flex-1 overflow-hidden w-full max-w-full',
                         mobileView === 'thread' ? 'flex' : 'hidden',
                         'lg:flex'
                     )}
                 >
                     {/* Header */}
-                    <div className="h-14 border-b flex items-center gap-3 px-4 flex-shrink-0">
+                    <div className="h-14 border-b flex items-center gap-3 px-3 sm:px-4 flex-shrink-0">
                         <button
                             type="button"
                             className={clsx(
@@ -1286,7 +1286,7 @@ export default function Messenger() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-4 py-4">
+                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4">
                         {!activeConvoId ? (
                             <div className="text-center text-sm text-gray-400 mt-20">
                                 No conversation selected.
@@ -1378,7 +1378,7 @@ export default function Messenger() {
                     </div>
 
                     {/* Composer */}
-                    <div className="border-t flex flex-col gap-2 px-4 py-3 flex-shrink-0">
+                    <div className="border-t flex flex-col gap-2 px-3 sm:px-4 py-3 flex-shrink-0">
                         {/* Share draft preview bar */}
                         {shareDraft && (
                             <div className="border rounded-lg p-2 flex items-center gap-3">
@@ -1533,7 +1533,7 @@ export default function Messenger() {
                         {files.length > 0 && (
                             <div className="border rounded-lg p-2">
                                 <div className="text-xs text-gray-500 mb-2">Attachments</div>
-                                <div className="grid grid-cols-4 gap-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {previews.map((url, i) => (
                                         <div key={i} className="relative group">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
