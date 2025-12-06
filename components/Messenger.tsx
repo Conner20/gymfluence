@@ -1264,21 +1264,21 @@ export default function Messenger() {
                                     )}
                                 </div>
 
-                                {activeGroupMembers && (
-                                    <button
-                                        onClick={() => {
-                                            setGroupNameInput(activeGroupName ?? '');
-                                            setAddQuery('');
-                                            setAddResults([]);
-                                            setAddSelectedIds([]);
-                                            setShowManage(true);
-                                        }}
-                                        className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
-                                        title="Manage conversation"
-                                    >
-                                        Manage
-                                    </button>
-                                )}
+                        {activeGroupMembers && (
+                            <button
+                                onClick={() => {
+                                    setGroupNameInput(activeGroupName ?? '');
+                                    setAddQuery('');
+                                    setAddResults([]);
+                                    setAddSelectedIds([]);
+                                    setShowManage(true);
+                                }}
+                                className="text-xs px-2 py-1 rounded border hover:bg-gray-50 w-full sm:w-auto text-center sm:text-left"
+                                title="Manage conversation"
+                            >
+                                Manage
+                            </button>
+                        )}
                             </>
                         ) : (
                             <div className="text-sm text-gray-500">Select a conversation</div>
