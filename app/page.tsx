@@ -21,7 +21,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <nav className="hidden sm:flex items-center gap-2">
+          <nav className="flex items-center gap-2">
             <Link
               href="/log-in"
               className="px-4 py-2 rounded-full border hover:bg-black hover:text-white transition"
@@ -35,12 +35,6 @@ export default function LandingPage() {
               sign up
             </Link>
           </nav>
-          <Link
-            href="/sign-up"
-            className="sm:hidden px-4 py-2 rounded-full bg-green-700 text-white hover:bg-black transition text-sm"
-          >
-            join
-          </Link>
         </div>
       </header>
 
