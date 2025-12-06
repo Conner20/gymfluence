@@ -10,7 +10,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white text-black">
       {/* ======= NAV ======= */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Replace with your real logo image */}
             <div className="relative h-10 w-10 rounded-full ring-black/10 overflow-hidden">
@@ -21,7 +21,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <nav className="flex items-center gap-2">
+          <nav className="hidden sm:flex items-center gap-2">
             <Link
               href="/log-in"
               className="px-4 py-2 rounded-full border hover:bg-black hover:text-white transition"
@@ -35,6 +35,12 @@ export default function LandingPage() {
               sign up
             </Link>
           </nav>
+          <Link
+            href="/sign-up"
+            className="sm:hidden px-4 py-2 rounded-full bg-green-700 text-white hover:bg-black transition text-sm"
+          >
+            join
+          </Link>
         </div>
       </header>
 
@@ -46,14 +52,14 @@ export default function LandingPage() {
           <div className="absolute -bottom-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-black/5 blur-3xl" />
         </div>
 
-        <div className="mx-auto max-w-7xl px-6 pt-20 pb-8 lg:pt-28 lg:pb-12 flex items-center justify-center">
-          <div className="max-w-3xl text-center">
-            <h1 className="text-5xl md:text-6xl font-extrabold leading-tight tracking-tight">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-16 pb-8 lg:pt-28 lg:pb-12 flex items-center justify-center">
+          <div className="w-full max-w-3xl text-center">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight">
               <span className="block">Empower Trainers.</span>
               <span className="block">Elevate Gyms.</span>
               <span className="block">Transform Clients.</span>
             </h1>
-            <p className="mt-6 text-lg text-neutral-700 max-w-xl mx-auto">
+            <p className="mt-6 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto px-1">
               A shared ecosystem for gyms, trainers, and fitness enthusiasts.
               Gymfluence helps you connect, track, and train — all in one place.
             </p>
@@ -74,14 +80,14 @@ export default function LandingPage() {
         </div>
 
         {/* divider */}
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="h-px w-full bg-neutral-200" />
         </div>
       </section>
 
       {/* ======= VALUE STRIP ======= */}
-      <section className="mx-auto max-w-7xl px-6 py-10 text-center">
-        <p className="text-[1.15rem] md:text-xl text-neutral-700">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 py-10 text-center">
+        <p className="text-lg md:text-xl text-neutral-700">
           Share results. Build a client base. Create a business.
         </p>
       </section>
@@ -123,7 +129,7 @@ export default function LandingPage() {
 
       {/* ======= CTA ======= */}
       <section className="bg-black text-white">
-        <div className="mx-auto max-w-7xl px-6 py-16 text-center">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 text-center">
           <h2 className="text-3xl md:text-4xl font-bold">
             Become a Gymfluencer today.
           </h2>
@@ -143,7 +149,7 @@ export default function LandingPage() {
 
       {/* ======= FOOTER ======= */}
       <footer className="border-t">
-        <div className="mx-auto max-w-7xl px-6 py-8 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative h-6 w-6 rounded-full ring-1 ring-black/10 overflow-hidden">
               <Image src="/logo.svg" alt="gymfluence" fill className="object-contain p-0.5" />
@@ -200,25 +206,25 @@ function FeatureSection({
 }) {
   return (
     <section className="relative">
-      <div className="mx-auto max-w-7xl px-6 py-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 md:py-14">
         <div
           className={[
-            "grid gap-10 items-center",
+            "grid gap-8 items-center",
             "lg:grid-cols-2",
             inverted ? "lg:[&>div:first-child]:order-2" : "",
           ].join(" ")}
         >
           {/* text */}
-          <div>
-            <div className="text-sm font-medium text-green-700 uppercase tracking-wider">
+          <div className="text-center lg:text-left px-2">
+            <div className="text-xs sm:text-sm font-medium text-green-700 uppercase tracking-wider">
               {eyebrow}
             </div>
-            <h3 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">{title}</h3>
-            <p className="mt-4 text-lg text-neutral-700 max-w-xl">{body}</p>
+            <h3 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">{title}</h3>
+            <p className="mt-4 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto lg:mx-0">{body}</p>
           </div>
 
           {/* image */}
-          <div className="relative">
+          <div className="relative w-full flex justify-center">
             <div
               className={[
                 "relative mx-auto w-full rounded-[20px] border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden",
