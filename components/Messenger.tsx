@@ -1210,7 +1210,7 @@ export default function Messenger() {
                     )}
                 >
                     {/* Header */}
-                    <div className="border-b flex flex-wrap sm:flex-nowrap items-center gap-3 px-3 sm:px-4 flex-shrink-0 min-h-[56px] w-full">
+                    <div className="border-b flex flex-wrap sm:flex-nowrap items-center gap-3 px-3 sm:px-4 flex-shrink-0 w-full pt-1 pb-2 sm:py-0">
                         <button
                             type="button"
                             className={clsx(
@@ -1273,7 +1273,7 @@ export default function Messenger() {
                                             setAddSelectedIds([]);
                                             setShowManage(true);
                                         }}
-                                        className="text-xs px-2 py-1 rounded border hover:bg-gray-50 w-full sm:w-auto text-center sm:text-left"
+                                        className="text-xs px-3 py-1 rounded-full border hover:bg-gray-50 w-auto"
                                         title="Manage conversation"
                                     >
                                         Manage
