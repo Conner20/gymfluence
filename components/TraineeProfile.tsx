@@ -212,21 +212,13 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
     return (
-        <div className="flex min-h-screen w-full">
-            {/* Sidebar (profile content) – now sticky */}
-                        {/* Sidebar (profile content) – same dimensions, simpler content */}
+        <div className="flex min-h-screen w-full flex-col lg:flex-row gap-6 lg:gap-0">
+            {/* Sidebar (profile content) – mobile top, desktop sticky */}
             <aside
-                className="
-        w-72
-        bg-white
-        flex flex-col
-        items-center
-        pt-8
-        sticky
-        top-[84px]
-        self-start
-        h-[calc(100vh-84px)]
-    "
+                className={clsx(
+                    "w-full bg-white flex flex-col items-center pt-6 pb-6 shadow-sm lg:shadow-none",
+                    "lg:w-72 lg:pt-8 lg:pb-0 lg:sticky lg:top-[84px] lg:self-start lg:h-[calc(100vh-84px)]"
+                )}
             >
                 <div className="w-full px-6 flex flex-col items-center gap-4">
                     {/* Avatar */}
@@ -409,7 +401,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
 
             {/* Main Content + overlay */}
-            <main className="flex-1 p-8 relative bg-[#f8f8f8] min-h-screen">
+            <main className="flex-1 w-full p-4 sm:p-6 lg:p-8 relative bg-[#f8f8f8] min-h-screen lg:min-h-full">
                 {!canViewPrivate ? (
                     <PrivatePlaceholder />
                 ) : (
