@@ -621,40 +621,71 @@ function ScrollFeed({
                     key={p.id}
                     className="bg-white rounded-2xl shadow-sm border border-zinc-200 px-5 py-4"
                 >
-                    <div className="flex items-center justify-between">
-                        <div className="min-w-0">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
                             <button
-                                className="text-lg font-semibold text-zinc-900 hover:underline"
+                                className="font-semibold text-zinc-900 hover:underline truncate"
                                 onClick={() => onOpen(p.id)}
                                 title="Open post"
                             >
                                 {p.title}
                             </button>
-                            <div className="text-xs text-gray-500 mt-0.5">
-                                by{" "}
-                                {p.author?.username ? (
-                                    <Link
-                                        href={`/u/${encodeURIComponent(p.author.username)}`}
-                                        className="font-medium hover:underline"
-                                    >
-                                        {p.author.username}
-                                    </Link>
-                                ) : (
-                                    <span className="font-medium">Unknown</span>
-                                )}{" "}
-                                · {fmt(p.createdAt)}
+                            <div className="flex items-center gap-4 text-sm sm:hidden">
+                                <button
+                                    className={clsx(
+                                        "inline-flex items-center gap-1 transition",
+                                        p.didLike
+                                            ? "text-red-500"
+                                            : "text-gray-500 hover:text-red-500"
+                                    )}
+                                    onClick={() => onLike(p.id)}
+                                    title={p.didLike ? "Unlike" : "Like"}
+                                >
+                                    <Heart size={18} fill={p.didLike ? "currentColor" : "none"} />
+                                    {p.likeCount ?? 0}
+                                </button>
+                                <button
+                                    className="inline-flex items-center gap-1 text-gray-500 hover:text-green-600"
+                                    onClick={() => toggleComments(p.id)}
+                                    title="Toggle comments"
+                                >
+                                    <MessageCircle size={16} />
+                                    {commentCounts[p.id] ?? p.commentCount ?? 0}
+                                </button>
+                                <button
+                                    className="inline-flex items-center gap-1 text-gray-500 hover:text-blue-600"
+                                    onClick={() => handleShare(p.id)}
+                                    title="Copy link"
+                                >
+                                    <Share2 size={16} />
+                                    {copiedId === p.id ? "Copied" : "Share"}
+                                </button>
                             </div>
                         </div>
-                        {canDelete && (
-                            <button
-                                className="p-1.5 rounded-full hover:bg-red-50 text-red-500"
-                                title="Delete post"
-                                onClick={() => onDelete(p.id)}
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        )}
+                        <div className="text-xs text-gray-500 mt-0.5">
+                            by{" "}
+                            {p.author?.username ? (
+                                <Link
+                                    href={`/u/${encodeURIComponent(p.author.username)}`}
+                                    className="font-medium hover:underline"
+                                >
+                                    {p.author.username}
+                                </Link>
+                            ) : (
+                                <span className="font-medium">Unknown</span>
+                            )}
+                            <span className="ml-1">· {fmt(p.createdAt)}</span>
+                        </div>
                     </div>
+                    {canDelete && (
+                        <button
+                            className="p-1.5 rounded-full hover:bg-red-50 text-red-500"
+                            title="Delete post"
+                            onClick={() => onDelete(p.id)}
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    )}
 
                     {p.imageUrl && (
                         <div className="mt-3">
@@ -672,7 +703,7 @@ function ScrollFeed({
                         <div className="text-zinc-800 mt-3 whitespace-pre-wrap">{p.content}</div>
                     )}
 
-                    <div className="mt-3 flex items-center gap-4 text-sm">
+                    <div className="mt-3 flex items-center gap-4 text-sm hidden sm:flex">
                         <button
                             className={clsx(
                                 "inline-flex items-center gap-1 transition",
@@ -705,12 +736,14 @@ function ScrollFeed({
                     </div>
 
                     {openComments[p.id] && (
-                        <PostComments
-                            postId={p.id}
-                            onCountChange={(count) =>
-                                setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
-                            }
-                        />
+                        <div className="mt-3 overflow-y-auto max-h-[60vh]" >
+                            <PostComments
+                                postId={p.id}
+                                onCountChange={(count) =>
+                                    setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
+                                }
+                            />
+                        </div>
                     )}
                 </article>
             ))}

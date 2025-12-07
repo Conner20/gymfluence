@@ -1031,7 +1031,7 @@ function ScrollFeed({
             <div className="text-gray-700 mt-3 whitespace-pre-wrap">{p.content}</div>
           )}
 
-          <div className="mt-3 flex items-center gap-4 text-sm">
+          <div className="mt-3 flex items-center gap-4 text-sm hidden sm:flex">
             <button
               className={clsx(
                 "inline-flex items-center gap-1 transition",
@@ -1064,12 +1064,14 @@ function ScrollFeed({
           </div>
 
           {openComments[p.id] && (
-            <PostComments
-              postId={p.id}
-              onCountChange={(count) =>
-                setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
-              }
-            />
+            <div className="mt-3 overflow-y-auto max-h-[60vh]">
+              <PostComments
+                postId={p.id}
+                onCountChange={(count) =>
+                  setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
+                }
+              />
+            </div>
           )}
         </article>
       ))}
