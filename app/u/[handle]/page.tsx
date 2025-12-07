@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { TraineeProfile } from "@/components/TraineeProfile";
 import { TrainerProfile } from "@/components/TrainerProfile";
 import { GymProfile } from "@/components/GymProfile";
+import MobileHeader from "@/components/MobileHeader";
 
 export default async function UserProfilePage({
     params,
@@ -41,8 +42,9 @@ export default async function UserProfilePage({
 
     const shell = (children: React.ReactNode) => (
         <div className="min-h-screen flex flex-col bg-[#f8f8f8]">
-            {/* Sticky header at top */}
-            <header className="sticky top-0 z-30 w-full bg-white">
+            <MobileHeader title={user.username ?? "profile"} href={`/u/${encodeURIComponent(user.username ?? "")}`} />
+            {/* Desktop header */}
+            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white">
                 <div className="py-6 flex justify-start pl-[40px]">
                     <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
                         <span>{user.username}</span>
@@ -50,8 +52,8 @@ export default async function UserProfilePage({
                 </div>
             </header>
 
-            {/* Content; page (body) will handle scrolling */}
-            <main className="flex-1">
+            {/* Content */}
+            <main className="flex-1 w-full">
                 {children}
             </main>
         </div>

@@ -407,7 +407,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                 ) : (
                     <>
                         {/* Header row – now sticky */}
-                        <div className="mb-4 flex items-center justify-between sticky top-0 z-10 bg-[#f8f8f8] py-2">
+                        <div className="mb-4 flex items-center justify-between bg-[#f8f8f8] py-2 lg:sticky lg:top-0 lg:z-10">
                             <div className="flex items-center gap-3">
                                 <h3 className="text-lg font-semibold.text-zinc-900">Posts</h3>
                                 {isOwnProfile && (
@@ -476,8 +476,8 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
                 {/* Focus overlay */}
                 {focusPostId && (
-                    <div className="absolute inset-0 bg-[#f8f8f8] z-50">
-                        <div className="p-4 flex items-center justify-between">
+                    <div className="fixed inset-0 bg-[#f8f8f8] z-50 w-full h-full overflow-y-auto lg:absolute lg:overflow-hidden">
+                        <div className="p-4 flex items-center justify-between sticky top-0 bg-[#f8f8f8] z-10">
                             <button
                                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white hover:bg-zinc-50 text-sm"
                                 onClick={() => setFocusPostId(null)}
@@ -496,10 +496,10 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 </button>
                             )}
                         </div>
-                        <div className="h-[calc(100%-56px)] px-6 pb-6">
+                        <div className="h-[calc(100vh-80px)] lg:h-[calc(100%-56px)] px-3 sm:px-6 pb-6">
                             <iframe
                                 src={`/post/${encodeURIComponent(focusPostId)}`}
-                                className="w-full h-full rounded-xl bg-white shadow"
+                                className="w-full h-full rounded-xl bg-white shadow max-w-full"
                             />
                         </div>
                     </div>
