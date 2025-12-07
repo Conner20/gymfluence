@@ -24,6 +24,7 @@ import NotificationsModal from "@/components/NotificationsModal";
 import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
+import { PostComments } from "@/components/PostComments";
 
 /* --------------------------- helpers & local UI --------------------------- */
 
@@ -945,6 +946,10 @@ function ScrollFeed({
     canDelete: boolean;
     onDelete: (id: string) => void | Promise<void>;
 }) {
+    const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+    const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
     const fmt = (iso: string) =>
         new Date(iso).toLocaleString(undefined, {
             month: "short",
@@ -952,6 +957,21 @@ function ScrollFeed({
             hour: "numeric",
             minute: "2-digit",
         });
+
+    const toggleComments = (id: string) =>
+        setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
+
+    const handleShare = async (id: string) => {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const url = `${origin}/post/${encodeURIComponent(id)}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopiedId(id);
+            setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 2000);
+        } catch {
+            alert("Failed to copy link.");
+        }
+    };
 
     if (!posts || posts.length === 0)
         return <div className="text-gray-400 text-center py-12">No posts yet.</div>;
@@ -1021,18 +1041,36 @@ function ScrollFeed({
                             title={p.didLike ? "Unlike" : "Like"}
                         >
                             <Heart size={18} fill={p.didLike ? "currentColor" : "none"} />
-                            {p.likeCount}
+                            {p.likeCount ?? 0}
                         </button>
 
                         <button
                             className="inline-flex items-center gap-1 text-gray-500 hover:text-green-600"
-                            onClick={() => onOpen(p.id)}
-                            title="View comments"
+                            onClick={() => toggleComments(p.id)}
+                            title="Toggle comments"
                         >
                             <MessageCircle size={16} />
-                            {p.commentCount}
+                            {commentCounts[p.id] ?? p.commentCount ?? 0}
+                        </button>
+
+                        <button
+                            className="inline-flex items-center gap-1 text-gray-500 hover:text-blue-600"
+                            onClick={() => handleShare(p.id)}
+                            title="Copy link"
+                        >
+                            <Share2 size={16} />
+                            {copiedId === p.id ? "Copied" : "Share"}
                         </button>
                     </div>
+
+                    {openComments[p.id] && (
+                        <PostComments
+                            postId={p.id}
+                            onCountChange={(count) =>
+                                setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
+                            }
+                        />
+                    )}
                 </article>
             ))}
         </div>
