@@ -606,7 +606,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     onClick={openFollowers}
                                     disabled={!canViewPrivate}
                                     className={clsx(
-                                        "flex-1 flex flex-col py-1 rounded-md",
+                                        "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
                                         canViewPrivate
                                             ? "hover:bg-gray-50 transition"
                                             : "opacity-60 cursor-not-allowed"
@@ -623,7 +623,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     onClick={openFollowing}
                                     disabled={!canViewPrivate}
                                     className={clsx(
-                                        "flex-1 flex flex-col py-1 rounded-md",
+                                        "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
                                         canViewPrivate
                                             ? "hover:bg-gray-50 transition"
                                             : "opacity-60 cursor-not-allowed"
@@ -636,7 +636,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     <span>Following</span>
                                 </button>
                                 <div className="w-px h-8 bg-gray-200" />
-                                <div className="flex-1 flex flex-col py-1">
+                                <div className="flex-1 flex flex-col py-1 text-center items-center lg:text-left lg:items-start">
                                     <span className="text-sm font-semibold text-zinc-900">
                                         {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
                                     </span>
