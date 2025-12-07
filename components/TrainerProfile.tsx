@@ -23,6 +23,7 @@ import FollowListModal from "@/components/FollowListModal";
 import NotificationsModal from "@/components/NotificationsModal";
 import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
+import PostDetail from "@/components/PostDetail";
 
 /* --------------------------- helpers & local UI --------------------------- */
 
@@ -606,7 +607,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     onClick={openFollowers}
                                     disabled={!canViewPrivate}
                                     className={clsx(
-                                        "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
+                                        "flex-1 flex flex-col py-1 rounded-md text-center items-center",
                                         canViewPrivate
                                             ? "hover:bg-gray-50 transition"
                                             : "opacity-60 cursor-not-allowed"
@@ -623,7 +624,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     onClick={openFollowing}
                                     disabled={!canViewPrivate}
                                     className={clsx(
-                                        "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
+                                        "flex-1 flex flex-col py-1 rounded-md text-center items-center",
                                         canViewPrivate
                                             ? "hover:bg-gray-50 transition"
                                             : "opacity-60 cursor-not-allowed"
@@ -636,7 +637,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     <span>Following</span>
                                 </button>
                                 <div className="w-px h-8 bg-gray-200" />
-                                <div className="flex-1 flex flex-col py-1 text-center items-center lg:text-left lg:items-start">
+                                <div className="flex-1 flex flex-col py-1 text-center items-center">
                                     <span className="text-sm font-semibold text-zinc-900">
                                         {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
                                     </span>

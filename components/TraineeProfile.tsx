@@ -21,6 +21,7 @@ import FollowListModal from "@/components/FollowListModal";
 import NotificationsModal from "@/components/NotificationsModal";
 import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
+import PostDetail from "@/components/PostDetail";
 
 type BasicPost = {
     id: string;
@@ -267,7 +268,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 onClick={openFollowers}
                                 disabled={!canViewPrivate}
                                 className={clsx(
-                                    "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
+                                    "flex-1 flex flex-col py-1 rounded-md text-center items-center",
                                     canViewPrivate
                                         ? "hover:bg-gray-50 transition"
                                         : "opacity-60 cursor-not-allowed"
@@ -284,7 +285,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 onClick={openFollowing}
                                 disabled={!canViewPrivate}
                                 className={clsx(
-                                    "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
+                                    "flex-1 flex flex-col py-1 rounded-md text-center items-center",
                                     canViewPrivate
                                         ? "hover:bg-gray-50 transition"
                                         : "opacity-60 cursor-not-allowed"
@@ -297,7 +298,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 <span>Following</span>
                             </button>
                             <div className="w-px h-8 bg-gray-200" />
-                            <div className="flex-1 flex flex-col py-1 text-center items-center lg:text-left lg:items-start">
+                            <div className="flex-1 flex flex-col py-1 text-center items-center">
                                 <span className="text-sm font-semibold text-zinc-900">
                                     {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
                                 </span>
@@ -496,11 +497,10 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 </button>
                             )}
                         </div>
-                        <div className="h-[calc(100vh-80px)] lg:h-[calc(100%-56px)] px-3 sm:px-6 pb-6">
-                            <iframe
-                                src={`/post/${encodeURIComponent(focusPostId)}`}
-                                className="w-full h-full rounded-xl bg-white shadow max-w-full"
-                            />
+                        <div className="px-3 sm:px-6 pb-6">
+                            <div className="rounded-xl bg-white shadow max-w-full">
+                                <PostDetail postId={focusPostId} flat />
+                            </div>
                         </div>
                     </div>
                 )}

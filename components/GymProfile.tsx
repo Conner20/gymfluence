@@ -23,6 +23,7 @@ import FollowListModal from "@/components/FollowListModal";
 import NotificationsModal from "@/components/NotificationsModal";
 import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
+import PostDetail from "@/components/PostDetail";
 
 /* --------------------------- helpers & local UI --------------------------- */
 
