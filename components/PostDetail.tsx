@@ -65,6 +65,7 @@ export default function PostDetail({
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showComments, setShowComments] = useState(() => !flat);
 
     // Share modal
     const [shareOpen, setShareOpen] = useState(false);
@@ -129,6 +130,10 @@ export default function PostDetail({
         };
     }, []);
 
+    useEffect(() => {
+        setShowComments(!flat);
+    }, [postId, flat]);
+
     const handleLike = async () => {
         setPost(prev => {
             if (!prev) return prev;
@@ -167,6 +172,20 @@ export default function PostDetail({
             });
             alert("Failed to like/unlike post.");
         }
+    };
+
+    const toggleComments = () => {
+        setShowComments((prev) => {
+            const next = !prev;
+            if (next && typeof window !== "undefined") {
+                window.requestAnimationFrame(() => {
+                    document
+                        .getElementById("comments")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+            }
+            return next;
+        });
     };
 
 
@@ -291,15 +310,21 @@ export default function PostDetail({
                                 {post.likeCount ?? 0}
                             </button>
 
-                            <a
-                                href="#comments"
-                                className="flex items-center gap-1 text-xs ml-2 text-gray-400 hover:text-green-600"
-                                title="Jump to comments"
+                            <button
+                                type="button"
+                                className={clsx(
+                                    "flex items-center gap-1 text-xs ml-2 transition",
+                                    showComments
+                                        ? "text-green-600"
+                                        : "text-gray-400 hover:text-green-600"
+                                )}
+                                onClick={toggleComments}
+                                title={showComments ? "Hide comments" : "Show comments"}
                             >
                                 <MessageCircle size={16} />
                                 {/* always show a number */}
                                 {post.commentCount ?? 0}
-                            </a>
+                            </button>
 
                             <button
                                 className={clsx(
@@ -336,9 +361,11 @@ export default function PostDetail({
                         </div>
                     )}
 
-                    <div id="comments" className={clsx("mt-6", flat && "px-0")}>
-                        <PostComments postId={post.id} />
-                    </div>
+                    {showComments && (
+                        <div id="comments" className={clsx("mt-6", flat && "px-0")}>
+                            <PostComments postId={post.id} />
+                        </div>
+                    )}
                 </article>
             </div>
 

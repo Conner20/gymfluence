@@ -736,7 +736,7 @@ function ScrollFeed({
                     </div>
 
                     {openComments[p.id] && (
-                        <div className="mt-3 overflow-y-auto max-h-[60vh]" >
+                        <div className="mt-3">
                             <PostComments
                                 postId={p.id}
                                 onCountChange={(count) =>

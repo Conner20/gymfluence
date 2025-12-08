@@ -1063,13 +1063,13 @@ function ScrollFeed({
             </button>
           </div>
 
-          {openComments[p.id] && (
-            <div className="mt-3 overflow-y-auto max-h-[60vh]">
-              <PostComments
-                postId={p.id}
-                onCountChange={(count) =>
-                  setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
-                }
+                    {openComments[p.id] && (
+                        <div className="mt-3">
+                            <PostComments
+                                postId={p.id}
+                                onCountChange={(count) =>
+                                    setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
+                                }
               />
             </div>
           )}
