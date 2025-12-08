@@ -78,6 +78,7 @@ export default function PostDetail({
     const [shareSearching, setShareSearching] = useState(false);
 
     const canShare = useMemo(() => !!session, [session]);
+    const viewerUsername = session?.user?.username ?? null;
 
     const fetchPost = async () => {
         setError(null);
@@ -135,6 +136,8 @@ export default function PostDetail({
     }, [postId, flat]);
 
     const handleLike = async () => {
+        if (!session) return;
+
         setPost(prev => {
             if (!prev) return prev;
 
@@ -246,123 +249,158 @@ export default function PostDetail({
     if (error) return <div className="text-red-500 p-8">{error}</div>;
     if (!post) return null;
 
-    // ---- width & card style toggles ----
-    const outerCls = flat
-        ? "w-full max-w-[1100px] mx-auto "
-        : "w-full max-w-2xl mx-auto px-4";
+    // ---- shared formatting helpers ----
+    const isFlat = !!flat;
+    const authorUsername = post.author?.username ?? null;
+    const authorLink =
+        authorUsername ? (
+            authorUsername === viewerUsername ? (
+                <Link
+                    href="/profile"
+                    className="font-semibold hover:underline"
+                    title="View your profile"
+                >
+                    {authorUsername}
+                </Link>
+            ) : (
+                <Link
+                    href={`/u/${encodeURIComponent(authorUsername)}`}
+                    className="font-semibold hover:underline"
+                    title={`View ${authorUsername}'s profile`}
+                >
+                    {authorUsername}
+                </Link>
+            )
+        ) : (
+            <span className="font-semibold">Unknown</span>
+        );
 
-    const articleCls = flat
-        ? "px-0"
-        : "bg-white rounded-2xl shadow-lg px-6 py-5";
+    const authorBits = (
+        <>
+            <span className="text-xs text-gray-500">by {authorLink}</span>
+            <span className="text-xs text-gray-400">
+                · {new Date(post.createdAt).toLocaleString()}
+            </span>
+        </>
+    );
 
-    const imageCls = flat
-        ? "w-full h-auto rounded-xl"
+    const actionButtons = (
+        <>
+            <button
+                type="button"
+                className={clsx(
+                    "flex items-center gap-1 text-xs transition",
+                    post.didLike
+                        ? "text-red-500 font-bold"
+                        : "text-gray-400 hover:text-red-400"
+                )}
+                onClick={handleLike}
+                disabled={!session}
+                title={
+                    session
+                        ? post.didLike
+                            ? "Unlike"
+                            : "Like"
+                        : "Sign in to like"
+                }
+            >
+                <Heart
+                    size={18}
+                    fill={post.didLike ? "currentColor" : "none"}
+                    strokeWidth={2}
+                />
+                {post.likeCount ?? 0}
+            </button>
+
+            <button
+                type="button"
+                className={clsx(
+                    "flex items-center gap-1 text-xs transition",
+                    showComments
+                        ? "text-green-600 font-semibold"
+                        : "text-gray-400 hover:text-green-600"
+                )}
+                onClick={toggleComments}
+                title={showComments ? "Hide comments" : "Show comments"}
+            >
+                <MessageCircle size={16} />
+                {post.commentCount ?? 0}
+            </button>
+
+            <button
+                type="button"
+                className={clsx(
+                    "flex items-center gap-1 text-xs transition",
+                    canShare
+                        ? "text-gray-500 hover:text-green-700"
+                        : "text-gray-300 cursor-not-allowed"
+                )}
+                onClick={() => canShare && openShare()}
+                disabled={!canShare}
+                title={canShare ? "Share via Messenger" : "Sign in to share"}
+            >
+                <Share2 size={16} />
+                Share
+            </button>
+        </>
+    );
+
+    const outerCls = isFlat ? "w-full max-w-xl mx-auto" : "w-full max-w-2xl mx-auto px-4";
+    const articleCls = "bg-white rounded-2xl shadow-lg px-6 py-5";
+    const titleCls = isFlat
+        ? "font-bold text-lg text-gray-800"
+        : "font-bold text-2xl text-gray-900";
+    const textCls = "text-gray-700 mt-2 whitespace-pre-wrap";
+    const imageCls = isFlat
+        ? "w-full max-h-[540px] object-contain rounded-xl border"
         : "w-full max-h-[640px] object-contain rounded-xl border";
+    const commentsWrapperCls = isFlat ? "mt-3" : "mt-6";
 
     return (
         <>
             <div className={outerCls}>
                 <article className={articleCls}>
                     <div className="flex flex-col gap-1 mb-2">
-                        <h2
-                            className={clsx(
-                                "font-bold text-2xl",
-                                flat ? "text-gray-900" : "text-gray-800"
-                            )}
-                        >
-                            {post.title}
-                        </h2>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-gray-500">
-                                by{" "}
-                                {post.author?.username ? (
-                                    <Link
-                                        href={`/u/${encodeURIComponent(post.author.username)}`}
-                                        className="font-semibold hover:underline"
-                                        title={`View ${post.author.username}'s profile`}
-                                    >
-                                        {post.author.username}
-                                    </Link>
-                                ) : (
-                                    <span className="font-semibold">Unknown</span>
-                                )}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                                · {new Date(post.createdAt).toLocaleString()}
-                            </span>
-
-                            <button
-                                className={clsx(
-                                    "flex items-center ml-3 gap-1 text-xs transition",
-                                    post.didLike
-                                        ? "text-red-500 font-bold"
-                                        : "text-gray-400 hover:text-red-400"
-                                )}
-                                onClick={handleLike}
-                                title={post.didLike ? "Unlike" : "Like"}
-                            >
-                                <Heart
-                                    size={18}
-                                    fill={post.didLike ? "currentColor" : "none"}
-                                    strokeWidth={2}
-                                />
-                                {/* always show a number */}
-                                {post.likeCount ?? 0}
-                            </button>
-
-                            <button
-                                type="button"
-                                className={clsx(
-                                    "flex items-center gap-1 text-xs ml-2 transition",
-                                    showComments
-                                        ? "text-green-600"
-                                        : "text-gray-400 hover:text-green-600"
-                                )}
-                                onClick={toggleComments}
-                                title={showComments ? "Hide comments" : "Show comments"}
-                            >
-                                <MessageCircle size={16} />
-                                {/* always show a number */}
-                                {post.commentCount ?? 0}
-                            </button>
-
-                            <button
-                                className={clsx(
-                                    "flex items-center gap-1 text-xs ml-2 transition",
-                                    canShare
-                                        ? "text-gray-500 hover:text_GREEN-700"
-                                        : "text-gray-300 cursor-not-allowed"
-                                )}
-                                onClick={() => canShare && openShare()}
-                                disabled={!canShare}
-                                title={canShare ? "Share via Messenger" : "Sign in to share"}
-                            >
-                                <Share2 size={16} />
-                                Share
-                            </button>
-                        </div>
+                        {isFlat ? (
+                            <>
+                                <span className={titleCls}>{post.title}</span>
+                                <div className="flex flex-wrap items-center gap-2 md:hidden">
+                                    {authorBits}
+                                </div>
+                                <div className="hidden md:flex flex-wrap items-center gap-3">
+                                    {authorBits}
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        {actionButtons}
+                                    </div>
+                                </div>
+                                <div className="mt-2 flex md:hidden flex-wrap items-center gap-4">
+                                    {actionButtons}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className={titleCls}>{post.title}</h2>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {authorBits}
+                                    <div className="flex flex-wrap items-center gap-4 ml-auto">
+                                        {actionButtons}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    {post.content && (
-                        <div
-                            className={clsx(
-                                "text-gray-700 mt-2 whitespace-pre-wrap",
-                                flat && "px-0"
-                            )}
-                        >
-                            {post.content}
-                        </div>
-                    )}
+                    {post.content && <div className={textCls}>{post.content}</div>}
 
                     {post.imageUrl && (
-                        <div className="mt-4">
+                        <div className="mt-3">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={post.imageUrl} alt={post.title} className={imageCls} />
                         </div>
                     )}
 
                     {showComments && (
-                        <div id="comments" className={clsx("mt-6", flat && "px-0")}>
+                        <div id="comments" className={commentsWrapperCls}>
                             <PostComments postId={post.id} />
                         </div>
                     )}
