@@ -850,7 +850,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         <div className="h-[calc(100vh-80px)] lg:h-[calc(100%-56px)] px-3 sm:px-6 pb-6">
                             <iframe
                                 src={`/post/${encodeURIComponent(focusPostId)}`}
-                                className="w-full h-full rounded-xl bg-white shadow max-w-full"
+                                className="w-full h-full rounded-xl bg-[#f8f8f8] shadow max-w-full"
                             />
                         </div>
                     </div>

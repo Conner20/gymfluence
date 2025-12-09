@@ -499,7 +499,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             )}
                         </div>
                         <div className="px-3 sm:px-6 pb-6">
-                            <div className="rounded-xl bg-white shadow max-w-full">
+                            <div className="rounded-xl bg-[#f8f8f8] shadow max-w-full">
                                 <PostDetail postId={focusPostId} flat />
                             </div>
                         </div>

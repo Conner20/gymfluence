@@ -834,7 +834,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                 <div className="fixed inset-0 bg-[#f8f8f8] z-50 w-full h-full overflow-y-auto lg:absolute lg:overflow-hidden">
                     <div className="p-4 flex items-center justify-between sticky top-0 bg-[#f8f8f8] z-10">
                         <button
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white hover:bg-gray-50 text-sm"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-[#f8f8f8] hover:bg-gray-50 text-sm"
                             onClick={() => setFocusPostId(null)}
                             title="Back to profile"
                         >
