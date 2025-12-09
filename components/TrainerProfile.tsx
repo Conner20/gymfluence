@@ -848,7 +848,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             )}
                         </div>
                         <div className="px-3 sm:px-6 pb-6 pt-4">
-                            <div className="rounded-xl bg-[#f8f8f8] border border-zinc-200 shadow-inner max-w-full">
+                            <div className="rounded-xl bg-[#f8f8f8] border border-zinc-200 shadow-inner max-w-full max-h-[calc(100vh-140px)] overflow-y-auto">
                                 <PostDetail postId={focusPostId} flat />
                             </div>
                         </div>
