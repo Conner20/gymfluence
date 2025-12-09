@@ -851,11 +851,10 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                             </button>
                         )}
                     </div>
-                    <div className="h-[calc(100vh-80px)] lg:h-[calc(100%-56px)] px-3 sm:px-6 pb-6">
-                        <iframe
-                            src={`/post/${encodeURIComponent(focusPostId)}`}
-                            className="w-full h-full rounded-xl bg-white shadow max-w-full"
-                        />
+                    <div className="px-3 sm:px-6 pb-6 pt-4">
+                        <div className="rounded-xl bg-[#f8f8f8] border border-zinc-200 shadow-inner max-w-full">
+                            <PostDetail postId={focusPostId} flat />
+                        </div>
                     </div>
                 </div>
             )}
