@@ -832,7 +832,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
 
             {focusPostId && (
                 <div className="fixed inset-0 bg-[#f8f8f8] z-50 w-full h-full overflow-y-auto lg:absolute lg:overflow-hidden">
-                    <div className="p-4 flex items-center justify-between sticky top-0 bg-[#f8f8f8] z-20 border-b border-zinc-200 shadow-sm">
+                    <div className="p-4 flex items-center justify-between sticky top-0 bg-[#f8f8f8] z-10">
                         <button
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white hover:bg-gray-50 text-sm"
                             onClick={() => setFocusPostId(null)}
@@ -851,10 +851,10 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                             </button>
                         )}
                     </div>
-                    <div className="h-[calc(100vh-80px)] lg:h-[calc(100%-56px)] px-3 sm:px-6 pb-6 pt-4">
+                    <div className="h-[calc(100vh-80px)] lg:h-[calc(100%-56px)] px-3 sm:px-6 pb-6">
                         <iframe
                             src={`/post/${encodeURIComponent(focusPostId)}`}
-                            className="w-full h-full rounded-xl bg-[#f8f8f8] border border-zinc-200 shadow-inner max-w-full"
+                            className="w-full h-full rounded-xl bg-white shadow max-w-full"
                         />
                     </div>
                 </div>
