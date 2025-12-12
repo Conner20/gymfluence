@@ -138,6 +138,7 @@ function LineChartDual({
 
     const [hover, setHover] = useState<{ i: number; cx: number; cyW: number | null; cyR: number | null } | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
+    const pointerActive = useRef(false);
 
     // --- Tooltip width measurement & centering in CSS pixels ---
     const tipRef = useRef<HTMLDivElement | null>(null);
@@ -152,23 +153,56 @@ function LineChartDual({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hover?.i, hover?.cx, hover?.cyW, hover?.cyR]);
 
-    const onMove = (e: React.MouseEvent) => {
+    const updateHoverFromClientX = (clientX: number) => {
         const svg = svgRef.current;
         if (!svg) return;
         const rect = svg.getBoundingClientRect();
-        // Convert mouse X from CSS pixels to SVG viewBox units
+        if (!rect.width) return;
         const scaleX = width / rect.width;
-        const mxView = (e.clientX - rect.left) * scaleX;
-
+        const mxView = (clientX - rect.left) * scaleX;
         const clamped = Math.max(left, Math.min(left + w, mxView));
         const ratio = (clamped - left) / w;
         const idx = Math.round(ratio * (labels.length - 1));
-        const cx = x(idx); // cx in SVG viewBox units
+        const cx = x(idx);
         const wy = weight[idx] > 0 ? yW(weight[idx]) : null;
         const ry = reps[idx] > 0 ? yR(reps[idx]) : null;
         setHover({ i: idx, cx, cyW: wy, cyR: ry });
     };
-    const onLeave = () => setHover(null);
+
+    const onMove = (e: React.MouseEvent) => {
+        updateHoverFromClientX(e.clientX);
+    };
+    const onLeave = () => {
+        pointerActive.current = false;
+        setHover(null);
+    };
+
+    const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType !== 'mouse') {
+            pointerActive.current = true;
+            svgRef.current?.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        }
+        updateHoverFromClientX(e.clientX);
+    };
+
+    const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType === 'mouse' || pointerActive.current) {
+            updateHoverFromClientX(e.clientX);
+        }
+    };
+
+    const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (pointerActive.current) {
+            pointerActive.current = false;
+            svgRef.current?.releasePointerCapture(e.pointerId);
+        }
+    };
+
+    const onPointerCancel = () => {
+        pointerActive.current = false;
+        setHover(null);
+    };
 
     const hoverDate = hover ? labels[hover.i] : '';
     const hoverRows = hover ? dayEntries[hover.i] : [];
@@ -194,6 +228,11 @@ function LineChartDual({
                 className="h-full w-full select-none"
                 onMouseMove={onMove}
                 onMouseLeave={onLeave}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerCancel}
+                onPointerCancel={onPointerCancel}
             >
                 {/* grid & axes */}
                 <line x1={left} y1={top + h} x2={left + w} y2={top + h} stroke="#e5e7eb" />

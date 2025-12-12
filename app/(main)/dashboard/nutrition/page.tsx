@@ -263,32 +263,31 @@ export default function Nutrition() {
                                 <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} />
                             </div>
 
-                            <div className="relative min-h-[280px] flex flex-col rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[40]">
-                                <div className="mb-1 flex items-center justify-between">
-                                    <h3 className="font-semibold">
-                                        {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
-                                    </h3>
-
-                                    <div className="flex items-center gap-2">
+                            <div className="relative min-h-[280px] flex flex-col justify-between rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[40]">
+                                <div className="mb-2 flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap">
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="font-semibold">
+                                            {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
+                                        </h3>
                                         <div className="text-[11px] text-zinc-500">
                                             {heatMetric === 'kcal' ? 'kcal per day' : 'g per day'}
                                         </div>
-                                        <div className="ml-2 inline-flex rounded-lg border bg-white p-1 text-xs">
-                                            {(['kcal', 'f', 'c', 'p'] as HMMetric[]).map((m) => (
-                                                <button
-                                                    key={m}
-                                                    onClick={() => setHeatMetric(m)}
-                                                    className={`rounded-md px-2 py-1 capitalize ${heatMetric === m ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
-                                                    title={m === 'kcal' ? 'Calories' : m === 'f' ? 'Fat' : m === 'c' ? 'Carbs' : 'Protein'}
-                                                >
-                                                    {m === 'kcal' ? 'kcal' : m === 'f' ? 'fat' : m === 'c' ? 'carbs' : 'protein'}
-                                                </button>
-                                            ))}
-                                        </div>
+                                    </div>
+                                    <div className="ml-auto inline-flex rounded-lg border bg-white p-1 text-xs">
+                                        {(['kcal', 'f', 'c', 'p'] as HMMetric[]).map((m) => (
+                                            <button
+                                                key={m}
+                                                onClick={() => setHeatMetric(m)}
+                                                className={`rounded-md px-2 py-1 capitalize ${heatMetric === m ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                                title={m === 'kcal' ? 'Calories' : m === 'f' ? 'Fat' : m === 'c' ? 'Carbs' : 'Protein'}
+                                            >
+                                                {m === 'kcal' ? 'kcal' : m === 'f' ? 'fat' : m === 'c' ? 'carbs' : 'protein'}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
-                                <div className="flex flex-1 items-center justify-center">
+                                <div className="flex flex-1 items-center justify-center py-4">
                                     <div className="flex h-full w-full max-w-[560px] items-center justify-center">
                                         <ResponsiveHeatmap
                                             valuesByDate={valuesByDateMetric}
@@ -300,11 +299,11 @@ export default function Nutrition() {
                                     </div>
                                 </div>
 
-                                <div className="mt-3 flex items-center justify-end gap-3 text-[11px] text-zinc-600">
+                                <div className="mt-2 flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap text-[11px] text-zinc-600">
                                     <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
                                     <button
                                         onClick={() => setOpenEditLevels(true)}
-                                        className="inline-flex items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
+                                        className="ml-auto inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
                                         title="Edit heatmap keys"
                                     >
                                         <Sliders size={14} />
@@ -787,6 +786,7 @@ function BWChartLiftsStyle({
 
     const svgRef = useRef<SVGSVGElement | null>(null);
     const [hover, setHover] = useState<{ i: number; cx: number; cy: number | null } | null>(null);
+    const pointerActive = useRef(false);
     const tipRef = useRef<HTMLDivElement | null>(null);
     const [tipW, setTipW] = useState(140);
 
@@ -797,13 +797,13 @@ function BWChartLiftsStyle({
         }
     }, [hover?.i, hover?.cx, hover?.cy]);
 
-    const onMove = (e: React.MouseEvent) => {
+    const updateHoverFromClientX = (clientX: number) => {
         if (!labels.length) return;
         const svg = svgRef.current;
         if (!svg) return;
         const rect = svg.getBoundingClientRect();
         const scaleX = svgW / rect.width;
-        const mxView = (e.clientX - rect.left) * scaleX;
+        const mxView = (clientX - rect.left) * scaleX;
         const clamped = Math.max(left, Math.min(left + w, mxView));
         const ratio = (clamped - left) / w;
         const idx = Math.round(ratio * (Math.max(1, labels.length) - 1));
@@ -811,7 +811,38 @@ function BWChartLiftsStyle({
         const cy = series[idx] > 0 ? y(series[idx]) : null;
         setHover({ i: idx, cx, cy });
     };
-    const onLeave = () => setHover(null);
+
+    const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType !== 'mouse') {
+            pointerActive.current = true;
+            svgRef.current?.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        }
+        updateHoverFromClientX(e.clientX);
+    };
+
+    const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType === 'mouse' || pointerActive.current) {
+            updateHoverFromClientX(e.clientX);
+        }
+    };
+
+    const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (pointerActive.current) {
+            pointerActive.current = false;
+            svgRef.current?.releasePointerCapture(e.pointerId);
+        }
+    };
+
+    const onPointerLeave = () => {
+        pointerActive.current = false;
+        setHover(null);
+    };
+
+    const onPointerCancel = () => {
+        pointerActive.current = false;
+        setHover(null);
+    };
 
     const [openAdd, setOpenAdd] = useState(false);
     const [newDate, setNewDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -825,12 +856,12 @@ function BWChartLiftsStyle({
 
     const Delta = () =>
         delta && delta.diff !== 0 ? (
-            <span className={`ml-2 inline-flex items-center gap-1 text-xs ${delta.diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`inline-flex items-center gap-1 text-xs ${delta.diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {delta.diff > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                {Math.abs(delta.diff)} {fmtUnit}
+                <span>{Math.abs(delta.diff)} {fmtUnit}</span>
             </span>
         ) : (
-            <span className="ml-2 text-xs text-zinc-500">—</span>
+            <span className="text-xs text-zinc-500">—</span>
         );
 
     // --- Tooltip left (CSS px) from hover.cx (SVG units), clamped to chart width ---
@@ -845,58 +876,50 @@ function BWChartLiftsStyle({
 
     return (
         <div className="relative flex h-full w-full flex-col">
-            <div className="relative mb-3 flex flex-col gap-3 pr-12 sm:mb-1 sm:flex-row sm:items-center sm:justify-between sm:pr-0">
-                <button
-                    aria-label="Add bodyweight"
-                    className="absolute right-0 top-0 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:hidden"
-                    onClick={() => setOpenAdd((v) => !v)}
-                    title="Add bodyweight"
-                >
-                    {openAdd ? <X size={14} /> : <Plus size={14} />}
-                </button>
-                <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-3 sm:mb-1">
+                <div className="min-w-0 flex-1">
                     <h3 className="font-semibold whitespace-nowrap">{title}</h3>
-                    <div className="flex items-center text-xs text-zinc-600">
-                        <span>{fmtUnit}</span>
+                    <div className="flex items-center gap-2 text-xs text-zinc-600 whitespace-nowrap">
                         <Delta />
+                        <span className="text-zinc-400">•</span>
+                        <span className="uppercase tracking-wide">{fmtUnit}</span>
                     </div>
                 </div>
 
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                <div className="flex flex-nowrap items-center gap-2">
                     {openAdd && (
-                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-1">
-                            <input
-                                type="date"
-                                value={newDate}
-                                onChange={(e) => setNewDate(e.target.value)}
-                                className="h-9 w-full rounded-md border px-2 text-xs outline-none sm:h-7 sm:w-[150px]"
-                            />
-                            <input
-                                placeholder={`weight (${fmtUnit})`}
-                                inputMode="decimal"
-                                className="h-9 w-full rounded-md border px-2 text-xs outline-none sm:h-7 sm:w-[100px]"
-                                value={newW}
-                                onChange={(e) => setNewW(e.target.value)}
-                            />
-                            <button
-                                className="h-9 rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:h-7"
-                                onClick={() => {
-                                    const n = parseFloat(newW);
-                                    if (!isFinite(n) || n <= 0) return;
-                                    // Convert to storage unit (assumed lbs)
-                                    const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
-                                    onAdd(newDate, asLbs);
-                                    setNewW('');
-                                    setOpenAdd(false);
-                                }}
-                            >
-                                Add
-                            </button>
+                        <div className="flex items-center gap-2">
+                        <input
+                            type="date"
+                            value={newDate}
+                            onChange={(e) => setNewDate(e.target.value)}
+                            className="h-9 w-[100px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[130px]"
+                        />
+                        <input
+                            placeholder={`weight (${fmtUnit})`}
+                            inputMode="decimal"
+                            className="h-9 w-[80px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[110px]"
+                            value={newW}
+                            onChange={(e) => setNewW(e.target.value)}
+                        />
+                        <button
+                            className="h-9 rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:h-7"
+                            onClick={() => {
+                                const n = parseFloat(newW);
+                                if (!isFinite(n) || n <= 0) return;
+                                const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
+                                onAdd(newDate, asLbs);
+                                setNewW('');
+                                setOpenAdd(false);
+                            }}
+                        >
+                            Add
+                        </button>
                         </div>
                     )}
                     <button
                         aria-label="Add bodyweight"
-                        className="hidden h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:inline-flex sm:h-7 sm:w-7"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:h-7 sm:w-7"
                         onClick={() => setOpenAdd((v) => !v)}
                         title="Add bodyweight"
                     >
@@ -917,8 +940,11 @@ function BWChartLiftsStyle({
                         viewBox={`0 0 ${svgW} ${svgH}`}
                         className="h-full w-full select-none"
                         preserveAspectRatio="xMidYMid meet"
-                        onMouseMove={onMove}
-                        onMouseLeave={onLeave}
+                        onPointerDown={onPointerDown}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
+                        onPointerLeave={onPointerLeave}
+                        onPointerCancel={onPointerCancel}
                     >
                     <line x1={40} y1={28 + (svgH - 28 - 22)} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
                     <line x1={40} y1={28} x2={40} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
@@ -988,7 +1014,7 @@ function BWChartLiftsStyle({
             {/* Bottom controls: centered range buttons + bottom-right unit toggle */}
             <div className="relative mt-2 h-10">
                 {/* Centered range buttons */}
-                <div className="pointer-events-auto absolute inset-0 flex items-center justify-center gap-2">
+                <div className="pointer-events-auto absolute inset-0 flex items-center justify-center gap-2 pr-[110px] lg:pr-0">
                     {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                         <button
                             key={r}
@@ -1142,7 +1168,7 @@ function HeatmapLegend({ metric, levels }: { metric: HMMetric; levels: number[] 
             : `${Number.isFinite(levels[3]) ? `${levels[3]}+` : '+'}`,
     ];
     return (
-        <div className="mt-[-60px] flex flex-wrap items-center gap-6 text-[11px] text-zinc-600">
+        <div className="flex flex-nowrap items-center gap-6 whitespace-nowrap text-[11px] text-zinc-600 lg:flex-wrap flex-shrink-0">
             <LegendItem label={labels[0]} color={COLORS[0]} />
             <LegendItem label={labels[1]} color={COLORS[1]} />
             <LegendItem label={labels[2]} color={COLORS[2]} />

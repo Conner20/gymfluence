@@ -134,19 +134,54 @@ function SleepLine({
     }, [nonNull, x, y]);
 
     const [hover, setHover] = useState<{ i: number; cx: number; cy: number } | null>(null);
-    const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const pointerActive = useRef(false);
+    const updateHoverFromClientX = (clientX: number) => {
         const rect = svgRef.current?.getBoundingClientRect();
         if (!rect || rect.width === 0) return;
-        const scaleX = W / rect.width; // translate screen pixels into SVG viewBox units
-        const pointerX = (e.clientX - rect.left) * scaleX;
+        const scaleX = W / rect.width;
+        const pointerX = (clientX - rect.left) * scaleX;
         const localX = clamp(pointerX, pad.left, pad.left + innerW);
         const ratio = (localX - pad.left) / innerW;
         const i = Math.round(ratio * (xs.length - 1));
         const safeI = clamp(i, 0, xs.length - 1);
         const h = xs[safeI].hours;
-        const safeHours = typeof h === "number" ? h : yMin;
+        const safeHours = typeof h === 'number' ? h : yMin;
         setHover({ i: safeI, cx: x(safeI), cy: y(safeHours) });
     };
+    const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        updateHoverFromClientX(e.clientX);
+    };
+    const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType !== 'mouse') {
+            pointerActive.current = true;
+            svgRef.current?.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        }
+        updateHoverFromClientX(e.clientX);
+    };
+    const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType === 'mouse' || pointerActive.current) {
+            updateHoverFromClientX(e.clientX);
+        }
+    };
+    const endPointerTracking = (e?: React.PointerEvent<SVGSVGElement>) => {
+        if (pointerActive.current && e) {
+            svgRef.current?.releasePointerCapture(e.pointerId);
+        }
+        pointerActive.current = false;
+    };
+    const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+        endPointerTracking(e);
+    };
+    const onPointerCancel = (e: React.PointerEvent<SVGSVGElement>) => {
+        endPointerTracking(e);
+        setHover(null);
+    };
+    const onPointerLeave = () => {
+        pointerActive.current = false;
+        setHover(null);
+    };
+
     const hoveredPoint = hover ? xs[hover.i] : null;
 
     const avg7 = useMemo(() => {
@@ -243,6 +278,11 @@ function SleepLine({
                     className="h-[270px] w-full"
                     onMouseMove={onMove}
                     onMouseLeave={() => setHover(null)}
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onPointerLeave={onPointerLeave}
+                    onPointerCancel={onPointerCancel}
                 >
                     {/* grid + y-axis labels */}
                     {yTicks.map((h) => (
