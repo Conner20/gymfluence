@@ -50,7 +50,7 @@ export default function ProfilePage() {
             <MobileHeader title={username} href="/profile" />
 
             {/* Desktop header */}
-            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white py-6 justify-start pl-[40px] border-b">
+            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white py-6 justify-start pl-[40px]">
                 <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
                     <span>{username}</span>
                 </h1>

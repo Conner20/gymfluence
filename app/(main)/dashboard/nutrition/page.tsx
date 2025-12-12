@@ -227,7 +227,7 @@ export default function Nutrition() {
     );
 
     return (
-        <div className="flex min-h-screen flex-col overflow-hidden bg-[#f8f8f8]">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] lg:h-screen lg:overflow-hidden">
             <MobileHeader title="nutrition log" href="/dashboard/nutrition" subContent={mobileTabs} />
 
             {/* Header */}
@@ -241,10 +241,10 @@ export default function Nutrition() {
             </header>
 
             {/* Content */}
-            <div className="w-full flex-1 overflow-hidden px-6 pb-4 pt-4">
-                <div className="grid h-full min-w-0 grid-cols-12 gap-6">
+            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-4 lg:px-6 lg:pb-4 lg:pt-4 lg:overflow-hidden">
+                <div className="flex flex-col gap-6 lg:grid lg:h-full lg:min-w-0 lg:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
-                    <section className="col-span-4 min-h-0">
+                    <section className="col-span-12 min-h-0 lg:col-span-4">
                         <MacrosFlipCard
                             dateISO={dateISO}
                             onDateChange={setDateISO}
@@ -257,13 +257,13 @@ export default function Nutrition() {
                     </section>
 
                     {/* MIDDLE — Bodyweight + Heatmap */}
-                    <section className="col-span-5 min-h-0">
-                        <div className="flex h-full min-h-0 flex-col gap-3">
-                            <div className="relative min-h-0 flex-[60] rounded-xl border bg-white p-3 shadow-sm">
+                    <section className="col-span-12 min-h-0 lg:col-span-5">
+                        <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
+                            <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[60]">
                                 <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} />
                             </div>
 
-                            <div className="relative min-h-0 flex flex-[40] flex-col rounded-xl border bg-white p-3 shadow-sm">
+                            <div className="relative min-h-[280px] flex flex-col rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[40]">
                                 <div className="mb-1 flex items-center justify-between">
                                     <h3 className="font-semibold">
                                         {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
@@ -289,7 +289,7 @@ export default function Nutrition() {
                                 </div>
 
                                 <div className="flex flex-1 items-center justify-center">
-                                    <div className="translate-y-[10px]">
+                                    <div className="flex h-full w-full max-w-[560px] items-center justify-center">
                                         <ResponsiveHeatmap
                                             valuesByDate={valuesByDateMetric}
                                             height={180}
@@ -300,25 +300,23 @@ export default function Nutrition() {
                                     </div>
                                 </div>
 
-                                {/* Dynamic legend */}
-                                <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
-
-                                {/* Bottom-right edit button */}
-                                <button
-                                    onClick={() => setOpenEditLevels(true)}
-                                    className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs hover:bg-zinc-50"
-                                    title="Edit heatmap keys"
-                                >
-                                    <Sliders size={14} />
-                                    Edit keys
-                                </button>
+                                <div className="mt-3 flex items-center justify-end gap-3 text-[11px] text-zinc-600">
+                                    <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
+                                    <button
+                                        onClick={() => setOpenEditLevels(true)}
+                                        className="inline-flex items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
+                                        title="Edit heatmap keys"
+                                    >
+                                        <Sliders size={14} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </section>
 
                     {/* RIGHT — Meals for selected date */}
-                    <section className="col-span-3 min-h-0">
-                        <div className="flex h-full min-h-0 flex-col">
+                    <section className="col-span-12 min-h-0 lg:col-span-3">
+                        <div className="flex flex-col lg:h-full lg:min-h-0">
                             <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">
@@ -333,7 +331,7 @@ export default function Nutrition() {
                                     />
                                 </div>
 
-                                <div className="h-[calc(100%-36px)] space-y-3 overflow-y-auto pr-1">
+                                <div className="space-y-3 overflow-y-auto pr-1 max-h-96 lg:h-[calc(100%-36px)] lg:max-h-none">
                                     {mealsForDate.map((row) => (
                                         <div key={row.meal}>
                                             <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">
@@ -423,9 +421,9 @@ function MacrosFlipCard({
     const [flipped, setFlipped] = useState(false);
 
     return (
-        <div className="h-full rounded-xl border bg-white shadow-sm [perspective:1200px]">
+        <div className="rounded-xl border bg-white shadow-sm [perspective:1200px] lg:h-full">
             {/* toolbar */}
-            <div className="flex items-center justify-between px-4 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
                 <div className="flex items-center gap-3">
                     <h3 className="font-semibold">
                         {dateISO === fmtDate(new Date()) ? "Today's macros" : `Macros for ${dateISO}`}
@@ -438,19 +436,29 @@ function MacrosFlipCard({
                         aria-label="Change date"
                     />
                 </div>
-                <button
-                    aria-label={flipped ? 'Close add food' : 'Add food'}
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${flipped ? 'bg-neutral-200 text-black' : 'bg-black text-white'} hover:opacity-90`}
-                    onClick={() => setFlipped((v) => !v)}
-                    title={flipped ? 'Close' : 'Add food'}
-                >
-                    {flipped ? <X size={16} /> : <Plus size={16} />}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={onEditGoals}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs hover:bg-zinc-50"
+                        title="Edit macro goals"
+                        aria-label="Edit macro goals"
+                    >
+                        <Sliders size={14} />
+                    </button>
+                    <button
+                        aria-label={flipped ? 'Close add food' : 'Add food'}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${flipped ? 'bg-neutral-200 text-black' : 'bg-black text-white'} hover:opacity-90`}
+                        onClick={() => setFlipped((v) => !v)}
+                        title={flipped ? 'Close' : 'Add food'}
+                    >
+                        {flipped ? <X size={16} /> : <Plus size={16} />}
+                    </button>
+                </div>
             </div>
 
             {/* flip container */}
             <div
-                className={`relative h-[calc(100%-48px)] w-full transition-transform duration-300 [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}
+                className={`relative h-[500px] w-full transition-transform duration-300 [transform-style:preserve-3d] lg:h-[calc(100%-48px)] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}
             >
                 {/* FRONT — rings + Edit button (bottom-right) */}
                 <div className="absolute inset-0 backface-hidden p-4">
@@ -462,14 +470,6 @@ function MacrosFlipCard({
                             <RingBig label="carbs (g)" value={consumed.c} goal={goals.c} color="#3b82f6" />
                         </div>
 
-                        <button
-                            onClick={onEditGoals}
-                            className="absolute bottom-2 right-2 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs hover:bg-zinc-50"
-                            title="Edit macro goals"
-                        >
-                            <Sliders size={14} />
-                            Edit macros
-                        </button>
                     </div>
                 </div>
 
@@ -667,14 +667,17 @@ function BWChartLiftsStyle({
 }) {
     const [range, setRange] = useState<RangeKey>('1W');
     const [unit, setUnit] = useState<'lbs' | 'kg'>('lbs');
+    const { ref: chartRef, width: measuredWidth } = useMeasure<HTMLDivElement>();
+
+    const fallbackWidth = 360;
+    const effectiveWidth = measuredWidth > 0 ? measuredWidth : fallbackWidth;
+    const isMobile = measuredWidth > 0 ? measuredWidth < 640 : true;
+    const svgW = isMobile ? effectiveWidth : Math.min(effectiveWidth || 770, 770);
+    const svgH = isMobile ? 260 : 280;
 
     const LBS_PER_KG = 2.20462262185;
     const toDisplay = (vLbs: number) => unit === 'kg' ? vLbs / LBS_PER_KG : vLbs;
     const fmtUnit = unit;
-
-    const { ref, width } = useMeasure<HTMLDivElement>();
-    const svgW = Math.max(770, Math.floor(width));
-    const svgH = 280;
 
     const labels = useMemo(() => {
         if (range === 'ALL') {
@@ -711,6 +714,22 @@ function BWChartLiftsStyle({
     );
     const series = useMemo(() => rawSeries.map(v => v > 0 ? toDisplay(v) : 0), [rawSeries, unit]);
 
+    const allWeights = useMemo(() => {
+        const arr = points.map((p) => toDisplay(p.weight));
+        return arr.filter((v) => Number.isFinite(v) && v > 0);
+    }, [points, unit]);
+
+    const globalRange = useMemo(() => {
+        if (allWeights.length === 0) return { min: 0, max: 1 };
+        let min = Math.min(...allWeights);
+        let max = Math.max(...allWeights);
+        if (min === max) {
+            min -= 1;
+            max += 1;
+        }
+        return { min, max };
+    }, [allWeights]);
+
     // Delta over visible range (in display units)
     const delta = useMemo(() => {
         if (!series.length) return null as null | { diff: number; from?: number; to?: number };
@@ -732,16 +751,15 @@ function BWChartLiftsStyle({
     let minY: number;
     let maxY: number;
 
-    if (nonZeroSeries.length === 0) {
-        // No data in this range – use a tiny default span
+    if (isMobile) {
+        minY = globalRange.min;
+        maxY = globalRange.max;
+    } else if (nonZeroSeries.length === 0) {
         minY = 0;
         maxY = 1;
     } else {
-        // Min and max are the lowest & highest data points in this time frame
         minY = Math.min(...nonZeroSeries);
         maxY = Math.max(...nonZeroSeries);
-
-        // If all visible points are the same value, give a small buffer
         if (minY === maxY) {
             minY = minY - 1;
             maxY = maxY + 1;
@@ -798,7 +816,6 @@ function BWChartLiftsStyle({
     const [openAdd, setOpenAdd] = useState(false);
     const [newDate, setNewDate] = useState<string>(new Date().toISOString().slice(0, 10));
     const [newW, setNewW] = useState<string>('');
-    const expanderCls = 'overflow-hidden transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-1';
 
     const title =
         range === '1W' ? 'Past week' :
@@ -827,8 +844,16 @@ function BWChartLiftsStyle({
     }
 
     return (
-        <div className="relative flex h-full w-full flex-col" ref={ref}>
-            <div className="mb-1 flex items-center justify-between">
+        <div className="relative flex h-full w-full flex-col">
+            <div className="relative mb-3 flex flex-col gap-3 pr-12 sm:mb-1 sm:flex-row sm:items-center sm:justify-between sm:pr-0">
+                <button
+                    aria-label="Add bodyweight"
+                    className="absolute right-0 top-0 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:hidden"
+                    onClick={() => setOpenAdd((v) => !v)}
+                    title="Add bodyweight"
+                >
+                    {openAdd ? <X size={14} /> : <Plus size={14} />}
+                </button>
                 <div className="min-w-0">
                     <h3 className="font-semibold whitespace-nowrap">{title}</h3>
                     <div className="flex items-center text-xs text-zinc-600">
@@ -837,39 +862,41 @@ function BWChartLiftsStyle({
                     </div>
                 </div>
 
-                <div className="flex w-[360px] shrink-0 items-center justify-end">
-                    <div className={`${expanderCls} ${openAdd ? 'mr-1 max-w-[320px] opacity-100' : 'mr-0 max-w-0 opacity-0'}`}>
-                        <input
-                            type="date"
-                            value={newDate}
-                            onChange={(e) => setNewDate(e.target.value)}
-                            className="h-7 w-[150px] rounded-md border px-2 text-xs outline-none"
-                        />
-                        <input
-                            placeholder={`weight (${fmtUnit})`}
-                            inputMode="decimal"
-                            className="h-7 w-[100px] rounded-md border px-2 text-xs outline-none"
-                            value={newW}
-                            onChange={(e) => setNewW(e.target.value)}
-                        />
-                        <button
-                            className="h-7 rounded-md bg-green-600 px-2 text-xs text-white hover:bg-green-700"
-                            onClick={() => {
-                                const n = parseFloat(newW);
-                                if (!isFinite(n) || n <= 0) return;
-                                // Convert to storage unit (assumed lbs)
-                                const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
-                                onAdd(newDate, asLbs);
-                                setNewW('');
-                                setOpenAdd(false);
-                            }}
-                        >
-                            Add
-                        </button>
-                    </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                    {openAdd && (
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-1">
+                            <input
+                                type="date"
+                                value={newDate}
+                                onChange={(e) => setNewDate(e.target.value)}
+                                className="h-9 w-full rounded-md border px-2 text-xs outline-none sm:h-7 sm:w-[150px]"
+                            />
+                            <input
+                                placeholder={`weight (${fmtUnit})`}
+                                inputMode="decimal"
+                                className="h-9 w-full rounded-md border px-2 text-xs outline-none sm:h-7 sm:w-[100px]"
+                                value={newW}
+                                onChange={(e) => setNewW(e.target.value)}
+                            />
+                            <button
+                                className="h-9 rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:h-7"
+                                onClick={() => {
+                                    const n = parseFloat(newW);
+                                    if (!isFinite(n) || n <= 0) return;
+                                    // Convert to storage unit (assumed lbs)
+                                    const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
+                                    onAdd(newDate, asLbs);
+                                    setNewW('');
+                                    setOpenAdd(false);
+                                }}
+                            >
+                                Add
+                            </button>
+                        </div>
+                    )}
                     <button
                         aria-label="Add bodyweight"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700"
+                        className="hidden h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:inline-flex sm:h-7 sm:w-7"
                         onClick={() => setOpenAdd((v) => !v)}
                         title="Add bodyweight"
                     >
@@ -880,13 +907,19 @@ function BWChartLiftsStyle({
 
             {/* Chart */}
             <div className="relative flex min-h-0 flex-1 items-center justify-center pb-4">
-                <svg
-                    ref={svgRef}
-                    viewBox={`0 0 ${svgW} ${svgH}`}
-                    className="h-[100%] w-[100%] select-none"
-                    onMouseMove={onMove}
-                    onMouseLeave={onLeave}
+                <div
+                    ref={chartRef}
+                    className="w-full lg:h-full"
+                    style={{ height: svgH }}
                 >
+                    <svg
+                        ref={svgRef}
+                        viewBox={`0 0 ${svgW} ${svgH}`}
+                        className="h-full w-full select-none"
+                        preserveAspectRatio="xMidYMid meet"
+                        onMouseMove={onMove}
+                        onMouseLeave={onLeave}
+                    >
                     <line x1={40} y1={28 + (svgH - 28 - 22)} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
                     <line x1={40} y1={28} x2={40} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
                     <line x1={40 + (svgW - 40 - 40)} y1={28} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
@@ -930,7 +963,8 @@ function BWChartLiftsStyle({
                         </>
                     )}
                     <rect x={40} y={28} width={svgW - 40 - 40} height={svgH - 28 - 22} fill="transparent" />
-                </svg>
+                    </svg>
+                </div>
 
                 {/* Hover tooltip (date + value) */}
                 {hover && labels.length > 0 && (

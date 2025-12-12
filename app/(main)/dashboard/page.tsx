@@ -301,10 +301,12 @@ function YearHeatmap({
     width,
     height,
     valuesByDate,
+    sparseDayLabels = false,
 }: {
     width: number;
     height: number;
     valuesByDate: Record<string, number>;
+    sparseDayLabels?: boolean;
 }) {
     const cols = 53;
     const rows = 7;
@@ -367,6 +369,7 @@ function YearHeatmap({
                 );
             })}
             {dayLabels.map((lb, r) => {
+                if (sparseDayLabels && r % 2 === 1) return null;
                 const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
                 const x = width - 26;
                 return (
@@ -408,6 +411,10 @@ export default function Dashboard() {
 
     // chart range
     const [range, setRange] = useState<RangeKey>('1W');
+    const chartContainerRef = useRef<HTMLDivElement | null>(null);
+    const heatmapContainerRef = useRef<HTMLDivElement | null>(null);
+    const [chartWidth, setChartWidth] = useState(860);
+    const [heatmapWidth, setHeatmapWidth] = useState(820);
 
     // timer (smooth)
     const [mm, setMm] = useState(0);
@@ -467,6 +474,33 @@ export default function Dashboard() {
     }, [range, sets]);
 
     const filtered = useMemo(() => sets.filter((s) => s.exercise === exercise), [sets, exercise]);
+
+    useEffect(() => {
+        const observers: ResizeObserver[] = [];
+
+        if (chartContainerRef.current) {
+            const obs = new ResizeObserver((entries) => {
+                const width = entries[0]?.contentRect.width ?? 860;
+                setChartWidth(Math.max(320, Math.min(860, width)));
+            });
+            obs.observe(chartContainerRef.current);
+            observers.push(obs);
+        }
+
+        if (heatmapContainerRef.current) {
+            const obs = new ResizeObserver((entries) => {
+                const width = entries[0]?.contentRect.width ?? 820;
+                setHeatmapWidth(Math.max(320, Math.min(820, width)));
+            });
+            obs.observe(heatmapContainerRef.current);
+            observers.push(obs);
+        }
+
+        return () => observers.forEach((o) => o.disconnect());
+    }, []);
+
+    const chartHeight = chartWidth < 600 ? 260 : 370;
+    const heatmapHeight = heatmapWidth < 540 ? 140 : 160;
 
     const perDay = useMemo(() => {
         const g = groupBy(filtered, (r) => r.date);
@@ -680,7 +714,7 @@ export default function Dashboard() {
     );
 
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-[#f8f8f8]">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] lg:h-screen lg:overflow-hidden">
             <MobileHeader title="workouts log" href="/dashboard" subContent={mobileTabs} />
 
             {/* Header (fixed height) */}
@@ -700,13 +734,12 @@ export default function Dashboard() {
             </header>
 
             {/* Content (fills remaining viewport, no body scroll) */}
-            <div className="mx-auto h-full max-w-[1400px] flex-1 overflow-hidden px-3 pb-2 pt-3">
-                <div className="grid h-full grid-cols-12 gap-3">
+            <div className="mx-auto w-full max-w-[1400px] flex-1 overflow-y-auto px-3 pb-4 pt-3 lg:h-full lg:overflow-hidden">
+                <div className="flex flex-col gap-3 lg:grid lg:h-full lg:grid-cols-12">
                     {/* Left Column */}
-                    <div className="col-span-3 min-h-0">
-                        <div className="flex h-full min-h-0 flex-col gap-3">
-                            {/* Record Set */}
-                            <section className="flex min-h-0 flex-[55] flex-col rounded-xl border bg-white p-3 shadow-sm">
+                    <div className="contents lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
+                        {/* Record Set */}
+                        <section className="order-1 flex flex-col rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:min-h-0 lg:flex-[55]">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">Record set</h3>
                                     <button onClick={recordSet} className="rounded bg-black px-2 py-1 text-xs text-white">
@@ -716,7 +749,7 @@ export default function Dashboard() {
 
                                 {/* Fill the card's height and center the form BLOCK vertically (equal top/bottom space) */}
                                 <div className="flex-1">
-                                    <div className="mx-auto h-full max-w-[420px] flex flex-col justify-center gap-6 -translate-y-3">
+                                    <div className="mx-auto flex h-full max-w-[420px] flex-col justify-center gap-6 lg:-translate-y-3">
                                         <div>
                                             <label className="text-[11px] text-zinc-500">exercise</label>
                                             <div className="mt-1 flex gap-2">
@@ -794,8 +827,8 @@ export default function Dashboard() {
                                 </div>
                             </section>
 
-                            {/* Timer */}
-                            <section className="flex min-h-0 flex-[38] flex-col items-stretch rounded-xl border bg-white p-3 shadow-sm">
+                        {/* Timer */}
+                        <section className="order-4 flex flex-col items-stretch rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:min-h-0 lg:flex-[38]">
                                 <h3 className="mb-2 font-semibold">Timer</h3>
                                 <div className="flex items-center gap-2">
                                     <input
@@ -838,14 +871,13 @@ export default function Dashboard() {
                                         reset
                                     </button>
                                 </div>
-                            </section>
-                        </div>
+                        </section>
                     </div>
 
                     {/* Center Column */}
-                    <div className="col-span-6 flex min-h-0 flex-col gap-3">
+                    <div className="contents lg:col-span-6 lg:min-h-0 lg:flex lg:flex-col lg:gap-3">
                         {/* Lifts (title depends on selected range) */}
-                        <section className="relative min-h-0 rounded-xl border bg-white p-3 shadow-sm" style={{ height: '60%' }}>
+                        <section className="order-2 relative min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:h-[60%]">
                             {/* Header: title + current exercise (left/right) */}
                             <div className="mb-1 flex items-center justify-between">
                                 <h3 className="font-semibold">{RANGE_TITLES[range]}</h3>
@@ -853,10 +885,10 @@ export default function Dashboard() {
                             </div>
 
                             {/* Chart area */}
-                            <div className="h-[calc(100%-32px)]">
+                            <div className="h-[300px] lg:h-[calc(100%-32px)]" ref={chartContainerRef}>
                                 <LineChartDual
-                                    width={860}
-                                    height={370}
+                                    width={chartWidth}
+                                    height={chartHeight}
                                     labels={labels}
                                     weight={weightSeries.map((x) => Number(x.toFixed(1)))}
                                     reps={repsSeries.map((x) => Number(x.toFixed(1)))}
@@ -882,13 +914,18 @@ export default function Dashboard() {
                         </section>
 
                         {/* 2025 volume (slightly taller than default earlier) */}
-                        <section className="min-h-0 rounded-xl border bg-white p-3 shadow-sm" style={{ height: 'calc(36% + 15px)' }}>
+                        <section className="order-5 min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:h-[calc(36%+15px)]">
                             <div className="mb-1 flex items-center justify-between">
                                 <h3 className="font-semibold">2025 volume</h3>
                                 <div className="text-[11px] text-zinc-500">total sets per day</div>
                             </div>
-                            <div className="h-[calc(100%-52px)]">
-                                <YearHeatmap width={820} height={160} valuesByDate={heatmapValues} />
+                            <div className="flex h-[220px] items-center justify-center lg:h-[calc(100%-52px)]" ref={heatmapContainerRef}>
+                                <YearHeatmap
+                                    width={heatmapWidth}
+                                    height={heatmapHeight}
+                                    valuesByDate={heatmapValues}
+                                    sparseDayLabels={heatmapWidth < 640}
+                                />
                             </div>
                             <div className="mt-1 flex items-center gap-5 text-[11px] text-zinc-600">
                                 <LegendItem label="≤0 sets" color="#e5e7eb" />
@@ -901,12 +938,11 @@ export default function Dashboard() {
                     </div>
 
                     {/* Right Column */}
-                    <div className="col-span-3 min-h-0">
-                        <div className="flex h-full min-h-0 flex-col gap-3">
-                            {/* Recent entries */}
-                            <section className="min-h-0 flex-[55] rounded-xl border bg-white p-3 shadow-sm">
+                    <div className="contents lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
+                        {/* Recent entries */}
+                        <section className="order-3 min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex-[55]">
                                 <h3 className="mb-2 font-semibold">Recent entries</h3>
-                                <div className="h-[calc(100%-28px)] overflow-auto pr-1">
+                                <div className="max-h-80 overflow-auto pr-1 lg:h-[calc(100%-28px)] lg:max-h-none">
                                     {sets.length === 0 ? (
                                         <div className="text-sm text-zinc-500">No sets yet.</div>
                                     ) : (
@@ -938,10 +974,10 @@ export default function Dashboard() {
                                         </ul>
                                     )}
                                 </div>
-                            </section>
+                        </section>
 
-                            {/* Split with arrows */}
-                            <section className="min-h-0 flex-[38] rounded-xl border bg-white p-3 shadow-sm">
+                        {/* Split with arrows */}
+                        <section className="order-6 min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex-[38]">
                                 <div className="mb-1 flex items-center justify-between">
                                     <h3 className="font-semibold">Split</h3>
                                     <button onClick={customizeSplit} className="rounded border px-2 py-1 text-xs">
@@ -996,8 +1032,7 @@ export default function Dashboard() {
                                         <span className="text-zinc-500">Customize your split</span>
                                     )}
                                 </div>
-                            </section>
-                        </div>
+                        </section>
                     </div>
                 </div>
             </div>

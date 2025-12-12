@@ -932,6 +932,7 @@ function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string)
     );
 }
 
+
 function ScrollFeed({
     posts,
     onOpen,
@@ -951,100 +952,85 @@ function ScrollFeed({
 
     const fmt = (iso: string) =>
         new Date(iso).toLocaleString(undefined, {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
         });
 
     const toggleComments = (id: string) =>
         setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
 
     const handleShare = async (id: string) => {
-        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const url = `${origin}/post/${encodeURIComponent(id)}`;
         try {
             await navigator.clipboard.writeText(url);
             setCopiedId(id);
-            setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 2000);
+            setTimeout(() =>
+                setCopiedId((prev) => (prev === id ? null : prev)),
+                2000
+            );
         } catch {
-            alert("Failed to copy link.");
+            alert('Failed to copy link.');
         }
     };
 
-    if (!posts || posts.length === 0)
+    if (!posts || posts.length === 0) {
         return <div className="text-gray-400 text-center py-12">No posts yet.</div>;
+    }
 
     return (
-        <div className="space-y-6 max-w-2xl">
-            {posts.map((p) => (
-                <article key={p.id} className="bg-white rounded-2xl shadow px-5 py-4">
-                    <div className="flex.items-center justify-between">
-                        <div className="min-w-0">
-                            <button
-                                className="text-lg font-semibold text-gray-800 hover:underline"
-                                onClick={() => onOpen(p.id)}
-                                title="Open post"
-                            >
-                                {p.title}
-                            </button>
-                            <div className="text-xs text-gray-500 mt-0.5">
-                                by{" "}
-                                {p.author?.username ? (
-                                    <Link
-                                        href={`/u/${encodeURIComponent(p.author.username)}`}
-                                        className="font-medium hover:underline"
-                                    >
-                                        {p.author.username}
-                                    </Link>
-                                ) : (
-                                    <span className="font-medium">Unknown</span>
-                                )}{" "}
-                                · {fmt(p.createdAt)}
-                            </div>
-                        </div>
-                        {canDelete && (
-                            <button
-                                className="p-1.5 rounded-full hover:bg-red-50 text-red-500"
-                                title="Delete post"
-                                onClick={() => onDelete(p.id)}
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        )}
-                    </div>
+        <div className="space-y-6 max-w-xl">
+            {posts.map((p) => {
+                const authorBits = (
+                    <>
+                        <span className="text-xs text-gray-500">
+                            by{' '}
+                            {p.author?.username ? (
+                                <Link
+                                    href={`/u/${encodeURIComponent(p.author.username)}`}
+                                    className="font-semibold hover:underline"
+                                >
+                                    {p.author.username}
+                                </Link>
+                            ) : (
+                                <span className="font-semibold">Unknown</span>
+                            )}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                            · {fmt(p.createdAt)}
+                        </span>
+                    </>
+                );
 
-                    {p.imageUrl && (
-                        <div className="mt-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={p.imageUrl}
-                                alt=""
-                                className="w-full max-h-[540px] object-contain rounded-lg border cursor-pointer"
-                                onClick={() => onOpen(p.id)}
-                            />
-                        </div>
-                    )}
-
-                    {p.content && (
-                        <div className="text-gray-700 mt-3 whitespace-pre-wrap">{p.content}</div>
-                    )}
-
-                    <div className="mt-3 flex items-center gap-4 text-sm hidden sm:flex">
+                const actionButtons = (
+                    <>
                         <button
                             className={clsx(
-                                "inline-flex items-center gap-1 transition",
-                                p.didLike ? "text-red-500" : "text-gray-500 hover:text-red-500"
+                                'flex items-center gap-1 text-xs transition',
+                                p.didLike
+                                    ? 'text-red-500 font-bold'
+                                    : 'text-gray-400 hover:text-red-400'
                             )}
                             onClick={() => onLike(p.id)}
-                            title={p.didLike ? "Unlike" : "Like"}
+                            title={p.didLike ? 'Unlike' : 'Like'}
                         >
-                            <Heart size={18} fill={p.didLike ? "currentColor" : "none"} />
+                            <Heart
+                                size={18}
+                                fill={p.didLike ? 'currentColor' : 'none'}
+                                strokeWidth={2}
+                            />
                             {p.likeCount ?? 0}
                         </button>
 
                         <button
-                            className="inline-flex items-center gap-1 text-gray-500 hover:text-green-600"
+                            className={clsx(
+                                'flex items-center gap-1 text-xs transition',
+                                openComments[p.id]
+                                    ? 'text-green-600 font-semibold'
+                                    : 'text-gray-400 hover:text-green-600'
+                            )}
                             onClick={() => toggleComments(p.id)}
                             title="Toggle comments"
                         >
@@ -1053,30 +1039,88 @@ function ScrollFeed({
                         </button>
 
                         <button
-                            className="inline-flex items-center gap-1 text-gray-500 hover:text-blue-600"
+                            className="flex items-center gap-1 text-xs transition text-gray-500 hover:text-green-700"
                             onClick={() => handleShare(p.id)}
                             title="Copy link"
                         >
                             <Share2 size={16} />
-                            {copiedId === p.id ? "Copied" : "Share"}
+                            {copiedId === p.id ? 'Copied' : 'Share'}
                         </button>
-                    </div>
+                    </>
+                );
 
-                    {openComments[p.id] && (
-                        <div className="mt-3">
-                            <PostComments
-                                postId={p.id}
-                                onCountChange={(count) =>
-                                    setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
-                                }
-                            />
+                return (
+                    <article
+                        key={p.id}
+                        className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
+                    >
+                        {canDelete && (
+                            <button
+                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition"
+                                title="Delete post"
+                                onClick={() => onDelete(p.id)}
+                            >
+                                <Trash2 size={20} />
+                            </button>
+                        )}
+
+                        <div className="flex flex-col gap-1 mb-2">
+                            <button
+                                className="font-bold text-lg text-gray-800 text-left hover:underline"
+                                onClick={() => onOpen(p.id)}
+                                title="Open post"
+                            >
+                                {p.title}
+                            </button>
+
+                            <div className="flex flex-wrap items-center gap-2 md:hidden">
+                                {authorBits}
+                            </div>
+                            <div className="hidden md:flex flex-wrap items-center gap-3">
+                                {authorBits}
+                                <div className="flex flex-wrap items-center gap-4">
+                                    {actionButtons}
+                                </div>
+                            </div>
                         </div>
-                    )}
-                </article>
-            ))}
+
+                        <div className="mt-2 flex md:hidden flex-wrap items-center gap-4">
+                            {actionButtons}
+                        </div>
+
+                        {p.content && (
+                            <div className="text-zinc-800 mt-3 whitespace-pre-wrap">{p.content}</div>
+                        )}
+
+                        {p.imageUrl && (
+                            <div className="mt-3">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={p.imageUrl}
+                                    alt=""
+                                    className="w-full max-h-[540px] object-contain rounded-xl border cursor-pointer"
+                                    onClick={() => onOpen(p.id)}
+                                />
+                            </div>
+                        )}
+
+                        {openComments[p.id] && (
+                            <div className="mt-3">
+                                <PostComments
+                                    postId={p.id}
+                                    onCountChange={(count) =>
+                                        setCommentCounts((prev) => ({ ...prev, [p.id]: count }))
+                                    }
+                                />
+                            </div>
+                        )}
+                    </article>
+                );
+            })}
         </div>
     );
 }
+
 
 function PrivatePlaceholder() {
     return (

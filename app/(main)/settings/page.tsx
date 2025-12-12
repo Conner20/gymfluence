@@ -251,15 +251,15 @@ export default function SettingsPage() {
                 </h1>
             </header>
 
-            <main className="max-w-3xl mx-auto p-6 space-y-6">
+            <main className="w-full max-w-3xl mx-auto px-4 py-6 space-y-6 sm:px-6">
                 {/* Profile + Privacy card */}
-                <div className="bg-white rounded-xl shadow p-6 space-y-6">
+                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6">
                     <section>
                         <h2 className="font-semibold mb-4">Profile</h2>
 
-                        <div className="flex gap-6 items-start">
+                        <div className="flex flex-col gap-6 items-start lg:flex-row">
                             {/* Avatar + upload */}
-                            <div className="flex flex-col items-center gap-3">
+                            <div className="flex flex-col items-center gap-3 w-full lg:w-auto">
                                 <div className="w-32 h-32 rounded-full bg-gray-100 border flex items-center justify-center overflow-hidden">
                                     {displayImage ? (
                                         // eslint-disable-next-line @next/next/no-img-element
@@ -295,7 +295,7 @@ export default function SettingsPage() {
                             </div>
 
                             {/* Fields */}
-                            <div className="flex-1 space-y-4">
+                            <div className="w-full space-y-4">
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">Name</label>
                                     <input
@@ -321,9 +321,6 @@ export default function SettingsPage() {
                                     />
                                     <p className="mt-1 text-xs text-gray-500">
                                         Start typing a city (e.g. “Cincinnati, OH”) and choose a suggestion.
-                                    </p>
-                                    <p className="mt-1 text-[10px] text-gray-400">
-                                        Location search powered by Open-Meteo / GeoNames.
                                     </p>
                                 </div>
 
@@ -355,7 +352,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Search Profile card */}
-                <div className="bg-white rounded-xl shadow p-6 space-y-6">
+                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6">
                     <SearchProfileEditor
                         onSaveAll={saveBoth}
                         externalSaveTrigger={searchSaveTrigger}
@@ -363,7 +360,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Password management */}
-                <div className="bg-white rounded-xl shadow p-6 space-y-4">
+                <div className="bg-white rounded-xl shadow p-4 space-y-4 sm:p-6">
                     <h2 className="font-semibold">Password</h2>
                     <p className="text-sm text-gray-600">
                         {hasPassword

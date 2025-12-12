@@ -56,6 +56,7 @@ function SleepLine({
     goal: number;
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
+    const { ref: svgWrapRef, width: svgWidth } = useMeasure<HTMLDivElement>();
 
     const days = range === '1W' ? 7 : range === '1M' ? 30 : range === '3M' ? 90 : 365;
     const end = new Date();
@@ -79,8 +80,8 @@ function SleepLine({
     }, [data, days, start]);
 
     // drawing box
-    const W = 780;
-    const H = 290;
+    const W = Math.max(360, svgWidth || 780);
+    const H = W < 640 ? 240 : 290;
     const pad = { top: 20, right: 20, bottom: 20, left: 44 };
     const innerW = W - pad.left - pad.right;
     const innerH = H - pad.top - pad.bottom;
@@ -235,7 +236,7 @@ function SleepLine({
             </div>
 
             {/* chart */}
-            <div className="relative mt-3 w-full overflow-hidden">
+            <div ref={svgWrapRef} className="relative mt-3 w-full overflow-hidden">
                 <svg
                     ref={svgRef}
                     viewBox={`0 0 ${W} ${H}`}
@@ -760,7 +761,7 @@ function WellnessPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] lg:h-screen lg:overflow-hidden">
             <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
 
             <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none">
@@ -781,9 +782,9 @@ function WellnessPage() {
             </header>
 
             {/* Full-height dashboard area fills viewport minus header */}
-            <main className="mx-auto grid w-full flex-1 max-w-[1400px] grid-cols-12 gap-6 p-4 lg:h-[calc(100vh-128px)]">
+            <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:h-[calc(100vh-128px)]">
                 {/* Left column — Sleep bigger, Water smaller */}
-                <section className="col-span-12 grid grid-rows-[2fr_1fr] gap-6 overflow-hidden lg:col-span-7">
+                <section className="col-span-12 grid gap-6 overflow-hidden lg:col-span-7 lg:grid-rows-[2fr_1fr]">
                     <SleepLine
                         data={sleep}
                         range={range}
@@ -795,7 +796,7 @@ function WellnessPage() {
                 </section>
 
                 {/* Middle KPIs */}
-                <section className="col-span-12 grid grid-rows-3 gap-6 lg:col-span-3">
+                <section className="col-span-12 grid gap-6 lg:col-span-3 lg:grid-rows-3">
                     <KPI
                         title="Hours of sleep (avg last 7d)"
                         value={avgSleep7.toFixed(1)}
