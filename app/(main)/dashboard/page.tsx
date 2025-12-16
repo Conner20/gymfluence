@@ -178,21 +178,20 @@ function LineChartDual({
     };
 
     const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-        if (e.pointerType !== 'mouse') {
-            pointerActive.current = true;
-            svgRef.current?.setPointerCapture(e.pointerId);
-            e.preventDefault();
-        }
+        if (e.pointerType === 'mouse') return;
+        pointerActive.current = true;
+        svgRef.current?.setPointerCapture(e.pointerId);
+        e.preventDefault();
         updateHoverFromClientX(e.clientX);
     };
 
     const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-        if (e.pointerType === 'mouse' || pointerActive.current) {
-            updateHoverFromClientX(e.clientX);
-        }
+        if (e.pointerType === 'mouse' || !pointerActive.current) return;
+        updateHoverFromClientX(e.clientX);
     };
 
     const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+        if (e.pointerType === 'mouse') return;
         if (pointerActive.current) {
             pointerActive.current = false;
             svgRef.current?.releasePointerCapture(e.pointerId);
@@ -924,7 +923,7 @@ export default function Dashboard() {
                             </div>
 
                             {/* Chart area */}
-                            <div className="h-[300px] lg:h-[calc(100%-32px)]" ref={chartContainerRef}>
+                            <div className="h-[320px] lg:h-[calc(100%-32px)]" ref={chartContainerRef}>
                                 <LineChartDual
                                     width={chartWidth}
                                     height={chartHeight}
