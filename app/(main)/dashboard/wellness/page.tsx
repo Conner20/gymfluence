@@ -250,19 +250,26 @@ function SleepLine({
                                 openAdd ? 'max-w-[200px] opacity-100 ml-1 sm:max-w-[260px]' : 'max-w-0 opacity-0 ml-0'
                             } lg:hidden`}
                         >
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (dateInputRef.current) {
-                                        dateInputRef.current.showPicker?.();
-                                        dateInputRef.current.focus();
-                                    }
-                                }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg border text-purple-600 sm:hidden"
-                                aria-label="Select date"
-                            >
-                                <Calendar size={16} />
-                            </button>
+                            <div className="relative h-8 w-8 sm:hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        dateInputRef.current?.showPicker?.();
+                                        dateInputRef.current?.focus();
+                                    }}
+                                    className="flex h-full w-full items-center justify-center rounded-lg border text-purple-600"
+                                    aria-label="Select date"
+                                >
+                                    <Calendar size={16} />
+                                </button>
+                                <input
+                                    ref={dateInputRef}
+                                    type="date"
+                                    value={newDate}
+                                    onChange={(e) => setNewDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0"
+                                />
+                            </div>
                             <input
                                 ref={dateInputRef}
                                 type="date"
