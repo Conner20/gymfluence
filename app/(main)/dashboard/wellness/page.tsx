@@ -895,7 +895,7 @@ function WellnessPage() {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#f8f8f8] lg:h-screen lg:overflow-hidden">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] xl:h-screen xl:overflow-hidden">
             <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
 
             <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none">
@@ -916,9 +916,9 @@ function WellnessPage() {
             </header>
 
             {/* Full-height dashboard area fills viewport minus header */}
-            <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:h-[calc(100vh-128px)]">
+            <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 xl:grid xl:grid-cols-12 xl:h-[calc(100vh-128px)] xl:overflow-y-auto">
                 {/* Left column — Sleep bigger, Water smaller */}
-                <section className="col-span-12 grid gap-6 overflow-hidden lg:col-span-7 lg:grid-rows-[2fr_1fr]">
+                <section className="col-span-12 grid gap-6 xl:col-span-7 xl:grid-rows-[2fr_1fr] overflow-visible">
                     <SleepLine
                         data={sleep}
                         range={range}
@@ -930,7 +930,7 @@ function WellnessPage() {
                 </section>
 
                 {/* Middle KPIs */}
-                <section className="col-span-12 grid gap-6 lg:col-span-3 lg:grid-rows-3">
+                <section className="col-span-12 grid gap-6 xl:col-span-3 xl:grid-rows-3 overflow-visible">
                     <KPI
                         title="Hours of sleep (avg last 7d)"
                         value={avgSleep7.toFixed(1)}
@@ -966,7 +966,7 @@ function WellnessPage() {
                 </section>
 
                 {/* Right column */}
-                <section className="col-span-12 lg:col-span-2">
+                <section className="col-span-12 xl:col-span-2 overflow-visible">
                     <WaterToday
                         goal={waterGoal}
                         setGoal={setGoal}
