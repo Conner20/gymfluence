@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
-import { Moon, Droplet, Flame, Plus, X } from 'lucide-react';
+import { Moon, Droplet, Flame, Plus, X, Calendar } from 'lucide-react';
 
 import {
     fetchWellnessData,
@@ -57,6 +57,7 @@ function SleepLine({
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
     const { ref: svgWrapRef, width: svgWidth } = useMeasure<HTMLDivElement>();
+    const dateInputRef = useRef<HTMLInputElement | null>(null);
 
     const days = range === '1W' ? 7 : range === '1M' ? 30 : range === '3M' ? 90 : 365;
     const end = new Date();
@@ -219,8 +220,8 @@ function SleepLine({
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
-            {/* header */}
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            {/* header - mobile */}
+            <div className="flex flex-wrap items-start justify-between gap-3 lg:hidden">
                 <div className="min-w-0 flex-1">
                     <h3 className="text-[15px] font-semibold">Sleep trend</h3>
                     <div className="mt-0.5 text-[11px] text-green-600">avg last 7 days: {avg7.toFixed(1)} hrs</div>
@@ -234,7 +235,6 @@ function SleepLine({
                 </div>
 
                 <div className="flex flex-col items-end gap-2">
-                    <RangeButtons className="hidden lg:flex" />
                     <div className="flex items-center gap-2">
                         <button
                             aria-label="Add sleep"
@@ -245,22 +245,40 @@ function SleepLine({
                         </button>
 
                         {/* INLINE expander */}
-                        <div className={`${expanderCls} ${openAdd ? 'max-w-[260px] opacity-100 ml-1' : 'max-w-0 opacity-0 ml-0'}`}>
+                        <div
+                            className={`${expanderCls} ${
+                                openAdd ? 'max-w-[200px] opacity-100 ml-1 sm:max-w-[260px]' : 'max-w-0 opacity-0 ml-0'
+                            } lg:hidden`}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (dateInputRef.current) {
+                                        dateInputRef.current.showPicker?.();
+                                        dateInputRef.current.focus();
+                                    }
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border text-purple-600 sm:hidden"
+                                aria-label="Select date"
+                            >
+                                <Calendar size={16} />
+                            </button>
                             <input
+                                ref={dateInputRef}
                                 type="date"
                                 value={newDate}
                                 onChange={(e) => setNewDate(e.target.value)}
-                                className="h-8 w-[110px] rounded-lg border px-2 text-sm outline-none text-xs"
+                                className="hidden sm:block sm:h-8 sm:w-[120px] sm:rounded-lg sm:border sm:px-2 sm:text-sm sm:outline-none"
                             />
                             <input
                                 placeholder="hrs"
                                 inputMode="decimal"
-                                className="h-8 w-16 rounded-lg border px-2 text-sm outline-none text-xs"
+                                className="h-8 w-14 rounded-lg border px-2 text-xs outline-none sm:w-20 sm:text-sm"
                                 value={newHours}
                                 onChange={(e) => setNewHours(e.target.value)}
                             />
                             <button
-                                className="h-8 rounded-lg bg-purple-600 px-3 text-sm text-white hover:bg-purple-700"
+                                className="h-8 w-8 rounded-lg bg-purple-600 text-white hover:bg-purple-700 sm:w-20 sm:px-3"
                                 onClick={async () => {
                                     const h = parseFloat(newHours);
                                     if (!isFinite(h) || h <= 0) return;
@@ -269,9 +287,67 @@ function SleepLine({
                                     setOpenAdd(false);
                                 }}
                             >
-                                Add
+                                <span className="text-lg leading-none sm:hidden">+</span>
+                                <span className="hidden text-sm sm:inline">Add</span>
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* header - desktop */}
+            <div className="hidden items-center justify-between gap-4 lg:flex">
+                <div className="min-w-0">
+                    <h3 className="text-[15px] font-semibold">Sleep trend</h3>
+                    <div className="text-[11px] text-green-600">avg last 7 days: {avg7.toFixed(1)} hrs</div>
+                    <div className="mt-1 flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1 text-xs text-neutral-700">
+                            <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
+                            Sleep (hrs)
+                        </span>
+                        <span className="text-xs text-neutral-400">· {range}</span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        aria-label="Add sleep"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                        onClick={() => setOpenAdd((v) => !v)}
+                    >
+                        {openAdd ? <X size={16} /> : <Plus size={16} />}
+                    </button>
+
+                    <div
+                        className={`${expanderCls} ${
+                            openAdd ? 'max-w-[420px] opacity-100 ml-2' : 'max-w-0 opacity-0 ml-0'
+                        }`}
+                    >
+                        <input
+                            type="date"
+                            value={newDate}
+                            onChange={(e) => setNewDate(e.target.value)}
+                            className="h-8 rounded-lg border px-2 text-sm outline-none"
+                        />
+                        <input
+                            placeholder="hrs"
+                            inputMode="decimal"
+                            className="h-8 w-20 rounded-lg border px-2 text-sm outline-none"
+                            value={newHours}
+                            onChange={(e) => setNewHours(e.target.value)}
+                        />
+                        <button
+                            className="h-8 rounded-lg bg-purple-600 px-3 text-sm text-white hover:bg-purple-700"
+                            onClick={async () => {
+                                const h = parseFloat(newHours);
+                                if (!isFinite(h) || h <= 0) return;
+                                await onAdd({ date: newDate, hours: clamp(h, 0, 24) });
+                                setNewHours('');
+                                setOpenAdd(false);
+                            }}
+                        >
+                            Add
+                        </button>
                     </div>
                 </div>
             </div>
@@ -403,7 +479,7 @@ function SleepLine({
             </div>
 
             {/* Mobile range buttons */}
-            <div className="mt-3 lg:hidden">
+            <div className="mt-3 flex justify-center">
                 <RangeButtons className="justify-center" />
             </div>
         </div>
