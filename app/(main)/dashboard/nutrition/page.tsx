@@ -242,7 +242,7 @@ export default function Nutrition() {
 
             {/* Content */}
             <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-4 lg:px-6 lg:pb-4 lg:pt-4 lg:overflow-hidden">
-                <div className="flex flex-col gap-6 lg:grid lg:h-full lg:min-w-0 lg:grid-cols-12">
+                <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 lg:grid lg:h-full lg:min-w-0 lg:max-w-none lg:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
                     <section className="col-span-12 min-h-0 lg:col-span-4">
                         <MacrosFlipCard
