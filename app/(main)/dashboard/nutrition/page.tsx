@@ -245,20 +245,22 @@ export default function Nutrition() {
                 <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 lg:grid lg:h-full lg:min-w-0 lg:max-w-none lg:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
                     <section className="col-span-12 min-h-0 lg:col-span-4">
-                        <MacrosFlipCard
-                            dateISO={dateISO}
-                            onDateChange={setDateISO}
-                            goals={goals}
-                            consumed={consumed}
-                            meals={mealsForDate}
-                            onEditGoals={() => setOpenEditGoals(true)}
-                            addUI={{ q, setQ, serv, setServ, targetMeal, setTargetMeal, addFood, customFoods, setCustomFoods }}
-                        />
+                        <div className="mx-auto w-full max-w-[640px] lg:max-w-none">
+                            <MacrosFlipCard
+                                dateISO={dateISO}
+                                onDateChange={setDateISO}
+                                goals={goals}
+                                consumed={consumed}
+                                meals={mealsForDate}
+                                onEditGoals={() => setOpenEditGoals(true)}
+                                addUI={{ q, setQ, serv, setServ, targetMeal, setTargetMeal, addFood, customFoods, setCustomFoods }}
+                            />
+                        </div>
                     </section>
 
                     {/* MIDDLE — Bodyweight + Heatmap */}
                     <section className="col-span-12 min-h-0 lg:col-span-5">
-                        <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
+                        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3 lg:h-full lg:min-h-0 lg:max-w-none">
                             <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[60]">
                                 <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} />
                             </div>
@@ -315,7 +317,7 @@ export default function Nutrition() {
 
                     {/* RIGHT — Meals for selected date */}
                     <section className="col-span-12 min-h-0 lg:col-span-3">
-                        <div className="flex flex-col lg:h-full lg:min-h-0">
+                        <div className="mx-auto flex w-full max-w-[640px] flex-col lg:h-full lg:min-h-0 lg:max-w-none">
                             <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">

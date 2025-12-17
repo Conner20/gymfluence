@@ -294,7 +294,7 @@ function LineChartDual({
             </svg>
 
             {/* legend */}
-            <div className="absolute left-2 top-2 flex items-center gap-4 text-[12px]">
+            <div className="hidden">
                 <span className="inline-flex items-center gap-1 text-zinc-700">
                     <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
                     <span className="font-medium">Weight (avg)</span>
@@ -915,33 +915,70 @@ export default function Dashboard() {
                     {/* Center Column */}
                     <div className="contents lg:col-span-6 lg:min-h-0 lg:flex lg:flex-col lg:gap-3">
                         {/* Lifts (title depends on selected range) */}
-                        <section className="order-2 relative min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:h-[60%]">
-                            {/* Header: title + current exercise (left/right) */}
-                            <div className="mb-1 flex items-center justify-between">
-                                <h3 className="font-semibold">{RANGE_TITLES[range]}</h3>
-                                <div className="max-w-[40ch] truncate text-xs text-zinc-600">{exercise || '—'}</div>
+                        <section className="order-2 relative min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex lg:flex-col lg:flex-[60] lg:min-h-0">
+                            {/* Header */}
+                            <div className="mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex items-center justify-between text-xs text-zinc-600 lg:block">
+                                    <h3 className="font-semibold text-base text-black">{RANGE_TITLES[range]}</h3>
+                                    <div className="lg:hidden text-[11px] text-zinc-600">{exercise || '—'}</div>
+                                    <div className="hidden lg:block">{exercise || '—'}</div>
+                                </div>
+                            </div>
+
+                            <div className="mb-2 flex items-center gap-3 text-[10px] text-zinc-500 lg:hidden">
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#16a34a' }} />
+                                    <span>Weight</span>
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#111827' }} />
+                                    <span>Reps</span>
+                                </span>
+                            </div>
+                            <div className="hidden items-center gap-4 text-[11px] text-zinc-600 lg:flex">
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: '#16a34a' }} />
+                                    <span>Weight</span>
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: '#111827' }} />
+                                    <span>Reps</span>
+                                </span>
                             </div>
 
                             {/* Chart area */}
-                            <div className="h-[320px] lg:h-[calc(100%-32px)]" ref={chartContainerRef}>
-                                <LineChartDual
-                                    width={chartWidth}
-                                    height={chartHeight}
-                                    labels={labels}
-                                    weight={weightSeries.map((x) => Number(x.toFixed(1)))}
-                                    reps={repsSeries.map((x) => Number(x.toFixed(1)))}
-                                    dayEntries={perDay}
-                                />
+                            <div className="flex flex-col gap-3 lg:flex-1 lg:min-h-0">
+                                <div className="h-[320px] lg:flex-1 lg:min-h-0" ref={chartContainerRef}>
+                                    <LineChartDual
+                                        width={chartWidth}
+                                        height={chartHeight}
+                                        labels={labels}
+                                        weight={weightSeries.map((x) => Number(x.toFixed(1)))}
+                                        reps={repsSeries.map((x) => Number(x.toFixed(1)))}
+                                        dayEntries={perDay}
+                                    />
+                                </div>
+
+                                <div className="hidden items-center justify-center gap-2 lg:flex">
+                                    {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
+                                        <button
+                                            key={r}
+                                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                            onClick={() => onRange(r)}
+                                        >
+                                            {r}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Range buttons — centered bottom */}
-                            <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2">
+                            <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2 lg:hidden">
                                 <div className="flex items-center gap-2">
                                     {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                                         <button
                                             key={r}
-                                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'
-                                                }`}
+                                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
                                             onClick={() => onRange(r)}
                                         >
                                             {r}
@@ -1048,8 +1085,7 @@ export default function Dashboard() {
                                         split.map((name, idx) => (
                                             <div
                                                 key={idx}
-                                                className={`rounded border px-2 py-1 ${idx === effectiveSplitIndex ? 'border-green-600 bg-green-600 text-white' : 'bg-white'
-                                                    }`}
+                                                className={`rounded border px-2 py-1 ${idx === effectiveSplitIndex ? 'border-green-600 bg-green-600 text-white' : 'bg-white'}`}
                                                 title={idx === effectiveSplitIndex ? 'selected' : undefined}
                                             >
                                                 {name}
@@ -1060,16 +1096,11 @@ export default function Dashboard() {
                                     )}
                                 </div>
 
-                                <div className="mt-4 text-center text-sm">
-                                    {split.length ? (
-                                        <>
-                                            <span className="text-zinc-600">Selected:</span>{' '}
-                                            <span className="font-semibold text-green-700">{splitToday}</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-zinc-500">Customize your split</span>
-                                    )}
-                                </div>
+                                {!split.length && (
+                                    <div className="mt-4 text-center text-sm text-zinc-500">
+                                        Customize your split
+                                    </div>
+                                )}
                         </section>
                     </div>
                 </div>
@@ -1154,7 +1185,7 @@ function TimerRing({ msLeft, total }: { msLeft: number; total: number }) {
 
     return (
         <div className="relative">
-            <svg viewBox="0 0 128 128" className="h-24 w-24 sm:h-28 sm:w-28">
+            <svg viewBox="0 0 128 128" className="h-24 w-24 sm:h-28 sm:w-28 lg:h-24 lg:w-24">
                 {/* subtle outline so the white remainder is visible */}
                 <circle cx={cx} cy={cy} r={r} stroke="#e5e7eb" strokeWidth="10" fill="none" />
                 {/* white remainder background */}
