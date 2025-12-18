@@ -227,7 +227,7 @@ export default function Nutrition() {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#f8f8f8] lg:h-screen lg:overflow-hidden">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] xl:h-screen xl:overflow-hidden">
             <MobileHeader title="nutrition log" href="/dashboard/nutrition" subContent={mobileTabs} />
 
             {/* Header */}
@@ -241,11 +241,11 @@ export default function Nutrition() {
             </header>
 
             {/* Content */}
-            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-4 lg:px-6 lg:pb-4 lg:pt-4 lg:overflow-hidden">
-                <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 lg:grid lg:h-full lg:min-w-0 lg:max-w-none lg:grid-cols-12">
+            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 pt-4 xl:px-6 xl:pb-4 xl:pt-4 xl:overflow-y-auto">
+                <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 xl:grid xl:min-h-[820px] xl:h-full xl:min-w-0 xl:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
-                    <section className="col-span-12 min-h-0 lg:col-span-4">
-                        <div className="mx-auto w-full max-w-[640px] lg:max-w-none">
+                    <section className="col-span-12 min-h-0 xl:col-span-4 xl:flex xl:flex-col">
+                        <div className="mx-auto w-full max-w-[640px] xl:max-w-none xl:flex-1">
                             <MacrosFlipCard
                                 dateISO={dateISO}
                                 onDateChange={setDateISO}
@@ -259,41 +259,39 @@ export default function Nutrition() {
                     </section>
 
                     {/* MIDDLE — Bodyweight + Heatmap */}
-                    <section className="col-span-12 min-h-0 lg:col-span-5">
-                        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3 lg:h-full lg:min-h-0 lg:max-w-none">
-                            <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[60]">
+                    <section className="col-span-12 min-h-0 xl:col-span-5 xl:flex xl:flex-col gap-3">
+                        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-3 xl:flex-1 xl:max-w-none">
+                            <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm xl:flex-1">
                                 <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} />
                             </div>
 
-                            <div className="relative min-h-[280px] flex flex-col justify-between rounded-xl border bg-white p-3 shadow-sm lg:min-h-0 lg:flex-[40]">
-                                <div className="mb-2 flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="font-semibold">
-                                            {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
-                                        </h3>
-                                        <div className="text-[11px] text-zinc-500">
-                                            {heatMetric === 'kcal' ? 'kcal per day' : 'g per day'}
-                                        </div>
-                                    </div>
-                                    <div className="ml-auto inline-flex rounded-lg border bg-white p-1 text-xs">
-                                        {(['kcal', 'f', 'c', 'p'] as HMMetric[]).map((m) => (
-                                            <button
-                                                key={m}
-                                                onClick={() => setHeatMetric(m)}
-                                                className={`rounded-md px-2 py-1 capitalize ${heatMetric === m ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
-                                                title={m === 'kcal' ? 'Calories' : m === 'f' ? 'Fat' : m === 'c' ? 'Carbs' : 'Protein'}
-                                            >
-                                                {m === 'kcal' ? 'kcal' : m === 'f' ? 'fat' : m === 'c' ? 'carbs' : 'protein'}
-                                            </button>
-                                        ))}
+                            <div className="relative min-h-[220px] flex flex-col rounded-xl border bg-white p-3 shadow-sm xl:flex-1">
+                                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                    <h3 className="font-semibold">
+                                        {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
+                                    </h3>
+                                    <div className="text-[11px] text-zinc-500">
+                                        {heatMetric === 'kcal' ? 'kcal per day' : 'g per day'}
                                     </div>
                                 </div>
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    {(['kcal', 'f', 'c', 'p'] as HMMetric[]).map((m) => (
+                                        <button
+                                            key={m}
+                                            onClick={() => setHeatMetric(m)}
+                                            className={`rounded-md px-2 py-1 text-xs capitalize ${heatMetric === m ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                            title={m === 'kcal' ? 'Calories' : m === 'f' ? 'Fat' : m === 'c' ? 'Carbs' : 'Protein'}
+                                        >
+                                            {m === 'kcal' ? 'kcal' : m === 'f' ? 'fat' : m === 'c' ? 'carbs' : 'protein'}
+                                        </button>
+                                    ))}
+                                </div>
 
-                                <div className="flex flex-1 items-center justify-center py-4">
-                                    <div className="flex h-full w-full max-w-[560px] items-center justify-center">
+                                <div className="flex flex-1 items-center justify-center">
+                                    <div className="flex h-[200px] w-full max-w-[540px] items-center justify-center xl:h-[180px]">
                                         <ResponsiveHeatmap
                                             valuesByDate={valuesByDateMetric}
-                                            height={180}
+                                            height={140}
                                             showAlternateDays
                                             levels={heatmapLevels[heatMetric]}
                                             colors={COLORS}
@@ -301,7 +299,7 @@ export default function Nutrition() {
                                     </div>
                                 </div>
 
-                                <div className="mt-2 flex flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap text-[11px] text-zinc-600">
+                                <div className="mt-1 flex flex-wrap items-center gap-4 text-[11px] text-zinc-600">
                                     <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
                                     <button
                                         onClick={() => setOpenEditLevels(true)}
@@ -316,8 +314,8 @@ export default function Nutrition() {
                     </section>
 
                     {/* RIGHT — Meals for selected date */}
-                    <section className="col-span-12 min-h-0 lg:col-span-3">
-                        <div className="mx-auto flex w-full max-w-[640px] flex-col lg:h-full lg:min-h-0 lg:max-w-none">
+                    <section className="col-span-12 min-h-0 xl:col-span-3 xl:flex xl:flex-col">
+                        <div className="mx-auto flex w-full max-w-[640px] flex-col xl:flex-1 xl:max-w-none">
                             <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">
@@ -332,7 +330,7 @@ export default function Nutrition() {
                                     />
                                 </div>
 
-                                <div className="space-y-3 overflow-y-auto pr-1 max-h-96 lg:h-[calc(100%-36px)] lg:max-h-none">
+                                <div className="space-y-3 overflow-y-auto pr-1 max-h-96 xl:h-[calc(100%-36px)] xl:max-h-none">
                                     {mealsForDate.map((row) => (
                                         <div key={row.meal}>
                                             <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">
@@ -343,9 +341,9 @@ export default function Nutrition() {
                                                     <li className="text-sm text-zinc-400">—</li>
                                                 ) : (
                                                     row.items.map((it) => (
-                                                        <li key={it.id} className="flex items-center justify-between text-sm">
-                                                            <span className="min-w-0 truncate">{it.food.name}</span>
-                                                            <span className="ml-2 flex items-center gap-3 text-zinc-500">
+                                                        <li key={it.id} className="flex items-center gap-2 text-sm">
+                                                            <span className="min-w-0 flex-1 truncate">{it.food.name}</span>
+                                                            <span className="flex flex-shrink-0 items-center gap-3 whitespace-nowrap text-zinc-500">
                                                                 <span>
                                                                     {it.servings}× • {(it.food.macros.kcal * it.servings) | 0} kcal
                                                                 </span>
@@ -422,22 +420,20 @@ function MacrosFlipCard({
     const [flipped, setFlipped] = useState(false);
 
     return (
-        <div className="rounded-xl border bg-white shadow-sm [perspective:1200px] lg:h-full">
+        <div className="rounded-xl border bg-white shadow-sm [perspective:1200px] xl:h-full">
             {/* toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-                <div className="flex items-center gap-3">
-                    <h3 className="font-semibold">
-                        {dateISO === fmtDate(new Date()) ? "Today's macros" : `Macros for ${dateISO}`}
-                    </h3>
-                    <input
-                        type="date"
-                        value={dateISO}
-                        onChange={(e) => onDateChange(e.target.value)}
-                        className="h-7 rounded-md border px-2 text-xs outline-none"
-                        aria-label="Change date"
-                    />
-                </div>
-                <div className="flex items-center gap-2">
+            <div className="flex flex-nowrap items-center gap-3 px-4 pt-4 text-sm overflow-x-auto">
+                <h3 className="whitespace-nowrap font-semibold">
+                    {dateISO === fmtDate(new Date()) ? "Today's macros" : `Macros for ${dateISO}`}
+                </h3>
+                <input
+                    type="date"
+                    value={dateISO}
+                    onChange={(e) => onDateChange(e.target.value)}
+                    className="h-7 w-[130px] flex-shrink-0 rounded-md border px-2 text-xs outline-none"
+                    aria-label="Change date"
+                />
+                <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                     <button
                         onClick={onEditGoals}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs hover:bg-zinc-50"
@@ -459,12 +455,12 @@ function MacrosFlipCard({
 
             {/* flip container */}
             <div
-                className={`relative h-[500px] w-full transition-transform duration-300 [transform-style:preserve-3d] lg:h-[calc(100%-48px)] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}
+                className={`relative h-[500px] w-full transition-transform duration-300 [transform-style:preserve-3d] xl:h-[calc(100%-48px)] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}
             >
                 {/* FRONT — rings + Edit button (bottom-right) */}
                 <div className="absolute inset-0 backface-hidden p-4">
                     <div className="relative flex h-full items-center justify-center">
-                        <div className="grid w-full grid-cols-2 place-items-center gap-5 md:gap-0">
+                        <div className="grid w-full max-w-[520px] grid-cols-2 place-items-center gap-3 md:gap-2">
                             <RingBig label="calories (kcal)" value={consumed.kcal} goal={goals.kcal} color="#ef4444" />
                             <RingBig label="protein (g)" value={consumed.p} goal={goals.p} color="#6cf542" />
                             <RingBig label="fat (g)" value={consumed.f} goal={goals.f} color="#f5e642" />
@@ -488,8 +484,8 @@ function RingBig({ label, value, goal, color }: { label: string; value: number; 
     const pct = Math.min(1, value / Math.max(1, goal));
     const R = 90; const C = 2 * Math.PI * R;
     return (
-        <div className="relative flex items-center justify-center bg-white p-2">
-            <svg viewBox="0 0 240 240" className="aspect-square w-full max-w-[230px]">
+        <div className="relative flex items-center justify-center bg-white p-0.5 sm:p-2">
+            <svg viewBox="0 0 240 240" className="aspect-square w-full max-w-[220px]">
                 <circle cx="120" cy="120" r={R} stroke="#e5e7eb" strokeWidth="10" fill="none" strokeLinecap="round" />
                 <circle cx="120" cy="120" r={R} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={`${C * pct},999`} transform="rotate(-90 120 120)" />
             </svg>
@@ -934,7 +930,7 @@ function BWChartLiftsStyle({
             <div className="relative flex min-h-0 flex-1 items-center justify-center pb-4">
                 <div
                     ref={chartRef}
-                    className="w-full lg:h-full"
+                    className="w-full xl:h-full"
                     style={{ height: svgH }}
                 >
                     <svg
@@ -1016,7 +1012,7 @@ function BWChartLiftsStyle({
             {/* Bottom controls: centered range buttons + bottom-right unit toggle */}
             <div className="relative mt-2 h-10">
                 {/* Centered range buttons */}
-                <div className="pointer-events-auto absolute inset-0 flex items-center justify-center gap-2 pr-[110px] lg:pr-0">
+                <div className="pointer-events-auto absolute inset-0 flex items-center justify-center gap-2 pr-[110px] xl:pr-0">
                     {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                         <button
                             key={r}
@@ -1170,7 +1166,7 @@ function HeatmapLegend({ metric, levels }: { metric: HMMetric; levels: number[] 
             : `${Number.isFinite(levels[3]) ? `${levels[3]}+` : '+'}`,
     ];
     return (
-        <div className="flex flex-nowrap items-center gap-6 whitespace-nowrap text-[11px] text-zinc-600 lg:flex-wrap flex-shrink-0">
+        <div className="flex flex-nowrap items-center gap-6 whitespace-nowrap text-[11px] text-zinc-600 xl:flex-wrap flex-shrink-0">
             <LegendItem label={labels[0]} color={COLORS[0]} />
             <LegendItem label={labels[1]} color={COLORS[1]} />
             <LegendItem label={labels[2]} color={COLORS[2]} />

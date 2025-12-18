@@ -772,8 +772,8 @@ export default function Dashboard() {
             </header>
 
             {/* Content (fills remaining viewport, no body scroll) */}
-            <div className="mx-auto w-full max-w-[1400px] flex-1 overflow-y-auto px-3 pb-4 pt-3 lg:h-full lg:overflow-hidden">
-                <div className="flex flex-col gap-3 lg:grid lg:h-full lg:grid-cols-12">
+            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3 lg:h-full lg:px-4 lg:pb-4 lg:pt-3 lg:overflow-y-auto">
+                <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:grid lg:min-h-[940px] lg:h-full lg:min-w-0 lg:grid-cols-12">
                     {/* Left Column */}
                     <div className="contents lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
                         {/* Record Set */}
@@ -913,7 +913,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Center Column */}
-                    <div className="contents lg:col-span-6 lg:min-h-0 lg:flex lg:flex-col lg:gap-3">
+                    <div className="contents lg:col-span-6 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
                         {/* Lifts (title depends on selected range) */}
                         <section className="order-2 relative min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex lg:flex-col lg:flex-[60] lg:min-h-0">
                             {/* Header */}
@@ -1052,7 +1052,7 @@ export default function Dashboard() {
                         </section>
 
                         {/* Split with arrows */}
-                        <section className="order-6 min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex-[38]">
+                        <section className="order-6 flex min-h-0 flex-col rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex-[38]">
                                 <div className="mb-1 flex items-center justify-between">
                                     <h3 className="font-semibold">Split</h3>
                                     <button onClick={customizeSplit} className="rounded border px-2 py-1 text-xs">
@@ -1060,24 +1060,26 @@ export default function Dashboard() {
                                     </button>
                                 </div>
 
-                                <div className="mt-2 flex items-center justify-center gap-3">
-                                    <button
-                                        className="rounded-full border px-2 py-1 text-sm"
-                                        title="Previous day"
-                                        onClick={() => setSplitOffset((v) => v - 1)}
-                                    >
-                                        ←
-                                    </button>
+                                <div className="mt-2 flex flex-1 items-center justify-center">
+                                    <div className="flex items-center justify-center gap-3">
+                                        <button
+                                            className="rounded-full border px-2 py-1 text-sm"
+                                            title="Previous day"
+                                            onClick={() => setSplitOffset((v) => v - 1)}
+                                        >
+                                            ←
+                                        </button>
 
-                                    <SplitRing items={split} activeIndex={effectiveSplitIndex} progress={splitProgress} />
+                                        <SplitRing items={split} activeIndex={effectiveSplitIndex} progress={splitProgress} />
 
-                                    <button
-                                        className="rounded-full border px-2 py-1 text-sm"
-                                        title="Next day"
-                                        onClick={() => setSplitOffset((v) => v + 1)}
-                                    >
-                                        →
-                                    </button>
+                                        <button
+                                            className="rounded-full border px-2 py-1 text-sm"
+                                            title="Next day"
+                                            onClick={() => setSplitOffset((v) => v + 1)}
+                                        >
+                                            →
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="mt-4 grid grid-cols-4 gap-2 text-center text-[12px]">

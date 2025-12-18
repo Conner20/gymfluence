@@ -219,7 +219,7 @@ function SleepLine({
     );
 
     return (
-        <div className="relative h-full w-full overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
             {/* header - mobile */}
             <div className="flex flex-wrap items-start justify-between gap-3 lg:hidden">
                 <div className="min-w-0 flex-1">
@@ -360,11 +360,12 @@ function SleepLine({
             </div>
 
             {/* chart */}
-            <div ref={svgWrapRef} className="relative mt-3 w-full overflow-hidden">
-                <svg
-                    ref={svgRef}
-                    viewBox={`0 0 ${W} ${H}`}
-                    className="h-[270px] w-full"
+            <div className="mt-3 flex flex-1 items-center justify-center">
+                <div ref={svgWrapRef} className="relative w-full overflow-hidden">
+                    <svg
+                        ref={svgRef}
+                        viewBox={`0 0 ${W} ${H}`}
+                        className="h-[270px] w-full"
                     onMouseMove={onMove}
                     onMouseLeave={() => setHover(null)}
                     onPointerDown={onPointerDown}
@@ -461,32 +462,33 @@ function SleepLine({
                     >
                         {xs.at(-1)?.date ?? ''}
                     </text>
-                </svg>
+                    </svg>
 
-                {/* tooltip */}
-                {hover && hoveredPoint && (
-                    <TooltipFlip
-                        cx={hover.cx}
-                        cy={hover.cy}
-                        chartW={W}
-                        chartH={H}
-                        pad={pad}
-                        content={
-                            <div className="leading-tight">
-                                <div className="font-medium">{hoveredPoint.date}</div>
-                                <div>
-                                    {hoveredPoint.hours != null
-                                        ? `${hoveredPoint.hours.toFixed(1)} hrs`
-                                        : '—'}
+                    {/* tooltip */}
+                    {hover && hoveredPoint && (
+                        <TooltipFlip
+                            cx={hover.cx}
+                            cy={hover.cy}
+                            chartW={W}
+                            chartH={H}
+                            pad={pad}
+                            content={
+                                <div className="leading-tight">
+                                    <div className="font-medium">{hoveredPoint.date}</div>
+                                    <div>
+                                        {hoveredPoint.hours != null
+                                            ? `${hoveredPoint.hours.toFixed(1)} hrs`
+                                            : '—'}
+                                    </div>
                                 </div>
-                            </div>
-                        }
-                    />
-                )}
+                            }
+                        />
+                    )}
+                </div>
             </div>
 
             {/* Mobile range buttons */}
-            <div className="mt-3 flex justify-center">
+            <div className="mt-4 flex justify-center">
                 <RangeButtons className="justify-center" />
             </div>
         </div>
@@ -571,36 +573,38 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
     };
 
     return (
-        <div className="relative h-full w-full overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-[15px] font-semibold">Water consumption</h3>
                 <span className="text-xs text-neutral-500">last 7 days</span>
             </div>
 
-            <div
-                ref={wrapRef}
-                onMouseMove={onMove}
-                onMouseLeave={() => setHover(null)}
-                className="relative grid h-[150px] grid-cols-7 items-end gap-2 rounded-md bg-white p-3"
-            >
-                {xs.map((d) => (
-                    <div key={d.date} className="flex h-full flex-col items-center justify-end">
-                        <div
-                            className="w-7 rounded-t bg-blue-400/40"
-                            style={{ height: `${(d.liters / max) * 100}%` }}
-                        />
-                        <div className="mt-1 text-[10px] text-neutral-500">{d.date.slice(5)}</div>
-                    </div>
-                ))}
+            <div className="flex flex-1 items-center justify-center">
+                <div
+                    ref={wrapRef}
+                    onMouseMove={onMove}
+                    onMouseLeave={() => setHover(null)}
+                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-2 rounded-md bg-white p-3"
+                >
+                    {xs.map((d) => (
+                        <div key={d.date} className="flex h-full flex-col items-center justify-end">
+                            <div
+                                className="w-7 rounded-t bg-blue-400/40"
+                                style={{ height: `${(d.liters / max) * 100}%` }}
+                            />
+                            <div className="mt-1 text-[10px] text-neutral-500">{d.date.slice(5)}</div>
+                        </div>
+                    ))}
 
-                {hover && hoveredBar && (
-                    <div
-                        className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] shadow-sm"
-                        style={{ left: hover.left, top: hover.top }}
-                    >
-                        <div>{hoveredBar.liters.toFixed(1)} L</div>
-                    </div>
-                )}
+                    {hover && hoveredBar && (
+                        <div
+                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] shadow-sm"
+                            style={{ left: hover.left, top: hover.top }}
+                        >
+                            <div>{hoveredBar.liters.toFixed(1)} L</div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
