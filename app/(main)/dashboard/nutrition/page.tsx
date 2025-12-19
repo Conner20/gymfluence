@@ -533,8 +533,8 @@ function RingBig({ label, value, goal, color }: { label: string; value: number; 
                 <circle cx="120" cy="120" r={R} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={`${C * pct},999`} transform="rotate(-90 120 120)" />
             </svg>
             <div className="absolute text-center">
-                <div className="text-lg md:text-xl font-semibold">{value} / {goal}</div>
-                <div className="text-xs md:text-sm text-neutral-500">{label}</div>
+                <div className="text-base md:text-base font-semibold">{value} / {goal}</div>
+                <div className="text-xs md:text-xs text-neutral-500">{label}</div>
             </div>
         </div>
     );
