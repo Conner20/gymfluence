@@ -49,6 +49,18 @@ export type CustomFoodDTO = {
     f: number;
 };
 
+export type MacroGoalsDTO = { kcal: number; p: number; f: number; c: number };
+export type HMMetric = 'kcal' | 'f' | 'c' | 'p';
+export type HeatmapLevelsDTO = Record<HMMetric, number[]>;
+
+const DEFAULT_MACRO_GOALS: MacroGoalsDTO = { kcal: 2800, p: 200, f: 80, c: 300 };
+const DEFAULT_HEATMAP_LEVELS: HeatmapLevelsDTO = {
+    kcal: [0, 2200, 2600, 3000, Infinity],
+    f: [0, 20, 40, 60, Infinity],
+    c: [0, 60, 120, 180, Infinity],
+    p: [0, 50, 100, 150, Infinity],
+};
+
 /** ---------------- Date helpers (normalize to UTC midnight) ---------------- */
 function toUTCDate(dateStr: string): Date {
     // Ensure UTC midnight; avoid local TZ drift
@@ -60,14 +72,78 @@ function toISODate(d: Date): string {
 }
 
 /** ---------------- Public API used by the Nutrition page ---------------- */
+type NutritionSettingsDTO = {
+    goals: MacroGoalsDTO;
+    heatmapLevels: HeatmapLevelsDTO;
+};
+
+function clampGoal(value: number, min = 0, max = 10_000) {
+    if (!Number.isFinite(value)) return min;
+    return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeGoals(goals: MacroGoalsDTO): MacroGoalsDTO {
+    return {
+        kcal: clampGoal(goals.kcal, 0, 10_000),
+        p: clampGoal(goals.p, 0, 1000),
+        f: clampGoal(goals.f, 0, 1000),
+        c: clampGoal(goals.c, 0, 1500),
+    };
+}
+
+function encodeHeatmapLevels(levels: HeatmapLevelsDTO): Record<HMMetric, (number | null)[]> {
+    const next: Record<HMMetric, (number | null)[]> = { kcal: [], f: [], c: [], p: [] } as any;
+    (['kcal', 'f', 'c', 'p'] as HMMetric[]).forEach((key) => {
+        const arr = Array.isArray(levels[key]) ? levels[key] : DEFAULT_HEATMAP_LEVELS[key];
+        next[key] = arr.map((val) => (Number.isFinite(val) ? val : null));
+    });
+    return next;
+}
+
+function decodeHeatmapLevels(raw: unknown): HeatmapLevelsDTO {
+    const next: HeatmapLevelsDTO = {
+        kcal: [...DEFAULT_HEATMAP_LEVELS.kcal],
+        f: [...DEFAULT_HEATMAP_LEVELS.f],
+        c: [...DEFAULT_HEATMAP_LEVELS.c],
+        p: [...DEFAULT_HEATMAP_LEVELS.p],
+    };
+    if (!raw || typeof raw !== 'object') return next;
+    (['kcal', 'f', 'c', 'p'] as HMMetric[]).forEach((key) => {
+        const arr = (raw as Record<string, unknown>)[key];
+        if (Array.isArray(arr) && arr.length >= 5) {
+            next[key] = arr.map((val, idx) => {
+                if (idx === arr.length - 1 && (val === null || val === undefined)) return Infinity;
+                return typeof val === 'number' && Number.isFinite(val) ? val : 0;
+            });
+            if (!Number.isFinite(next[key][next[key].length - 1])) {
+                next[key][next[key].length - 1] = Infinity;
+            }
+        }
+    });
+    return next;
+}
+
+function defaultSettings(): NutritionSettingsDTO {
+    return {
+        goals: { ...DEFAULT_MACRO_GOALS },
+        heatmapLevels: {
+            kcal: [...DEFAULT_HEATMAP_LEVELS.kcal],
+            f: [...DEFAULT_HEATMAP_LEVELS.f],
+            c: [...DEFAULT_HEATMAP_LEVELS.c],
+            p: [...DEFAULT_HEATMAP_LEVELS.p],
+        },
+    };
+}
+
 export async function fetchAllNutritionData(): Promise<{
     entries: NutritionEntryDTO[];
     bodyweights: BodyweightDTO[];
     customFoods: CustomFoodDTO[];
+    settings: NutritionSettingsDTO;
 }> {
     const userId = await requireMe();
 
-    const [entries, bodyweights, customFoods] = await Promise.all([
+    const [entries, bodyweights, customFoods, settings] = await Promise.all([
         db.nutritionEntry.findMany({
             where: { userId },
             orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -95,7 +171,29 @@ export async function fetchAllNutritionData(): Promise<{
             orderBy: [{ createdAt: 'desc' }],
             select: { id: true, name: true, grams: true, kcal: true, p: true, c: true, f: true },
         }),
+        db.nutritionSettings.findUnique({
+            where: { userId },
+            select: {
+                goalKcal: true,
+                goalProtein: true,
+                goalFat: true,
+                goalCarb: true,
+                heatmapLevels: true,
+            },
+        }),
     ]);
+
+    const settingsDTO = settings
+        ? {
+            goals: {
+                kcal: settings.goalKcal,
+                p: settings.goalProtein,
+                f: settings.goalFat,
+                c: settings.goalCarb,
+            },
+            heatmapLevels: decodeHeatmapLevels(settings.heatmapLevels),
+        }
+        : defaultSettings();
 
     return {
         entries: entries.map((e: typeof entries[number]) => ({
@@ -124,6 +222,7 @@ export async function fetchAllNutritionData(): Promise<{
             c: cf.c,
             f: cf.f,
         })),
+        settings: settingsDTO,
     };
 }
 
@@ -197,6 +296,65 @@ export async function deleteNutritionEntryServer(id: string): Promise<{ deleted:
 
     await db.nutritionEntry.delete({ where: { id } });
     return { deleted: true };
+}
+
+export async function saveMacroGoalsServer(goals: MacroGoalsDTO): Promise<MacroGoalsDTO> {
+    const userId = await requireMe();
+    const clean = sanitizeGoals(goals);
+    const updated = await db.nutritionSettings.upsert({
+        where: { userId },
+        update: {
+            goalKcal: clean.kcal,
+            goalProtein: clean.p,
+            goalFat: clean.f,
+            goalCarb: clean.c,
+        },
+        create: {
+            userId,
+            goalKcal: clean.kcal,
+            goalProtein: clean.p,
+            goalFat: clean.f,
+            goalCarb: clean.c,
+            heatmapLevels: encodeHeatmapLevels(DEFAULT_HEATMAP_LEVELS),
+        },
+        select: {
+            goalKcal: true,
+            goalProtein: true,
+            goalFat: true,
+            goalCarb: true,
+        },
+    });
+    return {
+        kcal: updated.goalKcal,
+        p: updated.goalProtein,
+        f: updated.goalFat,
+        c: updated.goalCarb,
+    };
+}
+
+export async function saveHeatmapLevelsServer(levels: HeatmapLevelsDTO): Promise<HeatmapLevelsDTO> {
+    const userId = await requireMe();
+    const sanitized: HeatmapLevelsDTO = {
+        kcal: levels.kcal?.length ? levels.kcal : DEFAULT_HEATMAP_LEVELS.kcal,
+        f: levels.f?.length ? levels.f : DEFAULT_HEATMAP_LEVELS.f,
+        c: levels.c?.length ? levels.c : DEFAULT_HEATMAP_LEVELS.c,
+        p: levels.p?.length ? levels.p : DEFAULT_HEATMAP_LEVELS.p,
+    };
+    const encoded = encodeHeatmapLevels(sanitized);
+    const existing = await db.nutritionSettings.upsert({
+        where: { userId },
+        update: { heatmapLevels: encoded },
+        create: {
+            userId,
+            heatmapLevels: encoded,
+            goalKcal: DEFAULT_MACRO_GOALS.kcal,
+            goalProtein: DEFAULT_MACRO_GOALS.p,
+            goalFat: DEFAULT_MACRO_GOALS.f,
+            goalCarb: DEFAULT_MACRO_GOALS.c,
+        },
+        select: { heatmapLevels: true },
+    });
+    return decodeHeatmapLevels(existing.heatmapLevels);
 }
 
 export async function upsertBodyweightServer(bw: {

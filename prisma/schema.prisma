@@ -105,6 +105,7 @@ model User {
   nutritionCustomFoods NutritionCustomFood[]
   nutritionEntries     NutritionEntry[]
   bodyweightEntries    BodyweightEntry[]
+  nutritionSettings    NutritionSettings?
 
   // --- Wellness ---
   sleepEntries     SleepEntry[]
@@ -434,6 +435,22 @@ model BodyweightEntry {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+model NutritionSettings {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+
+  goalKcal    Float @default(2800)
+  goalProtein Float @default(200)
+  goalFat     Float @default(80)
+  goalCarb    Float @default(300)
+
+  heatmapLevels Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ------------------------ Wellness (NEW) -------------------------

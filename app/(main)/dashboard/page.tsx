@@ -430,15 +430,14 @@ const RANGE_TITLES: Record<RangeKey, string> = {
     '1Y': "This year's lifts",
     'ALL': 'Your lifts',
 };
+const SPLIT_ANCHOR_KEY = 'gf_split_anchor_v1';
 
 export default function Dashboard() {
     const [sets, setSets] = useState<SetEntry[]>([]);
     const [exercises, setExercises] = useState<string[]>([]);
     const [exercise, setExercise] = useState<string>('');
     const [split, setSplit] = useState<string[]>([]);
-
-    // split manual offset (arrows change which day is "today" logically)
-    const [splitOffset, setSplitOffset] = useState(0);
+    const [splitAnchor, setSplitAnchor] = useState<{ day: number; index: number } | null>(null);
 
     // record form
     const [weight, setWeight] = useState('');
@@ -453,6 +452,43 @@ export default function Dashboard() {
     const heatmapContainerRef = useRef<HTMLDivElement | null>(null);
     const [chartWidth, setChartWidth] = useState(860);
     const [heatmapWidth, setHeatmapWidth] = useState(820);
+
+    const todayDay = daysSinceEpochUTC();
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const raw = window.localStorage.getItem(SPLIT_ANCHOR_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed.day === 'number' && typeof parsed.index === 'number') {
+                setSplitAnchor(parsed);
+            }
+        } catch {
+            // ignore malformed storage
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!split.length) return;
+        setSplitAnchor((prev) => {
+            if (!prev) {
+                return {
+                    day: todayDay,
+                    index: ((todayDay % split.length) + split.length) % split.length,
+                };
+            }
+            const normalizedIndex = ((prev.index % split.length) + split.length) % split.length;
+            if (normalizedIndex === prev.index) return prev;
+            return { day: prev.day, index: normalizedIndex };
+        });
+    }, [split.length, todayDay]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        if (!split.length || !splitAnchor) return;
+        window.localStorage.setItem(SPLIT_ANCHOR_KEY, JSON.stringify(splitAnchor));
+    }, [split.length, splitAnchor]);
 
     // timer (smooth)
     const [mm, setMm] = useState(0);
@@ -558,18 +594,24 @@ export default function Dashboard() {
         return out;
     }, [sets]);
 
-    const splitBaseIndex = useMemo(() => {
-        const cycleLen = Math.max(1, split.length || 1);
-        return daysSinceEpochUTC() % cycleLen;
-    }, [split]);
-
-    const splitLen = split.length || 1;
-    const effectiveSplitIndex = ((splitBaseIndex + splitOffset) % splitLen + splitLen) % splitLen;
-    const splitToday = split.length ? split[effectiveSplitIndex] : '—';
-    const splitProgress = useMemo(
-        () => (split.length ? (effectiveSplitIndex + 1) / split.length : 0),
-        [split.length, effectiveSplitIndex]
-    );
+    const splitLen = split.length;
+    const normalizeSplitIndex = (idx: number) => {
+        if (!splitLen) return 0;
+        return ((idx % splitLen) + splitLen) % splitLen;
+    };
+    const defaultAnchor = splitLen
+        ? { day: todayDay, index: normalizeSplitIndex(todayDay) }
+        : { day: todayDay, index: 0 };
+    const activeAnchor = splitLen ? splitAnchor ?? defaultAnchor : defaultAnchor;
+    const deltaDays = splitLen ? todayDay - activeAnchor.day : 0;
+    const effectiveSplitIndex = splitLen ? normalizeSplitIndex(activeAnchor.index + deltaDays) : 0;
+    const splitToday = splitLen ? split[effectiveSplitIndex] : '—';
+    const splitProgress = splitLen ? (effectiveSplitIndex + 1) / splitLen : 0;
+    const moveSplitDay = (delta: number) => {
+        if (!splitLen) return;
+        const nextIndex = normalizeSplitIndex(effectiveSplitIndex + delta);
+        setSplitAnchor({ day: todayDay, index: nextIndex });
+    };
 
     const addExercise = async () => {
         const name = prompt('New exercise name');
@@ -629,7 +671,7 @@ export default function Dashboard() {
         try {
             await saveSplitServer(parts);
             setSplit(parts);
-            setSplitOffset(0);
+            setSplitAnchor({ day: todayDay, index: 0 });
         } catch (e) {
             console.error(e);
         }
@@ -1065,7 +1107,7 @@ export default function Dashboard() {
                                         <button
                                             className="rounded-full border px-2 py-1 text-sm"
                                             title="Previous day"
-                                            onClick={() => setSplitOffset((v) => v - 1)}
+                                        onClick={() => moveSplitDay(-1)}
                                         >
                                             ←
                                         </button>
@@ -1075,7 +1117,7 @@ export default function Dashboard() {
                                         <button
                                             className="rounded-full border px-2 py-1 text-sm"
                                             title="Next day"
-                                            onClick={() => setSplitOffset((v) => v + 1)}
+                                        onClick={() => moveSplitDay(1)}
                                         >
                                             →
                                         </button>

@@ -11,6 +11,8 @@ import {
     deleteNutritionEntryServer,
     upsertBodyweightServer,
     saveCustomFoodServer,
+    saveMacroGoalsServer,
+    saveHeatmapLevelsServer,
     type NutritionEntryDTO,
     type BodyweightDTO,
     type CustomFoodDTO,
@@ -205,11 +207,35 @@ export default function Nutrition() {
                 setEntries(data.entries || []);
                 setBodyweights(data.bodyweights || []);
                 setCustomFoods(data.customFoods || []);
+                if (data.settings?.goals) setGoals(data.settings.goals);
+                if (data.settings?.heatmapLevels) setHeatmapLevels(data.settings.heatmapLevels);
             } catch (e) {
                 console.error(e);
             }
         })();
     }, []);
+
+    const handleSaveGoals = async (next: Macro) => {
+        try {
+            await saveMacroGoalsServer(next);
+            setGoals(next);
+            setOpenEditGoals(false);
+        } catch (e) {
+            console.error(e);
+            alert('Failed to save macro goals. Please try again.');
+        }
+    };
+
+    const handleSaveHeatmap = async (next: Record<HMMetric, number[]>) => {
+        try {
+            const saved = await saveHeatmapLevelsServer(next);
+            setHeatmapLevels(saved);
+            setOpenEditLevels(false);
+        } catch (e) {
+            console.error(e);
+            alert('Failed to save heatmap keys. Please try again.');
+        }
+    };
 
     /** Layout */
     const mobileTabs = (
@@ -375,14 +401,14 @@ export default function Nutrition() {
                 <EditGoalsModal
                     initial={goals}
                     onClose={() => setOpenEditGoals(false)}
-                    onSave={(next) => { setGoals(next); setOpenEditGoals(false); }}
+                    onSave={handleSaveGoals}
                 />
             )}
             {openEditLevels && (
                 <EditLevelsModal
                     initial={heatmapLevels}
                     onClose={() => setOpenEditLevels(false)}
-                    onSave={(next) => { setHeatmapLevels(next); setOpenEditLevels(false); }}
+                    onSave={handleSaveHeatmap}
                 />
             )}
         </div>
@@ -1202,7 +1228,7 @@ function EditGoalsModal({
     onClose,
 }: {
     initial: Macro;
-    onSave: (m: Macro) => void;
+    onSave: (m: Macro) => void | Promise<void>;
     onClose: () => void;
 }) {
     const [form, setForm] = useState<Macro>(initial);
@@ -1242,7 +1268,7 @@ function EditGoalsModal({
                     <button className="rounded-md border px-3 py-2 text-sm hover:bg-zinc-50" onClick={onClose}>Cancel</button>
                     <button
                         className="rounded-md bg-black px-3 py-2 text-sm text-white hover:opacity-90"
-                        onClick={() => onSave(form)}
+                        onClick={() => { void onSave(form); }}
                     >
                         Save
                     </button>
@@ -1259,7 +1285,7 @@ function EditLevelsModal({
     onClose,
 }: {
     initial: Record<HMMetric, number[]>;
-    onSave: (levels: Record<HMMetric, number[]>) => void;
+    onSave: (levels: Record<HMMetric, number[]>) => void | Promise<void>;
     onClose: () => void;
 }) {
     // Keep only editable thresholds (t1..t3). Index 0 fixed at 0; index 4 at Infinity.
@@ -1288,7 +1314,7 @@ function EditLevelsModal({
             t3 = Number.isFinite(t3) ? Math.max(t2, t3) : t2;
             next[k] = [0, t1, t2, t3, Infinity];
         });
-        onSave(next);
+        void onSave(next);
     }
 
     const onChange = (k: HMMetric, idx: 0 | 1 | 2, val: string) => {

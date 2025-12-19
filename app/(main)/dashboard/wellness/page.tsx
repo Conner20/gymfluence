@@ -19,6 +19,7 @@ import {
 /* utils */
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const fmtISO = (d: Date) => d.toISOString().slice(0, 10);
+const SLEEP_GOAL_STORAGE_KEY = 'wellness_sleep_goal';
 
 // (reused from Nutrition page)
 function daysAgo(n: number) {
@@ -781,13 +782,21 @@ function WellnessPage() {
 
     // Load from server (mirrors Nutrition pattern)
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const stored = window.localStorage.getItem(SLEEP_GOAL_STORAGE_KEY);
+        if (stored) {
+            const parsed = parseFloat(stored);
+            if (isFinite(parsed) && parsed > 0) setSleepGoal(clamp(parsed, 1, 16));
+        }
+    }, []);
+
+    useEffect(() => {
         (async () => {
             try {
                 const data = await fetchWellnessData();
                 setSleep((data.sleep || []).map((s) => ({ date: s.date, hours: s.hours })));
                 setWater((data.water || []).map((w) => ({ date: w.date, liters: w.liters })));
                 if (data.settings?.waterGoal) setWaterGoal(data.settings.waterGoal);
-                // if server later supports sleepGoal: hydrate here
             } catch (e) {
                 console.error(e);
             }
@@ -948,7 +957,11 @@ function WellnessPage() {
                                     if (!s) return;
                                     const n = parseFloat(s);
                                     if (!isFinite(n) || n <= 0 || n > 24) return;
-                                    setSleepGoal(clamp(n, 1, 16));
+                                    const clamped = clamp(n, 1, 16);
+                                    setSleepGoal(clamped);
+                                    if (typeof window !== 'undefined') {
+                                        window.localStorage.setItem(SLEEP_GOAL_STORAGE_KEY, clamped.toString());
+                                    }
                                 }}
                             >
                                 Goal {sleepGoal.toFixed(1)}h
