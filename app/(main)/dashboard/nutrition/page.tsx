@@ -864,9 +864,12 @@ function BWChartLiftsStyle({
     };
 
     const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-        if (e.pointerType === 'mouse' || pointerActive.current) {
+        if (e.pointerType === 'mouse') {
             updateHoverFromClientX(e.clientX);
+            return;
         }
+        if (!pointerActive.current) return;
+        updateHoverFromClientX(e.clientX);
     };
 
     const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {

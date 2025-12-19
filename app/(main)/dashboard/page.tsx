@@ -205,7 +205,11 @@ function LineChartDual({
     };
 
     const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-        if (e.pointerType === 'mouse' || !pointerActive.current) return;
+        if (e.pointerType === 'mouse') {
+            updateHoverFromClientX(e.clientX);
+            return;
+        }
+        if (!pointerActive.current) return;
         updateHoverFromClientX(e.clientX);
     };
 
