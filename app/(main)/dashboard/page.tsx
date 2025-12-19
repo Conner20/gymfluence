@@ -1064,11 +1064,11 @@ export default function Dashboard() {
                                 />
                             </div>
                             <div className="mt-1 flex items-center gap-5 text-[11px] text-zinc-600">
-                                <LegendItem label="≤0 sets" color="#e5e7eb" />
-                                <LegendItem label="1–3 sets" color="#d1fae5" />
-                                <LegendItem label="4–6 sets" color="#a7f3d0" />
-                                <LegendItem label="7–9 sets" color="#6ee7b7" />
-                                <LegendItem label="10+ sets" color="#34d399" />
+                                <LegendItem label="≤0" color="#e5e7eb" />
+                                <LegendItem label="1–3" color="#d1fae5" />
+                                <LegendItem label="4–6" color="#a7f3d0" />
+                                <LegendItem label="7–9" color="#6ee7b7" />
+                                <LegendItem label="10+" color="#34d399" />
                             </div>
                         </section>
                     </div>
