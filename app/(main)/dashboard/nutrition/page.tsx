@@ -268,10 +268,10 @@ export default function Nutrition() {
 
             {/* Content */}
             <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-4 sm:px-4 xl:px-6 xl:pb-4 xl:pt-4 xl:overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-[480px] flex-col gap-6 xl:max-w-[1400px] xl:grid xl:min-h-[820px] xl:h-full xl:min-w-0 xl:grid-cols-12">
+                <div className="mx-auto flex w-full max-w-[440px] flex-col gap-6 xl:max-w-[1400px] xl:grid xl:min-h-[820px] xl:h-full xl:min-w-0 xl:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
                     <section className="col-span-12 min-h-0 xl:col-span-4 xl:flex xl:flex-col">
-                        <div className="mx-auto w-full max-w-[480px] xl:max-w-none xl:flex-1">
+                        <div className="mx-auto w-full max-w-[440px] xl:max-w-none xl:flex-1">
                             <MacrosFlipCard
                                 dateISO={dateISO}
                                 onDateChange={setDateISO}
@@ -286,7 +286,7 @@ export default function Nutrition() {
 
                     {/* MIDDLE — Bodyweight + Heatmap */}
                     <section className="col-span-12 min-h-0 xl:col-span-5 xl:flex xl:flex-col gap-3">
-                        <div className="mx-auto flex w-full max-w-[480px] flex-col gap-3 xl:flex-1 xl:max-w-none">
+                        <div className="mx-auto flex w-full max-w-[440px] flex-col gap-3 xl:flex-1 xl:max-w-none">
                             <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm xl:flex-1">
                                 <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} />
                             </div>
@@ -314,7 +314,7 @@ export default function Nutrition() {
                                 </div>
 
                                 <div className="flex flex-1 items-center justify-center">
-                                    <div className="flex h-[200px] w-full max-w-[420px] items-center justify-center xl:h-[180px] xl:max-w-[540px]">
+                                    <div className="flex h-[200px] w-full max-w-[380px] items-center justify-center xl:h-[180px] xl:max-w-[540px]">
                                         <ResponsiveHeatmap
                                             valuesByDate={valuesByDateMetric}
                                             height={140}
@@ -341,7 +341,7 @@ export default function Nutrition() {
 
                     {/* RIGHT — Meals for selected date */}
                     <section className="col-span-12 min-h-0 xl:col-span-3 xl:flex xl:flex-col">
-                        <div className="mx-auto flex w-full max-w-[480px] flex-col xl:flex-1 xl:max-w-none">
+                        <div className="mx-auto flex w-full max-w-[440px] flex-col xl:flex-1 xl:max-w-none">
                             <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">
