@@ -173,7 +173,7 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1">
+            <div className="flex flex-wrap gap-2">
                 <Chip
                     label="Distance"
                     value={distanceKm ? `${distanceKm} km` : 'Any'}
