@@ -40,6 +40,23 @@ function useMeasure<T extends HTMLElement>() {
     return { ref, ...size };
 }
 
+function useIsCoarsePointer() {
+    const [isCoarse, setIsCoarse] = useState(false);
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+        const mq = window.matchMedia('(pointer: coarse)');
+        const update = () => setIsCoarse(mq.matches);
+        update();
+        if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', update);
+            return () => mq.removeEventListener('change', update);
+        }
+        mq.addListener(update);
+        return () => mq.removeListener(update);
+    }, []);
+    return isCoarse;
+}
+
 /** ---------- types ---------- */
 type Macro = { kcal: number; p: number; f: number; c: number };
 type Food = { id: string; name: string; macros: Macro };
