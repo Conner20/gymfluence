@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Plus, X, Trash2, ArrowUpRight, ArrowDownRight, Sliders } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
+import { Plus, X, Trash2, ArrowUpRight, ArrowDownRight, Sliders, Calendar } from 'lucide-react';
 
 import {
     fetchAllNutritionData,
@@ -11,6 +12,7 @@ import {
     deleteNutritionEntryServer,
     upsertBodyweightServer,
     saveCustomFoodServer,
+    deleteCustomFoodServer,
     saveMacroGoalsServer,
     saveHeatmapLevelsServer,
     type NutritionEntryDTO,
@@ -309,13 +311,22 @@ export default function Nutrition() {
                             </div>
 
                             <div className="relative min-h-[220px] flex flex-col rounded-xl border bg-white p-3 shadow-sm xl:flex-1">
-                                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                    <h3 className="font-semibold">
-                                        {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
-                                    </h3>
-                                    <div className="text-[11px] text-zinc-500">
-                                        {heatMetric === 'kcal' ? 'kcal per day' : 'g per day'}
+                                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-semibold">
+                                            {new Date().getFullYear()} {heatMetric === 'kcal' ? 'calories' : heatMetric === 'f' ? 'fat' : heatMetric === 'c' ? 'carbs' : 'protein'}
+                                        </h3>
+                                        <div className="text-[11px] text-zinc-500">
+                                            {heatMetric === 'kcal' ? 'kcal per day' : 'g per day'}
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={() => setOpenEditLevels(true)}
+                                        className="inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
+                                        title="Edit heatmap keys"
+                                    >
+                                        <Sliders size={14} />
+                                    </button>
                                 </div>
                                 <div className="mb-2 flex flex-wrap items-center gap-2">
                                     {(['kcal', 'f', 'c', 'p'] as HMMetric[]).map((m) => (
@@ -344,13 +355,6 @@ export default function Nutrition() {
 
                                 <div className="mt-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] text-zinc-600">
                                     <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
-                                    <button
-                                        onClick={() => setOpenEditLevels(true)}
-                                        className="inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
-                                        title="Edit heatmap keys"
-                                    >
-                                        <Sliders size={14} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -457,7 +461,7 @@ function MacrosFlipCard({
         setTargetMeal: (m: Meal) => void;
         addFood: (food: Food) => void;
         customFoods: CustomFoodDTO[];
-        setCustomFoods: (f: CustomFoodDTO[]) => void;
+        setCustomFoods: Dispatch<SetStateAction<CustomFoodDTO[]>>;
     };
 }) {
     const [flipped, setFlipped] = useState(false);
@@ -466,9 +470,7 @@ function MacrosFlipCard({
         <div className="rounded-xl border bg-white shadow-sm [perspective:1200px] xl:h-full">
             {/* toolbar */}
             <div className="flex flex-nowrap items-center gap-3 px-4 pt-4 text-sm overflow-x-auto">
-                <h3 className="whitespace-nowrap font-semibold">
-                    {dateISO === fmtDate(new Date()) ? "Today's macros" : `Macros for ${dateISO}`}
-                </h3>
+                <h3 className="whitespace-nowrap font-semibold">Macros</h3>
                 <input
                     type="date"
                     value={dateISO}
@@ -541,6 +543,8 @@ function RingBig({ label, value, goal, color }: { label: string; value: number; 
 }
 
 /** Back face: Add food with custom food creator */
+const HIDDEN_PRESETS_KEY = 'nutrition_hidden_presets';
+
 function AddFoodPanel({
     q, setQ, serv, setServ, targetMeal, setTargetMeal, addFood, meals, customFoods, setCustomFoods,
 }: {
@@ -550,11 +554,13 @@ function AddFoodPanel({
     addFood: (food: Food) => void;
     meals: { meal: Meal; items: { food: Food; servings: number; time?: string }[] }[];
     customFoods: CustomFoodDTO[];
-    setCustomFoods: (f: CustomFoodDTO[]) => void;
+    setCustomFoods: Dispatch<SetStateAction<CustomFoodDTO[]>>;
 }) {
     const [metric, setMetric] = useState<Metric>('kcal');
     const [cf, setCf] = useState({ name: '', grams: '', kcal: '', p: '', c: '', f: '' });
     const [showCustom, setShowCustom] = useState(false);
+    const [hiddenPresets, setHiddenPresets] = useState<string[]>([]);
+    const [presetsLoaded, setPresetsLoaded] = useState(false);
 
     const fieldCls = 'h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/10';
 
@@ -576,13 +582,61 @@ function AddFoodPanel({
 
     const unitLabel = metric === 'kcal' ? 'kcal' : metric === 'p' ? 'g protein' : metric === 'c' ? 'g carbs' : 'g fat';
 
+    const presetIds = useMemo(() => new Set(FOOD_DB.map((f) => f.id)), []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const stored = window.localStorage.getItem(HIDDEN_PRESETS_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                    setHiddenPresets(parsed.filter((id) => typeof id === 'string'));
+                    setPresetsLoaded(true);
+                    return;
+                }
+            }
+        } catch {
+            // ignore parse errors
+        }
+        setPresetsLoaded(true);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !presetsLoaded) return;
+        try {
+            window.localStorage.setItem(HIDDEN_PRESETS_KEY, JSON.stringify(hiddenPresets));
+        } catch {
+            // ignore storage errors
+        }
+    }, [hiddenPresets, presetsLoaded]);
+
     const customFoodAsFood: Food[] = customFoods.map((cf) => ({
         id: cf.id,
         name: `${cf.name} (${cf.grams}g)`,
         macros: { kcal: cf.kcal, p: cf.p, c: cf.c, f: cf.f },
     }));
 
-    const list = [...customFoodAsFood, ...FOOD_DB].filter((f) => f.name.toLowerCase().includes(q.toLowerCase()));
+    const presetFoods = presetsLoaded
+        ? FOOD_DB.filter((f) => !hiddenPresets.includes(f.id))
+        : [];
+
+    const list = [...customFoodAsFood, ...presetFoods].filter((f) => f.name.toLowerCase().includes(q.toLowerCase()));
+
+    const removeFood = async (id: string) => {
+        if (presetIds.has(id)) {
+            setHiddenPresets((prev) => (prev.includes(id) ? prev : [...prev, id]));
+            return;
+        }
+        try {
+            const res = await deleteCustomFoodServer(id);
+            if (res.deleted) {
+                setCustomFoods((prev) => prev.filter((cf) => cf.id !== id));
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     return (
         <div className="flex h-full flex-col">
@@ -655,17 +709,29 @@ function AddFoodPanel({
             {/* list */}
             <div className="mt-3 min-h-0 flex-1 overflow-auto rounded-lg border">
                 <ul className="divide-y">
-                    {list.map((f) => (
-                        <li key={f.id} className="flex items-center justify-between p-3">
-                            <div className="min-w-0">
-                                <div className="truncate font-medium">{f.name}</div>
-                                <div className="text-xs text-zinc-500">{f.macros.kcal} kcal • P {f.macros.p} • C {f.macros.c} • F {f.macros.f}</div>
-                            </div>
-                            <button className="rounded-full border p-2 hover:bg-zinc-50" onClick={() => addFood(f)} title="Add">
-                                <Plus size={16} />
-                            </button>
-                        </li>
-                    ))}
+                    {list.map((f) => {
+                        const isCustom = customFoods.some((cf) => cf.id === f.id);
+                        return (
+                            <li key={f.id} className="flex items-center justify-between p-3">
+                                <div className="min-w-0">
+                                    <div className="truncate font-medium">{f.name}</div>
+                                    <div className="text-xs text-zinc-500">{f.macros.kcal} kcal • P {f.macros.p} • C {f.macros.c} • F {f.macros.f}</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        className="rounded-full border p-2 text-zinc-500 hover:bg-zinc-50"
+                                        onClick={() => removeFood(f.id)}
+                                        title={isCustom || presetIds.has(f.id) ? 'Delete food' : 'Delete'}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                    <button className="rounded-full border p-2 hover:bg-zinc-50" onClick={() => addFood(f)} title="Add">
+                                        <Plus size={16} />
+                                    </button>
+                                </div>
+                            </li>
+                        );
+                    })}
                 </ul>
             </div>
 
@@ -892,6 +958,9 @@ function BWChartLiftsStyle({
     const [openAdd, setOpenAdd] = useState(false);
     const [newDate, setNewDate] = useState<string>(new Date().toISOString().slice(0, 10));
     const [newW, setNewW] = useState<string>('');
+    const dateInputRef = useRef<HTMLInputElement | null>(null);
+    const expanderCls =
+        'overflow-hidden transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-2';
 
     const title =
         range === '1W' ? 'Past week' :
@@ -932,44 +1001,105 @@ function BWChartLiftsStyle({
                 </div>
 
                 <div className="flex flex-nowrap items-center gap-2">
-                    {openAdd && (
-                        <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={newDate}
-                            onChange={(e) => setNewDate(e.target.value)}
-                            className="h-9 w-[100px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[130px]"
-                        />
-                        <input
-                            placeholder={`weight (${fmtUnit})`}
-                            inputMode="decimal"
-                            className="h-9 w-[80px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[110px]"
-                            value={newW}
-                            onChange={(e) => setNewW(e.target.value)}
-                        />
-                        <button
-                            className="h-9 rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:h-7"
-                            onClick={() => {
-                                const n = parseFloat(newW);
-                                if (!isFinite(n) || n <= 0) return;
-                                const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
-                                onAdd(newDate, asLbs);
-                                setNewW('');
-                                setOpenAdd(false);
-                            }}
-                        >
-                            Add
-                        </button>
-                        </div>
+                    {isMobile ? (
+                        <>
+                            <div
+                                className={`${expanderCls} ${
+                                    openAdd ? 'max-w-[220px] opacity-100 ml-1' : 'max-w-0 opacity-0 ml-0'
+                                }`}
+                            >
+                                <div className="relative h-8 w-8">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            dateInputRef.current?.showPicker?.();
+                                            dateInputRef.current?.focus();
+                                        }}
+                                        className="flex h-full w-full items-center justify-center rounded-lg border text-green-700"
+                                        aria-label="Select date"
+                                    >
+                                        <Calendar size={16} />
+                                    </button>
+                                    <input
+                                        ref={dateInputRef}
+                                        type="date"
+                                        value={newDate}
+                                        onChange={(e) => setNewDate(e.target.value)}
+                                        className="absolute inset-0 opacity-0"
+                                    />
+                                </div>
+                                <input
+                                    placeholder={fmtUnit}
+                                    inputMode="decimal"
+                                    className="h-8 w-16 rounded-lg border px-2 text-xs outline-none"
+                                    value={newW}
+                                    onChange={(e) => setNewW(e.target.value)}
+                                />
+                                <button
+                                    className="h-8 w-8 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                                    onClick={() => {
+                                        const n = parseFloat(newW);
+                                        if (!isFinite(n) || n <= 0) return;
+                                        const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
+                                        onAdd(newDate, asLbs);
+                                        setNewW('');
+                                        setOpenAdd(false);
+                                    }}
+                                >
+                                    <span className="text-lg leading-none">+</span>
+                                </button>
+                            </div>
+                            <button
+                                aria-label="Add bodyweight"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700"
+                                onClick={() => setOpenAdd((v) => !v)}
+                                title="Add bodyweight"
+                            >
+                                {openAdd ? <X size={14} /> : <Plus size={14} />}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            {openAdd && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="date"
+                                        value={newDate}
+                                        onChange={(e) => setNewDate(e.target.value)}
+                                        className="h-9 w-[100px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[130px]"
+                                    />
+                                    <input
+                                        placeholder={`weight (${fmtUnit})`}
+                                        inputMode="decimal"
+                                        className="h-9 w-[80px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[110px]"
+                                        value={newW}
+                                        onChange={(e) => setNewW(e.target.value)}
+                                    />
+                                    <button
+                                        className="h-9 rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:h-7"
+                                        onClick={() => {
+                                            const n = parseFloat(newW);
+                                            if (!isFinite(n) || n <= 0) return;
+                                            const asLbs = unit === 'kg' ? n * LBS_PER_KG : n;
+                                            onAdd(newDate, asLbs);
+                                            setNewW('');
+                                            setOpenAdd(false);
+                                        }}
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            )}
+                            <button
+                                aria-label="Add bodyweight"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:h-7 sm:w-7"
+                                onClick={() => setOpenAdd((v) => !v)}
+                                title="Add bodyweight"
+                            >
+                                {openAdd ? <X size={14} /> : <Plus size={14} />}
+                            </button>
+                        </>
                     )}
-                    <button
-                        aria-label="Add bodyweight"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:h-7 sm:w-7"
-                        onClick={() => setOpenAdd((v) => !v)}
-                        title="Add bodyweight"
-                    >
-                        {openAdd ? <X size={14} /> : <Plus size={14} />}
-                    </button>
                 </div>
             </div>
 
@@ -1205,7 +1335,7 @@ function ResponsiveHeatmap({
 function HeatmapLegend({ metric, levels }: { metric: HMMetric; levels: number[] }) {
     // levels = [0, t1, t2, t3, Infinity]
     const labels = [
-        metric === 'kcal' ? '0 kcal' : '0 g',
+        '0',
         `≤${levels[1]}`,
         `≤${levels[2]}`,
         `≤${levels[3]}`,

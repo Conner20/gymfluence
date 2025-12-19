@@ -407,3 +407,18 @@ export async function saveCustomFoodServer(cf: {
         f: created.f,
     };
 }
+
+export async function deleteCustomFoodServer(id: string): Promise<{ deleted: boolean }> {
+    const userId = await requireMe();
+    const found = await db.nutritionCustomFood.findFirst({
+        where: { id, userId },
+        select: { id: true },
+    });
+    if (!found) return { deleted: false };
+
+    await db.nutritionEntry.deleteMany({
+        where: { userId, customFoodId: id },
+    });
+    await db.nutritionCustomFood.delete({ where: { id } });
+    return { deleted: true };
+}

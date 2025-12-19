@@ -237,15 +237,6 @@ function SleepLine({
 
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-2">
-                        <button
-                            aria-label="Add sleep"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                            onClick={() => setOpenAdd((v) => !v)}
-                        >
-                            {openAdd ? <X size={16} /> : <Plus size={16} />}
-                        </button>
-
-                        {/* INLINE expander */}
                         <div
                             className={`${expanderCls} ${
                                 openAdd ? 'max-w-[200px] opacity-100 ml-1 sm:max-w-[260px]' : 'max-w-0 opacity-0 ml-0'
@@ -299,6 +290,13 @@ function SleepLine({
                                 <span className="hidden text-sm sm:inline">Add</span>
                             </button>
                         </div>
+                        <button
+                            aria-label="Add sleep"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                            onClick={() => setOpenAdd((v) => !v)}
+                        >
+                            {openAdd ? <X size={16} /> : <Plus size={16} />}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -318,14 +316,6 @@ function SleepLine({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
-                        aria-label="Add sleep"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                        onClick={() => setOpenAdd((v) => !v)}
-                    >
-                        {openAdd ? <X size={16} /> : <Plus size={16} />}
-                    </button>
-
                     <div
                         className={`${expanderCls} ${
                             openAdd ? 'max-w-[420px] opacity-100 ml-2' : 'max-w-0 opacity-0 ml-0'
@@ -357,6 +347,13 @@ function SleepLine({
                             Add
                         </button>
                     </div>
+                    <button
+                        aria-label="Add sleep"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                        onClick={() => setOpenAdd((v) => !v)}
+                    >
+                        {openAdd ? <X size={16} /> : <Plus size={16} />}
+                    </button>
                 </div>
             </div>
 

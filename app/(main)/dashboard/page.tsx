@@ -844,11 +844,8 @@ export default function Dashboard() {
                     <div className="contents lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
                         {/* Record Set */}
                         <section className="order-1 flex flex-col rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:min-h-0 lg:flex-[55]">
-                                <div className="mb-2 flex items-center justify-between">
+                                <div className="mb-2">
                                     <h3 className="font-semibold">Record set</h3>
-                                    <button onClick={recordSet} className="rounded bg-black px-2 py-1 text-xs text-white">
-                                        +
-                                    </button>
                                 </div>
 
                                 {/* Fill the card's height and center the form BLOCK vertically (equal top/bottom space) */}
@@ -991,7 +988,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            <div className="mb-2 flex items-center gap-3 text-[10px] text-zinc-500 lg:hidden">
+                            <div className="mb-1 flex items-center gap-3 text-[10px] text-zinc-500 lg:hidden">
                                 <span className="inline-flex items-center gap-1">
                                     <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#16a34a' }} />
                                     <span>Weight</span>
@@ -1013,7 +1010,7 @@ export default function Dashboard() {
                             </div>
 
                             {/* Chart area */}
-                            <div className="flex flex-col gap-3 lg:flex-1 lg:min-h-0">
+                            <div className="flex flex-col gap-2 lg:gap-3 lg:flex-1 lg:min-h-0">
                                 <div className="h-[320px] lg:flex-1 lg:min-h-0" ref={chartContainerRef}>
                                     <LineChartDual
                                         width={chartWidth}
@@ -1038,19 +1035,17 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            {/* Range buttons — centered bottom */}
-                            <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2 lg:hidden">
-                                <div className="flex items-center gap-2">
-                                    {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
-                                        <button
-                                            key={r}
-                                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
-                                            onClick={() => onRange(r)}
-                                        >
-                                            {r}
-                                        </button>
-                                    ))}
-                                </div>
+                            {/* Range buttons — mobile */}
+                            <div className="mt-2 flex items-center justify-center gap-2 lg:hidden">
+                                {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
+                                    <button
+                                        key={r}
+                                        className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                        onClick={() => onRange(r)}
+                                    >
+                                        {r}
+                                    </button>
+                                ))}
                             </div>
                         </section>
 
