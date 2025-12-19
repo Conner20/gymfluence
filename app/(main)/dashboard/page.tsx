@@ -48,6 +48,24 @@ function addDaysStr(dateStr: string, n: number) {
     return fmtDate(d);
 }
 
+function useIsCoarsePointer() {
+    const [isCoarse, setIsCoarse] = useState(false);
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+        const mq = window.matchMedia('(pointer: coarse)');
+        const update = () => setIsCoarse(mq.matches);
+        update();
+        if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', update);
+            return () => mq.removeEventListener('change', update);
+        }
+        // fallback for older browsers
+        mq.addListener(update);
+        return () => mq.removeListener(update);
+    }, []);
+    return isCoarse;
+}
+
 /** ------------------------------ SVG UI ----------------------------- */
 function LineChartDual({
     width,
@@ -139,6 +157,7 @@ function LineChartDual({
     const [hover, setHover] = useState<{ i: number; cx: number; cyW: number | null; cyR: number | null } | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
     const pointerActive = useRef(false);
+    const isCoarsePointer = useIsCoarsePointer();
 
     // --- Tooltip width measurement & centering in CSS pixels ---
     const tipRef = useRef<HTMLDivElement | null>(null);
@@ -232,6 +251,7 @@ function LineChartDual({
                 onPointerUp={onPointerUp}
                 onPointerLeave={onPointerCancel}
                 onPointerCancel={onPointerCancel}
+                style={isCoarsePointer ? { touchAction: 'none' } : undefined}
             >
                 {/* grid & axes */}
                 <line x1={left} y1={top + h} x2={left + w} y2={top + h} stroke="#e5e7eb" />

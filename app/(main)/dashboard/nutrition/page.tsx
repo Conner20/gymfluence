@@ -811,6 +811,7 @@ function BWChartLiftsStyle({
     const svgRef = useRef<SVGSVGElement | null>(null);
     const [hover, setHover] = useState<{ i: number; cx: number; cy: number | null } | null>(null);
     const pointerActive = useRef(false);
+    const isCoarsePointer = useIsCoarsePointer();
     const tipRef = useRef<HTMLDivElement | null>(null);
     const [tipW, setTipW] = useState(140);
 
@@ -969,6 +970,7 @@ function BWChartLiftsStyle({
                         onPointerUp={onPointerUp}
                         onPointerLeave={onPointerLeave}
                         onPointerCancel={onPointerCancel}
+                        style={isCoarsePointer ? { touchAction: 'none' } : undefined}
                     >
                     <line x1={40} y1={28 + (svgH - 28 - 22)} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
                     <line x1={40} y1={28} x2={40} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
