@@ -325,11 +325,11 @@ export default function Nutrition() {
                                     </div>
                                 </div>
 
-                                <div className="mt-1 flex flex-wrap items-center gap-4 text-[11px] text-zinc-600">
+                                <div className="mt-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] text-zinc-600">
                                     <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
                                     <button
                                         onClick={() => setOpenEditLevels(true)}
-                                        className="ml-auto inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
+                                        className="inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
                                         title="Edit heatmap keys"
                                     >
                                         <Sliders size={14} />
