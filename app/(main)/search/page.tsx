@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
@@ -61,6 +61,10 @@ export default function SearchPage() {
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<ApiResponse | null>(null);
     const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
+    const pageSize = 10;
+    const [page, setPage] = useState(1);
+    const listRef = useRef<HTMLDivElement | null>(null);
+    const mobileListRef = useRef<HTMLDivElement | null>(null);
 
     // selection for details panel
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -94,6 +98,7 @@ export default function SearchPage() {
             if (!res.ok) throw new Error();
             const json: ApiResponse = await res.json();
             setData(json);
+            setPage(1);
             setMobileView('list');
 
             setSelectedId((prev) => (prev && json.results.some((r) => r.id === prev) ? prev : json.results[0]?.id ?? null));
@@ -122,6 +127,7 @@ export default function SearchPage() {
         setMaxBudget('');
         setDistanceKm('');
         setGoals([]);
+        setPage(1);
     };
 
     const toggleGoal = (g: string) =>
@@ -135,6 +141,19 @@ export default function SearchPage() {
         'sport performance',
         'injury recovery',
     ];
+
+    useEffect(() => {
+        const total = Math.max(
+            1,
+            Math.ceil(((data?.results?.length ?? 0) || 0) / pageSize)
+        );
+        if (page > total) setPage(total);
+    }, [data?.results?.length, page, pageSize]);
+
+    useEffect(() => {
+        if (listRef.current) listRef.current.scrollTop = 0;
+        if (mobileListRef.current) mobileListRef.current.scrollTop = 0;
+    }, [page, mobileView]);
 
     // actions
     const handleMessage = (u: SearchUser) => {
@@ -300,8 +319,8 @@ export default function SearchPage() {
             <button
                 key={`mobile-${u.id}`}
                 className={clsx(
-                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 shadow-sm",
-                    isSelected && "ring-2 ring-gray-900"
+                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none shadow-sm",
+                    isSelected && "border-2 border-gray-900"
                 )}
                 onClick={() => handleMobileSelect(u.id)}
             >
@@ -371,6 +390,11 @@ export default function SearchPage() {
             </button>
         );
     };
+
+    const allResults = data?.results ?? [];
+    const totalPages = Math.max(1, Math.ceil(allResults.length / pageSize));
+    const startIdx = (page - 1) * pageSize;
+    const paginatedResults = allResults.slice(startIdx, startIdx + pageSize);
 
     return (
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col overflow-x-hidden">
@@ -522,10 +546,34 @@ export default function SearchPage() {
                                 <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border">Loading…</div>
                             ) : error ? (
                                 <div className="p-4 text-sm text-red-500 bg-white rounded-xl border">{error}</div>
-                            ) : data?.results.length ? (
-                                <div className="space-y-3">
-                                    {data.results.map((u) => renderMobileCard(u))}
-                                </div>
+                            ) : allResults.length ? (
+                                <>
+                                    <div
+                                        className="space-y-3 max-h-[70vh] overflow-y-auto"
+                                        ref={mobileListRef}
+                                    >
+                                        {paginatedResults.map((u) => renderMobileCard(u))}
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                        <button
+                                            className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40"
+                                            disabled={page === 1}
+                                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                        >
+                                            Previous
+                                        </button>
+                                        <span>
+                                            Page {page} of {totalPages}
+                                        </span>
+                                        <button
+                                            className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40"
+                                            disabled={page === totalPages}
+                                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </>
                             ) : (
                                 <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border">No results.</div>
                             )}
@@ -562,15 +610,18 @@ export default function SearchPage() {
                         <div className="flex gap-6">
                             <aside className="w-[380px] shrink-0">
                                 <div className="bg-white border rounded-xl overflow-hidden lg:h-[calc(100vh-190px)] lg:flex lg:flex-col">
-                                    <div className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0">
+                                    <div
+                                        ref={listRef}
+                                        className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0"
+                                    >
                                         {loading ? (
                                             <div className="p-4 text-sm text-gray-500">Loading…</div>
                                         ) : error ? (
                                             <div className="p-4 text-sm text-red-500">{error}</div>
-                                        ) : !data || data.results.length === 0 ? (
+                                        ) : allResults.length === 0 ? (
                                             <div className="p-4 text-sm text-gray-500">No results.</div>
                                         ) : (
-                                            data.results.map((u) => {
+                                            paginatedResults.map((u) => {
                                                 const slug = u.username || u.id;
                                                 const display = u.name || u.username || 'User';
 
@@ -650,6 +701,29 @@ export default function SearchPage() {
                                             })
                                         )}
                                     </div>
+                                    {allResults.length > 0 && (
+                                        <div className="px-4 py-3 border-t flex items-center justify-between text-xs text-gray-600">
+                                            <button
+                                                className="px-2 py-1 rounded border disabled:opacity-40"
+                                                disabled={page === 1}
+                                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                            >
+                                                Previous
+                                            </button>
+                                            <span>
+                                                Page {page} of {totalPages}
+                                            </span>
+                                            <button
+                                                className="px-2 py-1 rounded border disabled:opacity-40"
+                                                disabled={page === totalPages}
+                                                onClick={() =>
+                                                    setPage((p) => Math.min(totalPages, p + 1))
+                                                }
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </aside>
 
