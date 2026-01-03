@@ -279,7 +279,7 @@ export default function PostDetail({
         <>
             <span className="text-xs text-gray-500">by {authorLink}</span>
             <span className="text-xs text-gray-400">
-                · {new Date(post.createdAt).toLocaleString()}
+                {new Date(post.createdAt).toLocaleString()}
             </span>
         </>
     );

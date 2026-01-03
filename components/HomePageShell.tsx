@@ -12,8 +12,8 @@ export default function HomePageShell({ posts }: HomePageShellProps) {
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
             <MobileHeader title="gymfluence" href="/" />
 
-            <header className="hidden lg:flex w-full bg-white py-5 px-6 items-center justify-center border-b">
-                <h1 className="font-serif font-bold text-3xl text-green-700 tracking-tight select-none">
+            <header className="hidden lg:flex w-full bg-white py-5 px-6 items-center justify-center">
+                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
                     gymfluence
                 </h1>
             </header>

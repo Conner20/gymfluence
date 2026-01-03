@@ -245,7 +245,7 @@ export default function SettingsPage() {
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
             <MobileHeader title="settings" href="/settings" />
 
-            <header className="hidden lg:flex w-full bg-white py-6 justify-start pl-[40px] z-20 border-b">
+            <header className="hidden lg:flex w-full bg-white py-6 justify-start pl-[40px] z-20">
                 <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
                     <span>settings</span>
                 </h1>

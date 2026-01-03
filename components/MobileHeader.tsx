@@ -18,7 +18,7 @@ export default function MobileHeader({ title, href = "/", subContent }: MobileHe
     return (
         <>
             <header className="lg:hidden w-full bg-white py-5 px-4 sm:px-6 relative flex items-center justify-center z-20">
-                <h1 className="font-serif font-bold text-3xl text-green-700 tracking-tight select-none text-center">
+                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none text-center">
                     <Link href={href}>
                         <span className="cursor-pointer">{title}</span>
                     </Link>
@@ -34,7 +34,7 @@ export default function MobileHeader({ title, href = "/", subContent }: MobileHe
             </header>
 
             {subContent && (
-                <div className={clsx("lg:hidden w-full border-b border-gray-200 bg-white")}>
+                <div className={clsx("lg:hidden w-full bg-white")}>
                     {subContent}
                 </div>
             )}

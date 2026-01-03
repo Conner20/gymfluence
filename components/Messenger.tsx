@@ -38,7 +38,7 @@ function SharedPostModal({
                 className="bg-white rounded-xl shadow-2xl w-[min(96vw,1100px)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-4 py-2 border-b">
+                <div className="flex items-center justify-between px-4 py-2">
                     <div className="font-medium">Post</div>
                     <div className="flex items-center gap-4 text-sm">
                         <a
@@ -1044,15 +1044,23 @@ export default function Messenger() {
 
     const normalized = normalizeConvos(convos);
 
+    const messagesPaneRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const pane = messagesPaneRef.current;
+        if (!pane) return;
+        pane.scrollTop = pane.scrollHeight;
+    }, [messages, activeConvoId]);
+
     return (
         <>
             <div
-                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row lg:min-h-[83vh]"
+                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row flex-1 min-h-0 h-full max-h-[calc(100vh-130px)] lg:h-[83vh] lg:max-h-[83vh]"
             >
                 {/* Left column */}
                 <aside
                     className={clsx(
-                        'border-b lg:border-b-0 lg:border-r w-full lg:w-[340px] flex-shrink-0 flex flex-col h-full',
+                        'border-b lg:border-b-0 lg:border-r w-full lg:w-[340px] flex-shrink-0 flex flex-col h-full min-h-0 max-h-[calc(100vh-130px)] lg:max-h-none',
                         mobileView === 'thread' ? 'hidden lg:flex' : 'flex'
                     )}
                 >
@@ -1204,13 +1212,13 @@ export default function Messenger() {
                 {/* Right column */}
                 <section
                     className={clsx(
-                        'flex flex-col h-full flex-1 overflow-hidden w-full max-w-full',
+                        'flex flex-col h-full flex-1 overflow-hidden w-full max-w-full min-h-0',
                         mobileView === 'thread' ? 'flex' : 'hidden',
                         'lg:flex'
                     )}
                 >
                     {/* Header */}
-                    <div className="border-b flex flex-wrap sm:flex-nowrap items-center gap-3 px-3 sm:px-4 flex-shrink-0 w-full pt-1 pb-2 sm:py-0">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 px-3 sm:px-4 flex-shrink-0 w-full pt-1 pb-2 sm:py-0 lg:py-4">
                         <button
                             type="button"
                             className={clsx(
@@ -1286,7 +1294,7 @@ export default function Messenger() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4">
+                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4" ref={messagesPaneRef}>
                         {!activeConvoId ? (
                             <div className="text-center text-sm text-gray-400 mt-20">
                                 No conversation selected.

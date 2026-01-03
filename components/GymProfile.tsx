@@ -999,7 +999,7 @@ function ScrollFeed({
                             )}
                         </span>
                         <span className="text-xs text-gray-400">
-                            · {fmt(p.createdAt)}
+                            {fmt(p.createdAt)}
                         </span>
                     </>
                 );

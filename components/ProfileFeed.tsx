@@ -83,9 +83,9 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
                                     <span className="font-semibold">Unknown</span>
                                 )}
                             </span>
-                            <span className="text-xs text-gray-400">
-                                · {new Date(post.createdAt).toLocaleString()}
-                            </span>
+                                <span className="text-xs text-gray-400">
+                                    {new Date(post.createdAt).toLocaleString()}
+                                </span>
 
                             <button
                                 className={clsx(

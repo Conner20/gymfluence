@@ -377,7 +377,7 @@ export default function SearchPage() {
             <MobileHeader title="search" href="/search" subContent={mobileFilters} />
 
             {/* Desktop header */}
-            <header className="hidden lg:block sticky top-0 z-20 w-full bg-white border-b">
+            <header className="hidden lg:block sticky top-0 z-20 w-full bg-white">
                 <div className="mx-auto max-w-[1400px] w-full flex items-center gap-4 py-6 pl-[40px] pr-4">
                     <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
                         <span>search</span>
@@ -561,8 +561,8 @@ export default function SearchPage() {
                     <div className="mx-auto max-w-[1400px] px-4 py-4">
                         <div className="flex gap-6">
                             <aside className="w-[380px] shrink-0">
-                                <div className="bg-white border rounded-xl overflow-hidden">
-                                    <div className="h-[calc(100vh-190px)] overflow-y-auto divide-y">
+                                <div className="bg-white border rounded-xl overflow-hidden lg:h-[calc(100vh-190px)] lg:flex lg:flex-col">
+                                    <div className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0">
                                         {loading ? (
                                             <div className="p-4 text-sm text-gray-500">Loading…</div>
                                         ) : error ? (

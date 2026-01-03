@@ -484,7 +484,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                                 )}
                                             </span>
                                             <span className="text-xs text-gray-400">
-                                                · {new Date(post.createdAt).toLocaleString()}
+                                                {new Date(post.createdAt).toLocaleString()}
                                             </span>
                                         </>
                                     );
