@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Trash2, Camera } from 'lucide-react';
+import { formatRelativeTime } from '@/lib/utils';
 
 // --- SharedPostModal (auto-resizes to the real post height) ---
 function SharedPostModal({
@@ -231,15 +232,7 @@ export default function Messenger() {
         [messages]
     );
 
-    const formatTimestamp = useCallback((iso: string) => {
-        const d = new Date(iso);
-        const now = new Date();
-        const sameDay = d.toDateString() === now.toDateString();
-        const opts: Intl.DateTimeFormatOptions = sameDay
-            ? { hour: 'numeric', minute: '2-digit' }
-            : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
-        return d.toLocaleString(undefined, opts);
-    }, []);
+    const formatTimestamp = useCallback((iso: string) => formatRelativeTime(iso), []);
 
     const goToProfile = (u: LiteUser | undefined | null) => {
         if (!u) return;

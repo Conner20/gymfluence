@@ -23,6 +23,7 @@ import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
+import { formatRelativeTime } from "@/lib/utils";
 
 type BasicPost = {
     id: string;
@@ -588,13 +589,7 @@ function ScrollFeed({
     const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
-    const fmt = (iso: string) =>
-        new Date(iso).toLocaleString(undefined, {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-        });
+    const fmt = (iso: string) => formatRelativeTime(iso);
 
     const toggleComments = (id: string) =>
         setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -636,7 +631,10 @@ function ScrollFeed({
                                 <span className="font-semibold">Unknown</span>
                             )}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span
+                            className="text-xs text-gray-400"
+                            title={new Date(p.createdAt).toLocaleString()}
+                        >
                             {fmt(p.createdAt)}
                         </span>
                     </>

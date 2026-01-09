@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { CornerDownRight, Trash2 } from "lucide-react";
+import { formatRelativeTime } from "@/lib/utils";
 
 type Comment = {
     id: string;
@@ -128,8 +129,11 @@ export function PostComments({
                             <span className="font-semibold text-sm text-gray-800">
                                 {displayName}
                             </span>
-                            <span className="text-xs text-gray-400">
-                                {new Date(comment.createdAt).toLocaleString()}
+                            <span
+                                className="text-xs text-gray-400"
+                                title={new Date(comment.createdAt).toLocaleString()}
+                            >
+                                {formatRelativeTime(comment.createdAt)}
                             </span>
 
                             {isMine && (

@@ -25,6 +25,7 @@ import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
+import { formatRelativeTime } from "@/lib/utils";
 
 /* --------------------------- helpers & local UI --------------------------- */
 
@@ -298,8 +299,11 @@ function ManageTrainerRatingsModal({
                             <li key={r.id} className="border rounded p-3">
                                 <div className="flex items-center justify-between">
                                     <div className="font-medium">{who(r)} left a rating</div>
-                                    <div className="text-xs text-neutral-500">
-                                        {new Date(r.createdAt).toLocaleString()}
+                                    <div
+                                        className="text-xs text-neutral-500"
+                                        title={new Date(r.createdAt).toLocaleString()}
+                                    >
+                                        {formatRelativeTime(r.createdAt)}
                                     </div>
                                 </div>
                                 <div className="mt-3 flex gap-2">
@@ -328,8 +332,11 @@ function ManageTrainerRatingsModal({
                             <li key={r.id} className="border rounded p-3">
                                 <div className="flex items-center justify-between">
                                     <div className="font-medium">{who(r)}</div>
-                                    <div className="text-xs text-neutral-500">
-                                        {new Date(r.createdAt).toLocaleString()}
+                                    <div
+                                        className="text-xs text-neutral-500"
+                                        title={new Date(r.createdAt).toLocaleString()}
+                                    >
+                                        {formatRelativeTime(r.createdAt)}
                                     </div>
                                 </div>
                                 <div className="mt-1 text-xl">
@@ -950,13 +957,7 @@ function ScrollFeed({
     const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
-    const fmt = (iso: string) =>
-        new Date(iso).toLocaleString(undefined, {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-        });
+    const fmt = (iso: string) => formatRelativeTime(iso);
 
     const toggleComments = (id: string) =>
         setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -998,7 +999,10 @@ function ScrollFeed({
                                 <span className="font-semibold">Unknown</span>
                             )}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span
+                            className="text-xs text-gray-400"
+                            title={new Date(p.createdAt).toLocaleString()}
+                        >
                             {fmt(p.createdAt)}
                         </span>
                     </>

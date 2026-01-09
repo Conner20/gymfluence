@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { Heart, MessageCircle, Share2, X, Search } from "lucide-react";
 import clsx from "clsx";
 import { PostComments } from "@/components/PostComments";
+import { formatRelativeTime } from "@/lib/utils";
 
 type LiteUser = {
     id: string;
@@ -278,8 +279,11 @@ export default function PostDetail({
     const authorBits = (
         <>
             <span className="text-xs text-gray-500">by {authorLink}</span>
-            <span className="text-xs text-gray-400">
-                {new Date(post.createdAt).toLocaleString()}
+            <span
+                className="text-xs text-gray-400"
+                title={new Date(post.createdAt).toLocaleString()}
+            >
+                {formatRelativeTime(post.createdAt)}
             </span>
         </>
     );

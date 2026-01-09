@@ -143,6 +143,7 @@ export default function SearchPage() {
     ];
 
     useEffect(() => {
+        window.dispatchEvent(new CustomEvent('close-filters', { detail: selected?.id || '' }));
         const total = Math.max(
             1,
             Math.ceil(((data?.results?.length ?? 0) || 0) / pageSize)
@@ -192,118 +193,135 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div className="flex flex-wrap gap-2">
-                <Chip
-                    label="Distance"
-                    value={distanceKm ? `${distanceKm} km` : 'Any'}
-                    menu={
-                        <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                            {['', '5', '10', '25', '50', '100'].map((d) => (
-                                <button
-                                    key={d || 'any'}
-                                    onClick={() => setDistanceKm(d)}
-                                    className={clsx(
-                                        'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                        (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
-                                    )}
-                                >
-                                    {d ? `${d} km` : 'Any'}
-                                </button>
-                            ))}
-                        </div>
-                    }
-                />
-                <Chip
-                    label="Role"
-                    value={role === 'ALL' ? 'All' : role.toLowerCase()}
-                    menu={
-                        <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                            {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
-                                <button
-                                    key={r}
-                                    onClick={() => setRole(r)}
-                                    className={clsx(
-                                        'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                        role === r ? 'bg-gray-900 text-white' : 'bg-white'
-                                    )}
-                                >
-                                    {r.toLowerCase()}
-                                </button>
-                            ))}
-                        </div>
-                    }
-                />
-                <Chip
-                    label="Budget"
-                    value={`${minBudget || 0}–${maxBudget || '∞'}`}
-                    menu={
-                        <div className="p-3 w-72">
-                            <div className="text-xs text-gray-500 mb-2">
-                                Trainers: hourly • Gyms: monthly fee
+            <div className="flex gap-1">
+                <div className="flex-1 min-w-0">
+                    <Chip
+                        label="Distance"
+                        value={distanceKm ? `${distanceKm} km` : 'Any'}
+                        menu={
+                            <div className="grid grid-cols-2 gap-2 p-2 w-52">
+                                {['', '5', '10', '25', '50', '100'].map((d) => (
+                                    <button
+                                        key={d || 'any'}
+                                        onClick={() => setDistanceKm(d)}
+                                        className={clsx(
+                                            'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
+                                            (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
+                                        )}
+                                    >
+                                        {d ? `${d} km` : 'Any'}
+                                    </button>
+                                ))}
                             </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    min={0}
-                                    className="w-28 border rounded px-2 py-1 text-sm"
-                                    placeholder="min"
-                                    value={minBudget}
-                                    onChange={(e) => setMinBudget(e.target.value)}
-                                />
-                                <span className="text-gray-400">—</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    className="w-28 border rounded px-2 py-1 text-sm"
-                                    placeholder="max"
-                                    value={maxBudget}
-                                    onChange={(e) => setMaxBudget(e.target.value)}
-                                />
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={Boolean(distanceKm)}
+                    />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <Chip
+                        label="Role"
+                        value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                        menu={
+                            <div className="grid grid-cols-2 gap-2 p-2 w-52">
+                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
+                                    <button
+                                        key={r}
+                                        onClick={() => setRole(r)}
+                                        className={clsx(
+                                            'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
+                                            role === r ? 'bg-gray-900 text-white' : 'bg-white'
+                                        )}
+                                    >
+                                        {r.toLowerCase()}
+                                    </button>
+                                ))}
                             </div>
-                            <div className="mt-3 flex justify-end">
-                                <button
-                                    onClick={() => {
-                                        setMinBudget('');
-                                        setMaxBudget('');
-                                    }}
-                                    className="text-xs text-gray-600 underline"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-                    }
-                />
-                <Chip
-                    label="Goals"
-                    value={goals.length ? `${goals.length} selected` : 'Any'}
-                    menu={
-                        <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
-                            {allGoals.map((g) => (
-                                <label key={g} className="text-sm flex items-center gap-2">
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={role !== 'ALL'}
+                    />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <Chip
+                        label="Budget"
+                        value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                        menu={
+                            <div className="p-3 w-72">
+                                <div className="text-xs text-gray-500 mb-2">
+                                    Trainers: hourly • Gyms: monthly fee
+                                </div>
+                                <div className="flex items-center gap-2">
                                     <input
-                                        type="checkbox"
-                                        checked={goals.includes(g)}
-                                        onChange={() => toggleGoal(g)}
+                                        type="number"
+                                        min={0}
+                                        className="w-28 border rounded px-2 py-1 text-sm"
+                                        placeholder="min"
+                                        value={minBudget}
+                                        onChange={(e) => setMinBudget(e.target.value)}
                                     />
-                                    <span>{g}</span>
-                                </label>
-                            ))}
-                            <div className="flex justify-end mt-1">
-                                <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
-                                    Clear
-                                </button>
+                                    <span className="text-gray-400">—</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        className="w-28 border rounded px-2 py-1 text-sm"
+                                        placeholder="max"
+                                        value={maxBudget}
+                                        onChange={(e) => setMaxBudget(e.target.value)}
+                                    />
+                                </div>
+                                <div className="mt-3 flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            setMinBudget('');
+                                            setMaxBudget('');
+                                        }}
+                                        className="text-xs text-gray-600 underline"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    }
-                />
-                <button
-                    onClick={resetFilters}
-                    className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50"
-                    title="Reset filters"
-                >
-                    Reset
-                </button>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={Boolean(minBudget || maxBudget)}
+                    />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <Chip
+                        label="Goals"
+                        value={goals.length ? `${goals.length} selected` : 'Any'}
+                        menu={
+                            <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
+                                {allGoals.map((g) => (
+                                    <label key={g} className="text-sm flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={goals.includes(g)}
+                                            onChange={() => toggleGoal(g)}
+                                        />
+                                        <span>{g}</span>
+                                    </label>
+                                ))}
+                                <div className="flex justify-end mt-1">
+                                    <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={goals.length > 0}
+                    />
+                </div>
             </div>
         </div>
     );
@@ -1001,37 +1019,89 @@ function Chip({
     label,
     value,
     menu,
+    size = 'default',
+    fluid = false,
+    showValue = true,
+    active = false,
 }: {
     label: string;
     value: string | number;
     menu: React.ReactNode;
+    size?: 'default' | 'compact';
+    fluid?: boolean;
+    showValue?: boolean;
+    active?: boolean;
 }) {
+    const compact = size === 'compact';
     const [open, setOpen] = useState(false);
+    useEffect(() => {
+        const handler = (e: CustomEvent<string>) => {
+            if (e.detail !== label) setOpen(false);
+        };
+        window.addEventListener('close-filters', handler as EventListener);
+        return () => window.removeEventListener('close-filters', handler as EventListener);
+    }, [label]);
     return (
-        <div className="relative">
+        <div className={clsx('relative', fluid && 'w-full')}>
             <button
-                onClick={() => setOpen((v) => !v)}
-                className="flex items-center gap-1 px-3 py-2 rounded-full border bg-white hover:bg-gray-50 text-sm max-w-[220px]"
+                onClick={() => {
+                    const next = !open;
+                    setOpen(next);
+                    if (next) {
+                        window.dispatchEvent(new CustomEvent('close-filters', { detail: label }));
+                    }
+                }}
+                className={clsx(
+                    'flex items-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
+                    fluid ? 'w-full' : 'max-w-[220px]',
+                    compact ? (showValue ? 'gap-1 px-2 py-1 text-xs' : 'gap-2 px-2 py-1 text-xs') : (showValue ? 'gap-2 px-3 py-1.5 text-sm' : 'gap-2 px-3 py-1.5 text-sm'),
+                    active
+                        ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100'
+                        : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white'
+                )}
             >
-                <span className="whitespace-nowrap">{label}</span>
-                <span className="px-1 text-gray-500">•</span>
-                <span className="text-gray-700 truncate max-w-[120px]">
-                    {value}
+                <span
+                    className={clsx(
+                        'whitespace-nowrap uppercase tracking-wide',
+                        compact ? 'text-[10px]' : 'text-xs',
+                        active ? 'text-green-700' : 'text-gray-500'
+                    )}
+                >
+                    {label}
                 </span>
-                <ChevronDown size={16} className="ml-1 text-gray-500 shrink-0" />
+                {showValue && (
+                    <>
+                        <span
+                            className={clsx(
+                                active ? 'bg-green-200' : 'bg-gray-200',
+                                compact ? 'h-3 w-px' : 'h-4 w-px'
+                            )}
+                            aria-hidden="true"
+                        />
+                        <span className={clsx('truncate', fluid ? 'flex-1 text-right' : 'max-w-[120px]')}>
+                            {value}
+                        </span>
+                    </>
+                )}
+                <ChevronDown
+                    size={compact ? 14 : 16}
+                    className={clsx('ml-1 shrink-0', active ? 'text-green-700' : 'text-gray-500')}
+                />
             </button>
             {open && (
-                <div className="absolute right-0 mt-2 bg-white border rounded-xl shadow-lg">
-                    <div className="flex justify-end">
+                <div className="absolute right-0 mt-2 min-w-[240px] rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur">
+                    <div className="flex justify-end px-2 pt-2">
                         <button
                             onClick={() => setOpen(false)}
-                            className="p-2 text-gray-500 hover:text-black"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
                             title="Close"
                         >
                             <X size={16} />
                         </button>
                     </div>
-                    {menu}
+                    <div className="px-4 pb-4">
+                        {menu}
+                    </div>
                 </div>
             )}
         </div>

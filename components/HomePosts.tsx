@@ -8,6 +8,7 @@ import clsx from "clsx";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
+import { formatRelativeTime } from "@/lib/utils";
 
 type LiteUser = {
     id: string;
@@ -483,8 +484,11 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                                     <span className="font-semibold">Unknown</span>
                                                 )}
                                             </span>
-                                            <span className="text-xs text-gray-400">
-                                                {new Date(post.createdAt).toLocaleString()}
+                                            <span
+                                                className="text-xs text-gray-400"
+                                                title={new Date(post.createdAt).toLocaleString()}
+                                            >
+                                                {formatRelativeTime(post.createdAt)}
                                             </span>
                                         </>
                                     );

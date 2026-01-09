@@ -7,6 +7,7 @@ import { Heart, MessageCircle, Share2 } from "lucide-react";
 import clsx from "clsx";
 import Link from "next/link";
 import { PostComments } from "@/components/PostComments";
+import { formatRelativeTime } from "@/lib/utils";
 
 type Post = {
     id: string;
@@ -83,9 +84,12 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
                                     <span className="font-semibold">Unknown</span>
                                 )}
                             </span>
-                                <span className="text-xs text-gray-400">
-                                    {new Date(post.createdAt).toLocaleString()}
-                                </span>
+                            <span
+                                className="text-xs text-gray-400"
+                                title={new Date(post.createdAt).toLocaleString()}
+                            >
+                                {formatRelativeTime(post.createdAt)}
+                            </span>
 
                             <button
                                 className={clsx(

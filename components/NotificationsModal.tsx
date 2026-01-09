@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { formatRelativeTime } from "@/lib/utils";
 
 type Notification = {
     id: string;
@@ -144,8 +145,11 @@ export default function NotificationsModal({
                                                 accepted.
                                             </div>
                                         )}
-                                        <div className="text-xs text-gray-500">
-                                            {new Date(n.createdAt).toLocaleString()}
+                                        <div
+                                            className="text-xs text-gray-500"
+                                            title={new Date(n.createdAt).toLocaleString()}
+                                        >
+                                            {formatRelativeTime(n.createdAt)}
                                         </div>
                                     </div>
 
