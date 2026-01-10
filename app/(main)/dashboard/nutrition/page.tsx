@@ -21,7 +21,12 @@ import {
 } from '@/components/nutritionActions';
 
 /** ---------- shared helpers ---------- */
-function fmtDate(d: Date) { return d.toISOString().slice(0, 10); }
+function fmtDate(d: Date) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d; }
 function average(nums: number[]) { if (!nums.length) return 0; return nums.reduce((a, b) => a + b, 0) / nums.length; }
 
@@ -956,11 +961,11 @@ function BWChartLiftsStyle({
     };
 
     const [openAdd, setOpenAdd] = useState(false);
-    const [newDate, setNewDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [newDate, setNewDate] = useState<string>(fmtDate(new Date()));
     const [newW, setNewW] = useState<string>('');
     const dateInputRef = useRef<HTMLInputElement | null>(null);
     const expanderCls =
-        'overflow-hidden transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-2';
+        'transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-2';
 
     const title =
         range === '1W' ? 'Past week' :
@@ -1005,7 +1010,9 @@ function BWChartLiftsStyle({
                         <>
                             <div
                                 className={`${expanderCls} ${
-                                    openAdd ? 'max-w-[220px] opacity-100 ml-1' : 'max-w-0 opacity-0 ml-0'
+                                    openAdd
+                                        ? 'max-w-[220px] opacity-100 ml-1'
+                                        : 'max-w-0 opacity-0 ml-0 overflow-hidden pointer-events-none'
                                 }`}
                             >
                                 <div className="relative h-8 w-8">
@@ -1025,13 +1032,13 @@ function BWChartLiftsStyle({
                                         type="date"
                                         value={newDate}
                                         onChange={(e) => setNewDate(e.target.value)}
-                                        className="absolute inset-0 opacity-0"
+                                        className="absolute inset-0 opacity-0 pointer-events-none"
                                     />
                                 </div>
                                 <input
                                     placeholder={fmtUnit}
                                     inputMode="decimal"
-                                    className="h-8 w-16 rounded-lg border px-2 text-xs outline-none"
+                                    className="h-8 w-20 rounded-lg border px-2 text-base outline-none"
                                     value={newW}
                                     onChange={(e) => setNewW(e.target.value)}
                                 />

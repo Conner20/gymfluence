@@ -18,7 +18,12 @@ import {
 
 /* utils */
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const fmtISO = (d: Date) => d.toISOString().slice(0, 10);
+const fmtISO = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 const SLEEP_GOAL_STORAGE_KEY = 'wellness_sleep_goal';
 
 // (reused from Nutrition page)

@@ -193,74 +193,88 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div className="flex gap-1">
-                <div className="flex-1 min-w-0">
+            <div className="flex gap-2 flex-nowrap overflow-x-auto">
+                <div className="shrink-0">
                     <Chip
                         label="Distance"
                         value={distanceKm ? `${distanceKm} km` : 'Any'}
                         menu={
-                            <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                                {['', '5', '10', '25', '50', '100'].map((d) => (
-                                    <button
-                                        key={d || 'any'}
-                                        onClick={() => setDistanceKm(d)}
-                                        className={clsx(
-                                            'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                            (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
-                                        )}
-                                    >
-                                        {d ? `${d} km` : 'Any'}
-                                    </button>
-                                ))}
+                            <div className="flex flex-col gap-1 p-3">
+                                {['', '5', '10', '25', '50', '100'].map((d) => {
+                                    const activeOpt = (distanceKm || '') === d;
+                                    return (
+                                        <button
+                                            key={d || 'any'}
+                                            onClick={() => setDistanceKm(d)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-sm text-left transition',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                            )}
+                                        >
+                                            {d ? `${d} km` : 'Any distance'}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         }
                         size="compact"
                         fluid
                         showValue={false}
                         active={Boolean(distanceKm)}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
                     />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="shrink-0">
                     <Chip
                         label="Role"
                         value={role === 'ALL' ? 'All' : role.toLowerCase()}
                         menu={
-                            <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
-                                    <button
-                                        key={r}
-                                        onClick={() => setRole(r)}
-                                        className={clsx(
-                                            'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                            role === r ? 'bg-gray-900 text-white' : 'bg-white'
-                                        )}
-                                    >
-                                        {r.toLowerCase()}
-                                    </button>
-                                ))}
+                            <div className="flex flex-col gap-1 p-3">
+                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                    const activeOpt = role === r;
+                                    return (
+                                        <button
+                                            key={r}
+                                            onClick={() => setRole(r)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                            )}
+                                        >
+                                            {r === 'ALL' ? 'any role' : r.toLowerCase()}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         }
                         size="compact"
                         fluid
                         showValue={false}
                         active={role !== 'ALL'}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
                     />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="shrink-0">
                     <Chip
                         label="Budget"
                         value={`${minBudget || 0}–${maxBudget || '∞'}`}
                         menu={
-                            <div className="p-3 w-72">
-                                <div className="text-xs text-gray-500 mb-2">
-                                    Trainers: hourly • Gyms: monthly fee
+                            <div className="space-y-3 p-4 text-sm">
+                                <div className="text-xs uppercase tracking-wide text-gray-400">
+                                    trainers hourly · gyms monthly
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-28 border rounded px-2 py-1 text-sm"
-                                        placeholder="min"
+                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                        placeholder="Min"
                                         value={minBudget}
                                         onChange={(e) => setMinBudget(e.target.value)}
                                     />
@@ -268,22 +282,25 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-28 border rounded px-2 py-1 text-sm"
-                                        placeholder="max"
+                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                        placeholder="Max"
                                         value={maxBudget}
                                         onChange={(e) => setMaxBudget(e.target.value)}
                                     />
                                 </div>
-                                <div className="mt-3 flex justify-end">
+                                <div className="flex items-center justify-between text-xs text-gray-500">
                                     <button
                                         onClick={() => {
                                             setMinBudget('');
                                             setMaxBudget('');
                                         }}
-                                        className="text-xs text-gray-600 underline"
+                                        className="rounded-full px-2 py-1 transition hover:text-gray-800"
                                     >
                                         Clear
                                     </button>
+                                    <span>
+                                        {minBudget || '0'} – {maxBudget || '∞'}
+                                    </span>
                                 </div>
                             </div>
                         }
@@ -291,35 +308,52 @@ export default function SearchPage() {
                         fluid
                         showValue={false}
                         active={Boolean(minBudget || maxBudget)}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
                     />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="shrink-0">
                     <Chip
                         label="Goals"
                         value={goals.length ? `${goals.length} selected` : 'Any'}
                         menu={
-                            <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
-                                {allGoals.map((g) => (
-                                    <label key={g} className="text-sm flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={goals.includes(g)}
-                                            onChange={() => toggleGoal(g)}
-                                        />
-                                        <span>{g}</span>
-                                    </label>
-                                ))}
-                                <div className="flex justify-end mt-1">
-                                    <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
-                                        Clear
-                                    </button>
-                                </div>
+                            <div className="flex flex-col gap-1 p-3 text-sm">
+                                {allGoals.map((g) => {
+                                    const checked = goals.includes(g);
+                                    return (
+                                        <label
+                                            key={g}
+                                            className={clsx(
+                                                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
+                                                checked
+                                                    ? 'border-gray-900 bg-gray-900 text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                            )}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleGoal(g)}
+                                                className="accent-gray-900"
+                                            />
+                                            <span>{g}</span>
+                                        </label>
+                                    );
+                                })}
+                                <button
+                                    onClick={() => setGoals([])}
+                                    className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800"
+                                >
+                                    Clear goals
+                                </button>
                             </div>
                         }
                         size="compact"
                         fluid
                         showValue={false}
                         active={goals.length > 0}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
                     />
                 </div>
             </div>
@@ -439,20 +473,26 @@ export default function SearchPage() {
                         <Chip
                             label="Distance"
                             value={distanceKm ? `${distanceKm} km` : 'Any'}
+                            active={Boolean(distanceKm)}
                             menu={
-                                <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                                    {['', '5', '10', '25', '50', '100'].map((d) => (
-                                        <button
-                                            key={d || 'any'}
-                                            onClick={() => setDistanceKm(d)}
-                                            className={clsx(
-                                                'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                                (distanceKm || '') === d ? 'bg-gray-900 text-white' : 'bg-white'
-                                            )}
-                                        >
-                                            {d ? `${d} km` : 'Any'}
-                                        </button>
-                                    ))}
+                                <div className="flex flex-col gap-1 p-3 w-60">
+                                    {['', '5', '10', '25', '50', '100'].map((d) => {
+                                        const activeOpt = (distanceKm || '') === d;
+                                        return (
+                                            <button
+                                                key={d || 'any'}
+                                                onClick={() => setDistanceKm(d)}
+                                                className={clsx(
+                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition',
+                                                    activeOpt
+                                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                )}
+                                            >
+                                                {d ? `${d} km` : 'Any distance'}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             }
                         />
@@ -460,20 +500,26 @@ export default function SearchPage() {
                         <Chip
                             label="Role"
                             value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                            active={role !== 'ALL'}
                             menu={
-                                <div className="grid grid-cols-2 gap-2 p-2 w-52">
-                                    {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => (
-                                        <button
-                                            key={r}
-                                            onClick={() => setRole(r)}
-                                            className={clsx(
-                                                'w-full px-2 py-1 rounded border text-sm text-left whitespace-normal break-words',
-                                                role === r ? 'bg-gray-900 text-white' : 'bg-white'
-                                            )}
-                                        >
-                                            {r.toLowerCase()}
-                                        </button>
-                                    ))}
+                                <div className="flex flex-col gap-1 p-3 w-60">
+                                    {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                        const activeOpt = role === r;
+                                        return (
+                                            <button
+                                                key={r}
+                                                onClick={() => setRole(r)}
+                                                className={clsx(
+                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                    activeOpt
+                                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                )}
+                                            >
+                                                {r === 'ALL' ? 'any role' : r.toLowerCase()}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             }
                         />
@@ -482,17 +528,18 @@ export default function SearchPage() {
                         <Chip
                             label="Budget"
                             value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                            active={Boolean(minBudget || maxBudget)}
                             menu={
-                                <div className="p-3 w-72">
-                                    <div className="text-xs text-gray-500 mb-2">
-                                        Trainers: hourly • Gyms: monthly fee
+                                <div className="space-y-3 p-4 w-[22rem] max-w-[calc(100vw-80px)] text-sm">
+                                    <div className="text-xs uppercase tracking-wide text-gray-400">
+                                        trainers hourly · gyms monthly
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <input
                                             type="number"
                                             min={0}
-                                            className="w-28 border rounded px-2 py-1 text-sm"
-                                            placeholder="min"
+                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                            placeholder="Min"
                                             value={minBudget}
                                             onChange={(e) => setMinBudget(e.target.value)}
                                         />
@@ -500,22 +547,25 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="w-28 border rounded px-2 py-1 text-sm"
-                                            placeholder="max"
+                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                            placeholder="Max"
                                             value={maxBudget}
                                             onChange={(e) => setMaxBudget(e.target.value)}
                                         />
                                     </div>
-                                    <div className="mt-3 flex justify-end">
+                                    <div className="flex items-center justify-between text-xs text-gray-500">
                                         <button
                                             onClick={() => {
                                                 setMinBudget('');
                                                 setMaxBudget('');
                                             }}
-                                            className="text-xs text-gray-600 underline"
+                                            className="rounded-full px-2 py-1 transition hover:text-gray-800"
                                         >
                                             Clear
                                         </button>
+                                        <span>
+                                            {minBudget || '0'} – {maxBudget || '∞'}
+                                        </span>
                                     </div>
                                 </div>
                             }
@@ -524,30 +574,44 @@ export default function SearchPage() {
                         <Chip
                             label="Goals"
                             value={goals.length ? `${goals.length} selected` : 'Any'}
+                            active={goals.length > 0}
                             menu={
-                                <div className="p-3 grid grid-cols-1 gap-1 w-[260px]">
-                                    {allGoals.map((g) => (
-                                        <label key={g} className="text-sm flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={goals.includes(g)}
-                                                onChange={() => toggleGoal(g)}
-                                            />
-                                            <span>{g}</span>
-                                        </label>
-                                    ))}
-                                    <div className="flex justify-end mt-1">
-                                        <button onClick={() => setGoals([])} className="text-xs text-gray-600 underline">
-                                            Clear
-                                        </button>
-                                    </div>
+                                <div className="flex flex-col gap-1 p-3 text-sm w-64">
+                                    {allGoals.map((g) => {
+                                        const checked = goals.includes(g);
+                                        return (
+                                            <label
+                                                key={g}
+                                                className={clsx(
+                                                    'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
+                                                    checked
+                                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                )}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleGoal(g)}
+                                                    className="accent-gray-900"
+                                                />
+                                                <span>{g}</span>
+                                            </label>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setGoals([])}
+                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800"
+                                    >
+                                        Clear goals
+                                    </button>
                                 </div>
                             }
                         />
 
                         <button
                             onClick={resetFilters}
-                            className="text-sm px-3 py-2 rounded-full border bg-white hover:bg-gray-50"
+                            className="flex items-center rounded-xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm text-gray-700 uppercase tracking-wide transition hover:border-gray-400 hover:bg-white"
                             title="Reset filters"
                         >
                             Reset
@@ -1023,6 +1087,9 @@ function Chip({
     fluid = false,
     showValue = true,
     active = false,
+    menuClassName,
+    menuPosition,
+    menuFixed = false,
 }: {
     label: string;
     value: string | number;
@@ -1031,30 +1098,49 @@ function Chip({
     fluid?: boolean;
     showValue?: boolean;
     active?: boolean;
+    menuClassName?: string;
+    menuPosition?: string;
+    menuFixed?: boolean;
 }) {
     const compact = size === 'compact';
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
     const [open, setOpen] = useState(false);
+    const [menuTop, setMenuTop] = useState<number | null>(null);
     useEffect(() => {
         const handler = (e: CustomEvent<string>) => {
-            if (e.detail !== label) setOpen(false);
+            if (e.detail !== label) {
+                setOpen(false);
+                setMenuTop(null);
+            }
         };
         window.addEventListener('close-filters', handler as EventListener);
         return () => window.removeEventListener('close-filters', handler as EventListener);
     }, [label]);
+    const spacingClass = showValue ? (compact ? 'gap-1' : 'gap-2') : 'gap-1.5';
+    const justifyClass = showValue ? '' : 'justify-between';
+
     return (
-        <div className={clsx('relative', fluid && 'w-full')}>
+        <div ref={wrapperRef} className={clsx('relative', fluid && 'w-full')}>
             <button
                 onClick={() => {
                     const next = !open;
                     setOpen(next);
                     if (next) {
                         window.dispatchEvent(new CustomEvent('close-filters', { detail: label }));
+                        if (menuFixed) {
+                            const rect = wrapperRef.current?.getBoundingClientRect();
+                            setMenuTop((rect?.bottom ?? 0) + 8);
+                        }
+                    } else {
+                        setMenuTop(null);
                     }
                 }}
                 className={clsx(
                     'flex items-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
                     fluid ? 'w-full' : 'max-w-[220px]',
-                    compact ? (showValue ? 'gap-1 px-2 py-1 text-xs' : 'gap-2 px-2 py-1 text-xs') : (showValue ? 'gap-2 px-3 py-1.5 text-sm' : 'gap-2 px-3 py-1.5 text-sm'),
+                    compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm',
+                    spacingClass,
+                    justifyClass,
                     active
                         ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100'
                         : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white'
@@ -1064,10 +1150,11 @@ function Chip({
                     className={clsx(
                         'whitespace-nowrap uppercase tracking-wide',
                         compact ? 'text-[10px]' : 'text-xs',
-                        active ? 'text-green-700' : 'text-gray-500'
-                    )}
-                >
-                    {label}
+                        active ? 'text-green-700' : 'text-gray-500',
+                        !showValue && 'flex-1 text-left'
+                )}
+            >
+                {label}
                 </span>
                 {showValue && (
                     <>
@@ -1085,24 +1172,51 @@ function Chip({
                 )}
                 <ChevronDown
                     size={compact ? 14 : 16}
-                    className={clsx('ml-1 shrink-0', active ? 'text-green-700' : 'text-gray-500')}
+                    className={clsx('shrink-0', active ? 'text-green-700' : 'text-gray-500')}
                 />
             </button>
             {open && (
-                <div className="absolute right-0 mt-2 min-w-[240px] rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur">
-                    <div className="flex justify-end px-2 pt-2">
-                        <button
-                            onClick={() => setOpen(false)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
-                            title="Close"
-                        >
-                            <X size={16} />
-                        </button>
+                <>
+                    {menuFixed && (
+                        <div
+                            className="fixed inset-0 z-30 bg-black/10"
+                            onClick={() => {
+                                setOpen(false);
+                                setMenuTop(null);
+                            }}
+                        />
+                    )}
+                    <div
+                        className={clsx(
+                            menuFixed
+                                ? 'fixed left-1/2 z-40 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur w-[calc(100vw-32px)] max-w-sm'
+                                : 'absolute z-20 mt-2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur',
+                            menuFixed ? '' : menuPosition ?? 'right-0',
+                            menuClassName ?? (menuFixed ? '' : 'min-w-[240px]')
+                        )}
+                        style={
+                            menuFixed
+                                ? { top: menuTop ?? (wrapperRef.current?.getBoundingClientRect().bottom ?? 0) + 8 }
+                                : undefined
+                        }
+                    >
+                        <div className="flex justify-end px-2 pt-2">
+                            <button
+                                onClick={() => {
+                                    setOpen(false);
+                                    setMenuTop(null);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
+                                title="Close"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="px-4 pb-4">
+                            {menu}
+                        </div>
                     </div>
-                    <div className="px-4 pb-4">
-                        {menu}
-                    </div>
-                </div>
+                </>
             )}
         </div>
     );
