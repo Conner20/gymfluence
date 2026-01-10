@@ -619,7 +619,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                   onClick={openFollowers}
                   disabled={!canViewPrivate}
                   className={clsx(
-                    "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
+                    "flex-1 flex flex-col py-1 text-center items-center rounded-md",
                     canViewPrivate
                       ? "hover:bg-gray-50 transition"
                       : "opacity-60 cursor-not-allowed"
@@ -636,11 +636,11 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                   onClick={openFollowing}
                   disabled={!canViewPrivate}
                   className={clsx(
-                    "flex-1 flex flex-col py-1 rounded-md text-center items-center lg:text-left lg:items-start",
+                    "flex-1 flex flex-col py-1 text-center items-center rounded-md",
                     canViewPrivate
                       ? "hover:bg-gray-50 transition"
                       : "opacity-60 cursor-not-allowed"
-                  )}
+                )}
                   title={canViewPrivate ? "View following" : "Private"}
                 >
                   <span className="text-sm font-semibold text-zinc-900">
@@ -649,7 +649,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                   <span>Following</span>
                 </button>
                 <div className="w-px h-8 bg-gray-200" />
-                <div className="flex-1 flex flex-col py-1 text-center items-center lg:text-left lg:items-start">
+                <div className="flex-1 flex flex-col py-1 text-center items-center">
                   <span className="text-sm font-semibold text-zinc-900">
                     {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
                   </span>

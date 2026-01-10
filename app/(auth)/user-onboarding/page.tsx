@@ -29,43 +29,9 @@ type GymFormValues = z.infer<typeof GymFormSchema>;
 
 
 const roleOptions = [
-    {
-        label: "Trainee",
-        color: "bg-green-100",
-        icon: (
-            <svg width="64" height="64" fill="none" viewBox="0 0 64 64">
-                <circle cx="32" cy="20" r="10" fill="black" />
-                <rect x="16" y="36" width="32" height="18" rx="6" fill="black" />
-                <rect x="22" y="50" width="6" height="8" rx="3" fill="black" />
-                <rect x="36" y="50" width="6" height="8" rx="3" fill="black" />
-            </svg>
-        ),
-    },
-    {
-        label: "Trainer",
-        color: "bg-purple-100",
-        icon: (
-            <svg width="64" height="64" fill="none" viewBox="0 0 64 64">
-                <circle cx="32" cy="16" r="8" fill="black" />
-                <rect x="14" y="36" width="36" height="8" rx="4" fill="black" />
-                <rect x="22" y="44" width="8" height="10" rx="4" fill="black" />
-                <rect x="34" y="44" width="8" height="10" rx="4" fill="black" />
-                <circle cx="32" cy="36" r="6" fill="black" />
-            </svg>
-        ),
-    },
-    {
-        label: "Gym",
-        color: "bg-blue-100",
-        icon: (
-            <svg width="64" height="64" fill="none" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="28" stroke="black" strokeWidth="4" />
-                <rect x="24" y="28" width="16" height="8" rx="2" fill="black" />
-                <rect x="18" y="26" width="4" height="12" rx="2" fill="black" />
-                <rect x="42" y="26" width="4" height="12" rx="2" fill="black" />
-            </svg>
-        ),
-    },
+    { label: "Trainee" },
+    { label: "Trainer" },
+    { label: "Gym" },
 ];
 
 
@@ -164,128 +130,30 @@ function UserOnboardingContent() {
         }
     };
 
-    return (
-        <div className={`w-full min-h-screen flex flex-col items-center justify-center`}>
-            {step === 1 && (
-                <div className="flex flex-col items-center">
-                    <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold mb-1">
-                            Welcome, <span className="text-black">{userName}</span>!
-                        </h2>
-                        <p className="text-xl text-black">Please select your identity</p>
+    if (step === 2 && role === 'Gym') {
+        return (
+            <div className="flex h-screen w-full items-center justify-center px-4">
+                <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/95 p-6 shadow-xl shadow-zinc-100">
+                    <div className="space-y-1 text-center">
+                        <h2 className="text-2xl font-semibold text-zinc-900">Create your gym profile</h2>
+                        <p className="text-sm text-zinc-500">Share the essentials so members can find you faster.</p>
                     </div>
-                    <div className="flex gap-12 mb-16">
-                        {roleOptions.map(({ label, color, icon }) => (
-                            <button
-                                key={label}
-                                type="button"
-                                className={`flex flex-col items-center justify-center w-48 h-48 rounded-2xl transition 
-                                shadow-md hover:scale-105 hover:shadow-xl active:scale-100
-                                ${color} ${role === label ? "border-4 border-black" : "border border-transparent"}`}
-                                onClick={() => handleRoleCardSelect(label)}
-                            >
-                                <span className="mb-2 font-semibold text-lg lowercase text-black">{label}</span>
-                                {icon}
-                            </button>
-                        ))}
-                    </div>
-                    <button
-                        className={`mt-2 w-16 h-16 flex items-center justify-center rounded-full border-2 border-black transition
-                        ${role ? "hover:bg-black hover:text-white" : "opacity-50 cursor-not-allowed"}`}
-                        disabled={!role}
-                        onClick={handleRoleNext}
-                        aria-label="Next"
-                    >
-                        <ArrowRight size={32} />
-                    </button>
-                </div>
-            )}
-
-            {step === 2 && (role === 'Trainee' || role === 'Trainer') && (
-                <div className="flex flex-col items-center gap-8">
-                    <h2 className="text-3xl font-bold text-center">
-                        {role === 'Trainee' ? 'What are your goals?' : 'What services do you offer?'}
-                    </h2>
-                    <div className="grid grid-cols-3 gap-6">
-                        {OPTIONS.map((option) => {
-                            const isSelected = selections.includes(option);
-
-                            // Get unique background color
-                            const bgColorMap: Record<string, string> = {
-                                "weight loss": "bg-green-100",
-                                "build strength": "bg-red-100",
-                                "improve endurance": "bg-blue-100",
-                                "flexibility & mobility": "bg-yellow-200",
-                                "sport performance": "bg-purple-200",
-                                "injury recovery": "bg-yellow-100",
-                            };
-
-                            // Get unique SVG icon (you can expand this map to return JSX elements later)
-                            const iconMap: Record<string, JSX.Element> = {
-                                "weight loss": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M12 2c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4zM8 14a4 4 0 0 1 8 0v5H8v-5z" /></svg>,
-                                "build strength": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M17 8a4 4 0 0 0-4-4M3 12c0-3.314 2.686-6 6-6m-2 6v4a2 2 0 0 0 2 2h3v3" /></svg>,
-                                "improve endurance": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M18 8l4 4-4 4M3 12h19" /></svg>,
-                                "flexibility & mobility": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M12 6v12M6 12h12" /></svg>,
-                                "sport performance": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M2 12h2m16 0h2" /></svg>,
-                                "injury recovery": <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2"><path d="M12 4v4M12 16v4M8 12h8" /></svg>,
-                            };
-
-                            return (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() => toggleSelection(option)}
-                                    className={`w-40 h-40 flex flex-col items-center justify-center rounded-xl p-4 transition 
-                            ${bgColorMap[option]} 
-                            ${isSelected ? 'border-4 border-blue-500' : 'border border-transparent'}`}
-                                >
-                                    <div className="mb-2">{iconMap[option]}</div>
-                                    <p className="text-center font-semibold lowercase text-black">{option}</p>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Navigation Arrows */}
-                    <div className="flex gap-6">
-                        <button
-                            onClick={() => setStep(1)}
-                            className="w-12 h-12 border-2 border-black rounded-full flex items-center justify-center hover:bg-black hover:text-white transition"
-                            aria-label="Back"
-                        >
-                            ←
-                        </button>
-                        <button
-                            type="button"
-                            disabled={selections.length === 0}
-                            onClick={handleSubmit}
-                            className={`w-12 h-12 border-2 rounded-full flex items-center justify-center transition 
-                    ${selections.length > 0
-                                    ? 'border-black hover:bg-black hover:text-white'
-                                    : 'border-gray-300 text-gray-300 cursor-not-allowed'}`}
-                            aria-label="Next"
-                        >
-                            →
-                        </button>
-                    </div>
-                </div>
-
-            )}
-
-            {step === 2 && role === 'Gym' && (
-                <div className='bg-slate-200 p-10 rounded-md w-full max-w-md'>
-                <Form {...gymFormHook}>
-                    <h2 className="text-3xl text-center mb-4">Create Gym Profile</h2>
-                    <form onSubmit={handleGymProfileSubmit} className="w-full">
-                        <div className="space-y-4">
+                    <Form {...gymFormHook}>
+                        <form onSubmit={handleGymProfileSubmit} className="w-full space-y-5">
                             <FormField
                                 control={gymFormHook.control}
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="mb-2">Organization Name</FormLabel>
-                                        <FormControl className="bg-white">
-                                            <Input placeholder="Organization Name" {...field} />
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Organization name
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="Gym or facility name"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -296,9 +164,15 @@ function UserOnboardingContent() {
                                 name="address"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="mb-2">Address</FormLabel>
-                                        <FormControl className="bg-white">
-                                            <Input placeholder="Address" {...field} />
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Address
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="Street, city, state"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -309,9 +183,15 @@ function UserOnboardingContent() {
                                 name="phone"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="mb-2">Phone Number</FormLabel>
-                                        <FormControl className="bg-white">
-                                            <Input placeholder="Phone Number" {...field} />
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Phone number
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="(555) 123-4567"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -322,9 +202,15 @@ function UserOnboardingContent() {
                                 name="website"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="mb-2">Website URL</FormLabel>
-                                        <FormControl className="bg-white">
-                                            <Input placeholder="Website URL" {...field} />
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Website
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="https://..."
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -335,11 +221,14 @@ function UserOnboardingContent() {
                                 name="fee"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="mb-2">Monthly Membership Fee</FormLabel>
-                                        <FormControl className="bg-white">
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Monthly membership fee
+                                        </FormLabel>
+                                        <FormControl>
                                             <Input
                                                 type="number"
-                                                placeholder="Monthly Membership Fee"
+                                                placeholder="e.g., 99"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
                                                 value={
                                                     field.value === undefined || Number.isNaN(field.value)
                                                         ? ''
@@ -358,12 +247,270 @@ function UserOnboardingContent() {
                                     </FormItem>
                                 )}
                             />
+                            <div className="space-y-3">
+                                <Button className='w-full' type="submit">Publish profile</Button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setRole(null);
+                                        setStep(1);
+                                    }}
+                                    className="w-full text-sm text-zinc-500 transition hover:text-zinc-800"
+                                >
+                                    ← Back
+                                </button>
+                            </div>
+                        </form>
+                    </Form>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`w-full min-h-screen flex flex-col items-center justify-center px-4 py-6 sm:py-10`}>
+            {step === 1 && (
+                <div className="flex w-full max-w-5xl flex-col items-center">
+                    <div className="mb-8 text-center space-y-2">
+                        <p className="text-sm uppercase tracking-[0.2em] text-zinc-400">Onboarding</p>
+                        <h2 className="text-3xl font-semibold">
+                            Hi {userName}, choose your role
+                        </h2>
+                        <p className="text-sm text-zinc-500">
+                            This helps us tailor the experience to your needs.
+                        </p>
+                    </div>
+                    <div className="mb-12 grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {roleOptions.map(({ label }) => {
+                            const isSelected = role === label;
+                            return (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    aria-pressed={isSelected}
+                                    onClick={() => handleRoleCardSelect(label)}
+                                    className={`flex h-full w-full flex-col gap-2 rounded-2xl border px-4 py-4 text-left transition ${
+                                        isSelected
+                                            ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                                            : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-400'
+                                    }`}
+                                >
+                                    <span className="text-xl font-semibold">{label}</span>
+                                    <span className="text-sm text-zinc-500">
+                                        {label === 'Trainee'
+                                            ? 'Track progress and stay accountable.'
+                                            : label === 'Trainer'
+                                                ? 'Manage clients and programming.'
+                                                : 'Grow and showcase your facility.'}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <button
+                        className={`mt-2 inline-flex h-14 w-14 items-center justify-center rounded-full border border-zinc-900 text-zinc-900 transition ${
+                            role ? 'hover:bg-zinc-900 hover:text-white' : 'cursor-not-allowed opacity-30'
+                        }`}
+                        disabled={!role}
+                        onClick={handleRoleNext}
+                        aria-label="Next"
+                    >
+                        <ArrowRight size={28} />
+                    </button>
+                </div>
+            )}
+
+            {step === 2 && (role === 'Trainee' || role === 'Trainer') && (
+                <div className="flex w-full max-w-5xl flex-col items-center gap-8 px-4">
+                    <div className="text-center space-y-2">
+                        <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">
+                            {role === 'Trainee' ? 'Goals' : 'Services'}
+                        </p>
+                        <h2 className="text-2xl font-semibold text-zinc-900">
+                            {role === 'Trainee' ? 'What are you focusing on?' : 'What do you offer clients?'}
+                        </h2>
+                        <p className="text-sm text-zinc-500">
+                            Select all that apply. This helps personalize your experience.
+                        </p>
+                    </div>
+                    <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {OPTIONS.map((option) => {
+                            const isSelected = selections.includes(option);
+                            const formatted = option.replace(/(^|\s)\S/g, (t) => t.toUpperCase());
+                            return (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => toggleSelection(option)}
+                                    className={`flex h-full w-full rounded-2xl border px-4 py-4 text-left transition ${
+                                        isSelected
+                                            ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                                            : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-400 hover:bg-white'
+                                    }`}
+                                >
+                                    <span className="text-lg font-medium">{formatted}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setStep(1)}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-zinc-900 text-zinc-900 transition hover:bg-zinc-900 hover:text-white"
+                            aria-label="Back"
+                        >
+                            ←
+                        </button>
+                        <button
+                            type="button"
+                            disabled={selections.length === 0}
+                            onClick={handleSubmit}
+                            className={`inline-flex h-12 w-12 items-center justify-center rounded-full border transition ${
+                                selections.length > 0
+                                    ? 'border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white'
+                                    : 'border-zinc-300 text-zinc-300 cursor-not-allowed'
+                            }`}
+                            aria-label="Next"
+                        >
+                            →
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {step === 2 && role === 'Gym' && (
+                <div className="flex h-screen w-full items-center justify-center px-4">
+                    <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/95 p-6 shadow-xl shadow-zinc-100">
+                        <div className="flex items-center justify-between text-sm">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRole(null);
+                                    setStep(1);
+                                }}
+                                className="text-zinc-500 transition hover:text-zinc-800"
+                            >
+                                ← Back
+                            </button>
                         </div>
-                        <Button className="w-full mt-6" type="submit">
-                            Finish
-                        </Button>
-                    </form>
-                </Form>
+                        <div className="space-y-1 text-center">
+                            <h2 className="text-2xl font-semibold text-zinc-900">Create your gym profile</h2>
+                            <p className="text-sm text-zinc-500">Share the essentials so members can find you faster.</p>
+                        </div>
+                    <Form {...gymFormHook}>
+                        <form onSubmit={handleGymProfileSubmit} className="w-full space-y-5">
+                            <FormField
+                                control={gymFormHook.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Organization name
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="Gym or facility name"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="address"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Address
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="Street, city, state"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Phone number
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="(555) 123-4567"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="website"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Website
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="https://..."
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={gymFormHook.control}
+                                name="fee"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
+                                            Monthly membership fee
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g., 99"
+                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                value={
+                                                    field.value === undefined || Number.isNaN(field.value)
+                                                        ? ''
+                                                        : field.value
+                                                }
+                                                onChange={(e) =>
+                                                    field.onChange(
+                                                        e.target.value === ''
+                                                            ? undefined
+                                                            : Number(e.target.value)
+                                                    )
+                                                }
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <Button className='w-full mt-6' type="submit">Publish profile</Button>
+                        </form>
+                    </Form>
+                    </div>
                 </div>
             )}
         </div>
