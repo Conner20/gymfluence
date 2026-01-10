@@ -120,3 +120,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
