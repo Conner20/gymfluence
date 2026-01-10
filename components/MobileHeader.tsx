@@ -13,7 +13,7 @@ type MobileHeaderProps = {
 };
 
 export default function MobileHeader({ title, href = "/", subContent }: MobileHeaderProps) {
-    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(true);
 
     return (
         <>
