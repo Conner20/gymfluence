@@ -63,7 +63,8 @@ function SleepLine({
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
     const { ref: svgWrapRef, width: svgWidth } = useMeasure<HTMLDivElement>();
-    const dateInputRef = useRef<HTMLInputElement | null>(null);
+    const mobileDateInputRef = useRef<HTMLInputElement | null>(null);
+    const desktopDateInputRef = useRef<HTMLInputElement | null>(null);
 
     const days = range === '1W' ? 7 : range === '1M' ? 30 : range === '3M' ? 90 : 365;
     const end = new Date();
@@ -251,24 +252,26 @@ function SleepLine({
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        dateInputRef.current?.showPicker?.();
-                                        dateInputRef.current?.focus();
+                                        // Match Segment 1 behavior exactly
+                                        mobileDateInputRef.current?.showPicker?.();
+                                        mobileDateInputRef.current?.focus();
                                     }}
                                     className="flex h-full w-full items-center justify-center rounded-lg border text-purple-600"
                                     aria-label="Select date"
                                 >
                                     <Calendar size={16} />
                                 </button>
+
                                 <input
-                                    ref={dateInputRef}
+                                    ref={mobileDateInputRef}
                                     type="date"
                                     value={newDate}
                                     onChange={(e) => setNewDate(e.target.value)}
-                                    className="absolute inset-0 opacity-0"
+                                    className="absolute inset-0 opacity-0 pointer-events-none"
                                 />
                             </div>
                             <input
-                                ref={dateInputRef}
+                                ref={desktopDateInputRef}
                                 type="date"
                                 value={newDate}
                                 onChange={(e) => setNewDate(e.target.value)}
