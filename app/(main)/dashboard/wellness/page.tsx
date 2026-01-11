@@ -896,16 +896,27 @@ function WellnessPage() {
     }, [water, sleep, waterGoal]);
 
     const mobileTabs = (
-        <div className="px-4 py-3 flex gap-2 text-sm">
-            <Link href="/dashboard" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
-                workouts
-            </Link>
-            <Link href="/dashboard/wellness" className="flex-1 rounded-full px-4 py-2 text-center bg-black text-white">
-                wellness
-            </Link>
-            <Link href="/dashboard/nutrition" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
-                nutrition
-            </Link>
+        <div className="px-4 pb-4">
+            <div className="flex gap-2 text-sm">
+                <Link
+                    href="/dashboard"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                >
+                    workouts
+                </Link>
+                <Link
+                    href="/dashboard/wellness"
+                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white"
+                >
+                    wellness
+                </Link>
+                <Link
+                    href="/dashboard/nutrition"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                >
+                    nutrition
+                </Link>
+            </div>
         </div>
     );
 
@@ -914,17 +925,23 @@ function WellnessPage() {
             <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
 
             <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none">
-                <h1 className="select-none font-roboto text-3xl text-black tracking-tight">
+                <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight">
                     wellness log
                 </h1>
-                <nav className="flex gap-2">
-                    <Link href="/dashboard" className="px-6 py-2 text-black hover:underline">
+                <nav className="flex gap-2 text-sm">
+                    <Link
+                        href="/dashboard"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                    >
                         workouts
                     </Link>
-                    <Link href="/dashboard/wellness" className="bg-black px-6 py-2 text-white">
+                    <Link href="/dashboard/wellness" className="rounded-full bg-black px-6 py-2 font-medium text-white">
                         wellness
                     </Link>
-                    <Link href="/dashboard/nutrition" className="px-6 py-2 text-black hover:underline">
+                    <Link
+                        href="/dashboard/nutrition"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                    >
                         nutrition
                     </Link>
                 </nav>

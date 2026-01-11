@@ -807,16 +807,27 @@ export default function Dashboard() {
         `w-full border rounded px-2 py-1 text-sm mt-1 ${showRequired && empty ? 'text-red-600 placeholder-red-400' : ''}`;
 
     const mobileTabs = (
-        <div className="px-4 py-3 flex gap-2 text-sm">
-            <Link href="/dashboard" className="flex-1 rounded-full px-4 py-2 text-center bg-black text-white">
-                workouts
-            </Link>
-            <Link href="/dashboard/wellness" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
-                wellness
-            </Link>
-            <Link href="/dashboard/nutrition" className="flex-1 rounded-full px-4 py-2 text-center border text-black">
-                nutrition
-            </Link>
+        <div className="px-4 pb-4">
+            <div className="flex gap-2 text-sm">
+                <Link
+                    href="/dashboard"
+                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white"
+                >
+                    workouts
+                </Link>
+                <Link
+                    href="/dashboard/wellness"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                >
+                    wellness
+                </Link>
+                <Link
+                    href="/dashboard/nutrition"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                >
+                    nutrition
+                </Link>
+            </div>
         </div>
     );
 
@@ -826,15 +837,21 @@ export default function Dashboard() {
 
             {/* Header (fixed height) */}
             <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
-                <h1 className="select-none font-roboto text-3xl tracking-tight text-black">workouts log</h1>
-                <nav className="flex gap-2">
-                    <Link href="/dashboard" className="bg-black px-6 py-2 text-white">
+                <h1 className="select-none font-roboto text-3xl tracking-tight text-green-700">workouts log</h1>
+                <nav className="flex gap-2 text-sm">
+                    <Link href="/dashboard" className="rounded-full bg-black px-6 py-2 font-medium text-white">
                         workouts
                     </Link>
-                    <Link href="/dashboard/wellness" className="px-6 py-2 text-black hover:underline">
+                    <Link
+                        href="/dashboard/wellness"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                    >
                         wellness
                     </Link>
-                    <Link href="/dashboard/nutrition" className="px-6 py-2 text-black hover:underline">
+                    <Link
+                        href="/dashboard/nutrition"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                    >
                         nutrition
                     </Link>
                 </nav>
