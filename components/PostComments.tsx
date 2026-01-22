@@ -118,7 +118,7 @@ export function PostComments({
                             className="w-8 h-8 rounded-full object-cover border"
                         />
                     ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 border flex items-center justify-center text-[11px] font-semibold uppercase text-gray-700">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 border flex items-center justify-center text-[11px] font-semibold uppercase text-gray-700 dark:bg-white/10 dark:border-white/20 dark:text-gray-100">
                             {initials}
                         </div>
                     )}
@@ -126,11 +126,11 @@ export function PostComments({
                     {/* Main comment body */}
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-gray-800">
+                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
                                 {displayName}
                             </span>
                             <span
-                                className="text-xs text-gray-400"
+                                className="text-xs text-gray-400 dark:text-gray-400"
                                 title={new Date(comment.createdAt).toLocaleString()}
                             >
                                 {formatRelativeTime(comment.createdAt)}
@@ -138,7 +138,7 @@ export function PostComments({
 
                             {isMine && (
                                 <button
-                                    className="ml-2 text-[11px] text-red-500 hover:text-red-600 flex items-center gap-1"
+                                    className="ml-2 text-[11px] text-red-500 hover:text-red-600 flex items-center gap-1 dark:hover:text-red-400"
                                     onClick={() => handleDelete(comment.id)}
                                     title="Delete comment"
                                 >
@@ -148,13 +148,13 @@ export function PostComments({
                             )}
                         </div>
 
-                        <div className="mt-1 mb-1 text-sm text-gray-800">
+                        <div className="mt-1 mb-1 text-sm text-gray-800 dark:text-gray-100">
                             {comment.content}
                         </div>
 
                         {session && (
                             <button
-                                className="text-[11px] text-blue-500 hover:underline"
+                                className="text-[11px] text-blue-500 hover:underline dark:text-blue-400"
                                 onClick={() => setShowReply(!showReply)}
                             >
                                 Reply
@@ -164,13 +164,13 @@ export function PostComments({
                         {showReply && (
                             <div className="mt-2 flex gap-1">
                                 <input
-                                    className="border px-2 py-1 rounded text-xs flex-1"
+                                    className="border px-2 py-1 rounded text-xs flex-1 dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                                     value={replyContent}
                                     onChange={(e) => setReplyContent(e.target.value)}
                                     placeholder="Reply..."
                                 />
                                 <button
-                                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded flex items-center gap-1"
+                                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded flex items-center gap-1 dark:bg-blue-600"
                                     onClick={async () => {
                                         await handleAdd(replyContent, comment.id);
                                         setReplyContent("");
@@ -184,7 +184,7 @@ export function PostComments({
 
                         {/* Replies */}
                         {comment.replies && comment.replies.length > 0 && (
-                            <div className="ml-4 mt-2 border-l border-gray-100 pl-3">
+                            <div className="ml-4 mt-2 border-l border-gray-100 pl-3 dark:border-white/10">
                                 {comment.replies.map((reply) => (
                                     <CommentNode key={reply.id} comment={reply} />
                                 ))}
@@ -197,8 +197,8 @@ export function PostComments({
     }
 
     return (
-        <div className="bg-white rounded-xl p-3 mt-4">
-            <h4 className="font-bold mb-2 text-gray-700">Comments</h4>
+        <div className="bg-white rounded-xl p-3 mt-4 dark:bg-neutral-900 dark:border dark:border-white/10">
+            <h4 className="font-bold mb-2 text-gray-700 dark:text-gray-100">Comments</h4>
 
             {session && (
                 <form
@@ -209,14 +209,14 @@ export function PostComments({
                     className="flex gap-2 mb-4"
                 >
                     <input
-                        className="flex-1 border px-2 py-1 rounded text-sm"
+                        className="flex-1 border px-2 py-1 rounded text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                         placeholder="Add a comment..."
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         required
                     />
                     <button
-                        className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                        className="bg-blue-500 text-white px-3 py-1 rounded text-sm dark:bg-blue-600"
                         type="submit"
                     >
                         Post
@@ -225,9 +225,9 @@ export function PostComments({
             )}
 
             {loading ? (
-                <div className="text-sm text-gray-500">Loading comments...</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading comments...</div>
             ) : comments.length === 0 ? (
-                <div className="text-gray-400 text-sm">No comments yet.</div>
+                <div className="text-gray-400 text-sm dark:text-gray-400">No comments yet.</div>
             ) : (
                 comments.map((comment) => (
                     <CommentNode key={comment.id} comment={comment} />

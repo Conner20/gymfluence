@@ -41,12 +41,12 @@ export default async function UserProfilePage({
     if (!user) return notFound();
 
     const shell = (children: React.ReactNode) => (
-        <div className="min-h-screen flex flex-col bg-[#f8f8f8]">
+        <div className="min-h-screen flex flex-col bg-[#f8f8f8] dark:bg-[#050505] dark:text-gray-100">
             <MobileHeader title={user.username ?? "profile"} href={`/u/${encodeURIComponent(user.username ?? "")}`} />
             {/* Desktop header */}
-            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white">
+            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white dark:bg-neutral-900">
                 <div className="py-6 flex justify-start pl-[40px]">
-                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none dark:text-green-400">
                         <span>{user.username}</span>
                     </h1>
                 </div>

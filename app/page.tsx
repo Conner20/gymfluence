@@ -3,37 +3,43 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Instagram, Linkedin, Facebook } from "lucide-react";
+import { ArrowRight, Instagram, Linkedin, Facebook, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function LandingPage() {
+  const { theme, toggleTheme } = useTheme();
+  const darkMode = theme === "dark";
+
   return (
-    <div className="min-h-screen bg-white text-black">
+      <div className="min-h-screen bg-white text-black transition-colors dark:bg-[#050505] dark:text-white">
       {/* ======= NAV ======= */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Replace with your real logo image */}
-            <div className="relative h-10 w-10 rounded-full ring-black/10 overflow-hidden">
-              <Image src="/logo.svg" alt="gymfluence logo" fill className="object-contain p-1" />
-            </div>
-            <Link href="/" className="text-2xl font-semibold tracking-tight">
-              <span className="text-green-700">gymfluence</span>
-            </Link>
-          </div>
+      <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur dark:border-white/10 dark:bg-black/40">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+          <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
+            gymfluence
+          </Link>
 
           <nav className="flex items-center gap-2">
             <Link
               href="/log-in"
-              className="px-4 py-2 rounded-full border hover:bg-black hover:text-white transition"
+              className="px-4 py-2 rounded-full border transition hover:bg-black hover:text-white dark:border-white/25 dark:text-white dark:hover:bg-white/10"
             >
               log in
             </Link>
             <Link
               href="/sign-up"
-              className="px-4 py-2 rounded-full bg-green-700 text-white hover:bg-black transition"
+              className="px-4 py-2 rounded-full bg-green-700 text-white transition hover:bg-black dark:bg-green-600 dark:hover:bg-white/10"
             >
               sign up
             </Link>
+            <button
+              type="button"
+              aria-label="Toggle theme"
+              onClick={toggleTheme}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:bg-black hover:text-white dark:border-white/30 dark:text-white dark:hover:bg-white/10"
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
           </nav>
         </div>
       </header>
@@ -42,18 +48,18 @@ export default function LandingPage() {
       <section className="relative overflow-hidden">
         {/* subtle background glows */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -left-24 h-120 w-120 rounded-full bg-green-700/10 blur-3xl" />
-          <div className="absolute -bottom-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-black/5 blur-3xl" />
+          <div className="absolute -top-24 -left-24 h-120 w-120 rounded-full bg-green-700/10 blur-3xl dark:bg-white/7" />
+          <div className="absolute -bottom-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-black/5 blur-3xl dark:bg-white/7" />
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-16 pb-8 lg:pt-28 lg:pb-12 flex items-center justify-center">
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 pb-8 pt-16 sm:px-6 lg:pb-12 lg:pt-28">
           <div className="w-full max-w-3xl text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight">
               <span className="block">Empower Trainers.</span>
               <span className="block">Elevate Gyms.</span>
               <span className="block">Transform Clients.</span>
             </h1>
-            <p className="mt-6 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto px-1">
+            <p className="mt-6 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto px-1 dark:text-neutral-300">
               A shared ecosystem for gyms, trainers, and fitness enthusiasts.
               Gymfluence helps you connect, track, and train — all in one place.
             </p>
@@ -67,7 +73,7 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <p className="mt-8 text-sm uppercase tracking-wider text-neutral-500">
+            <p className="mt-8 text-sm uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
               Re-engineering the Fitness Economy.
             </p>
           </div>
@@ -75,13 +81,13 @@ export default function LandingPage() {
 
         {/* divider */}
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="h-px w-full bg-neutral-200" />
+          <div className="h-px w-full bg-neutral-200 dark:bg-neutral-800" />
         </div>
       </section>
 
       {/* ======= VALUE STRIP ======= */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 py-10 text-center">
-        <p className="text-lg md:text-xl text-neutral-700">
+        <p className="text-lg md:text-xl text-neutral-700 dark:text-neutral-300">
           Share results. Build a client base. Create a business.
         </p>
       </section>
@@ -91,7 +97,7 @@ export default function LandingPage() {
         eyebrow="Connect"
         title="Connect and grow with gyms, trainers, and fitness enthusiasts."
         body="Discover people nearby, follow private or public profiles, and build your network with smart search and filters."
-        imageSrc="/images/search.png" // Replace with your Search page screenshot
+        imageSrc={darkMode ? "/images/search_dark.png" : "/images/search.png"} // Replace with your Search page screenshot
         imageAlt="Search & connect"
         // slightly wider & more cinematic for this screenshot
         frameClassName="max-w-[740px] aspect-[16/9]"
@@ -104,7 +110,7 @@ export default function LandingPage() {
         eyebrow="Track"
         title="Dashboards that make progress obvious."
         body="Visualize metrics that matter, stay accountable with ratings & reviews, and see the bigger picture at a glance."
-        imageSrc="/images/dashboard.png" // Replace with your Dashboard screenshot
+        imageSrc={darkMode ? "/images/dashboard_dark.png" : "/images/dashboard.png"} // Replace with your Dashboard screenshot
         imageAlt="Analytics dashboard"
         frameClassName="max-w-[740px] aspect-[16/9]"
         imageClassName="object-contain"
@@ -115,14 +121,14 @@ export default function LandingPage() {
         eyebrow="Train"
         title="Programs, posts, and real results."
         body="Publish sessions, share media, and cultivate community. Everything you need to train smarter — together."
-        imageSrc="/images/home.png" // Replace with your Home/Posts screenshot
+        imageSrc={darkMode ? "/images/home_dark.png" : "/images/home.png"} // Replace with your Home/Posts screenshot
         imageAlt="Home posts feed"
         frameClassName="max-w-[720px] aspect-[17/10]"
         imageClassName="object-contain"
       />
 
       {/* ======= CTA ======= */}
-      <section className="bg-black text-white">
+      <section className="bg-black text-white dark:bg-neutral-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 text-center">
           <h2 className="text-3xl md:text-4xl font-bold">
             Become a Gymfluencer today.
@@ -142,24 +148,19 @@ export default function LandingPage() {
       </section>
 
       {/* ======= FOOTER ======= */}
-      <footer className="border-t">
+      <footer className="border-t border-black/10 dark:border-white/10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative h-6 w-6 rounded-full ring-1 ring-black/10 overflow-hidden">
-              <Image src="/logo.svg" alt="gymfluence" fill className="object-contain p-0.5" />
-            </div>
-            <span className="text-sm text-neutral-600">
-              Gymfluence
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
+          <span className="text-sm text-neutral-600 dark:text-neutral-400">
+            gymfluence
+          </span>
+          {/* <div className="flex items-center gap-4 text-sm">
             <Link href="/"><Facebook /></Link>
             <Link href="/"><Instagram /></Link>
             <Link href="/"><Linkedin /></Link>
-          </div>
+          </div> */}
         </div>
       </footer>
-    </div>
+      </div>
   );
 }
 
@@ -169,7 +170,7 @@ export default function LandingPage() {
 
 function DeviceCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative mx-auto w-full max-w-[640px] aspect-[16/10] rounded-[24px] border bg-white/70 shadow-xl ring-1 ring-black/5 overflow-hidden">
+    <div className="relative mx-auto w-full max-w-[640px] aspect-[16/10] rounded-[24px] border bg-white/70 shadow-xl ring-1 ring-black/5 overflow-hidden dark:border-white/10 dark:bg-white/5 dark:ring-white/10">
       {/* faux status bar */}
       <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-black/5 to-transparent z-10" />
       {/* media */}
@@ -210,18 +211,20 @@ function FeatureSection({
         >
           {/* text */}
           <div className="text-center lg:text-left px-2">
-            <div className="text-xs sm:text-sm font-medium text-green-700 uppercase tracking-wider">
+            <div className="text-xs sm:text-sm font-medium text-green-700 uppercase tracking-wider dark:text-green-400">
               {eyebrow}
             </div>
             <h3 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">{title}</h3>
-            <p className="mt-4 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto lg:mx-0">{body}</p>
+            <p className="mt-4 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto lg:mx-0 dark:text-neutral-300">
+              {body}
+            </p>
           </div>
 
           {/* image */}
           <div className="relative w-full flex justify-center">
             <div
               className={[
-                "relative mx-auto w-full rounded-[20px] border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden",
+                "relative mx-auto w-full rounded-[20px] border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden dark:border-white/10 dark:bg-[#181818] dark:ring-white/10",
                 frameClassName ?? "max-w-[720px] aspect-[16/10]",
               ].join(" ")}
             >
@@ -233,14 +236,14 @@ function FeatureSection({
               />
             </div>
             {/* soft glow */}
-            <div className="pointer-events-none absolute -z-10 -inset-4 rounded-[28px] bg-green-700/5 blur-2xl" />
+            <div className="pointer-events-none absolute -z-10 -inset-4 rounded-[28px] bg-green-700/5 blur-2xl dark:bg-white/10" />
           </div>
         </div>
       </div>
 
       {/* divider */}
       <div className="mx-auto max-w-7xl px-6">
-        <div className="h-px w-full bg-neutral-200" />
+        <div className="h-px w-full bg-neutral-200 dark:bg-neutral-800" />
       </div>
     </section>
   );

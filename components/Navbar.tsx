@@ -15,21 +15,33 @@ const navItems = [
         label: "Home",
         href: "/home",
         icon: (active: boolean) => (
-            <Home size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <Home
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         )
     },
     {
         label: "Search",
         href: "/search",
         icon: (active: boolean) => (
-            <Search size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <Search
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         )
     },
     {
         label: "Create Post",
         href: "#",
         icon: (active: boolean) => (
-            <PlusCircle size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <PlusCircle
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         ),
         type: "modal"
     },
@@ -37,28 +49,44 @@ const navItems = [
         label: "Dashboard",
         href: "/dashboard",
         icon: (active: boolean) => (
-            <BookText size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <BookText
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         )
     },
     {
         label: "Messages",
         href: "/messages",
         icon: (active: boolean) => (
-            <MessageCircle size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <MessageCircle
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         )
     },
     {
         label: "Profile",
         href: "/profile",
         icon: (active: boolean) => (
-            <User size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <User
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         )
     },
     {
         label: "Settings",
         href: "/settings",
         icon: (active: boolean) => (
-            <Settings size={32} strokeWidth={active ? 2.5 : 1.5} color={active ? "#111" : "#222"} />
+            <Settings
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
+            />
         )
     },
 ];
@@ -80,7 +108,7 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
                     return (
                         <button
                             key={idx}
-                            className="p-2 hover:bg-zinc-100 rounded-xl transition"
+                            className="p-2 hover:bg-zinc-100 rounded-xl transition dark:hover:bg-white/5"
                             title={item.label}
                             onClick={() => setShowModal(true)}
                         >
@@ -92,8 +120,11 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
                     <Link
                         key={item.href}
                         href={item.href}
-                        className={`p-2 rounded-xl flex items-center justify-center transition
-                ${isActive ? "bg-zinc-100" : "hover:bg-zinc-50"}`}
+                        className={`p-2 rounded-xl flex items-center justify-center transition ${
+                            isActive
+                                ? "bg-zinc-100 dark:bg-white/10"
+                                : "hover:bg-zinc-50 dark:hover:bg-white/5"
+                        }`}
                         title={item.label}
                         onClick={() => onMobileClose?.()}
                     >
@@ -106,14 +137,14 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
 
     return (
         <>
-            <nav className="fixed top-0 right-0 h-screen w-20 bg-white flex-col items-center z-50 hidden lg:flex">
+            <nav className="fixed top-0 right-0 z-50 hidden h-screen w-20 flex-col items-center bg-white lg:flex dark:bg-neutral-900 dark:border-l dark:border-white/10">
                 <div className="flex flex-col justify-center items-center gap-8 h-full w-full">
                     {navContent}
                 </div>
             </nav>
 
             <div
-                className={`lg:hidden fixed bottom-0 inset-x-0 bg-white border-t z-50 transition-transform duration-200 ${
+                className={`lg:hidden fixed bottom-0 inset-x-0 bg-white border-t z-50 transition-transform duration-200 dark:bg-neutral-900 dark:border-white/10 ${
                     mobileOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
                 }`}
             >
@@ -124,7 +155,7 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
                             return (
                                 <button
                                     key={idx}
-                                    className="p-2 rounded-full hover:bg-zinc-100 transition"
+                                    className="p-2 rounded-full hover:bg-zinc-100 transition dark:hover:bg-white/5"
                                     onClick={() => setShowModal(true)}
                                     title={item.label}
                                     aria-label={item.label}
@@ -137,9 +168,9 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`p-2 rounded-full transition ${
-                                    isActive ? "bg-zinc-100" : "hover:bg-zinc-50"
-                                }`}
+                        className={`p-2 rounded-full transition ${
+                            isActive ? "bg-zinc-100 dark:bg-white/10" : "hover:bg-zinc-50 dark:hover:bg-white/5"
+                        }`}
                                 onClick={() => onMobileClose?.()}
                                 title={item.label}
                                 aria-label={item.label}
@@ -154,10 +185,10 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
             {/* Modal with CreatePost */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/40 z-[99] flex items-center justify-center">
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-[360px] max-w-[95vw] relative">
+                    <div className="bg-white p-6 rounded-xl shadow-lg w-[360px] max-w-[95vw] relative dark:bg-neutral-900 dark:border dark:border-white/10 dark:text-gray-100">
                         <button
                             onClick={() => setShowModal(false)}
-                            className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition"
+                            className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition dark:hover:bg-white/5"
                             aria-label="Close"
                             type="button"
                         >

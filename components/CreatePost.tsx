@@ -97,10 +97,10 @@ export default function CreatePost({
 
     return (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-xl shadow-lg w-96 relative">
+            <div className="bg-white p-6 rounded-xl shadow-lg w-96 relative dark:bg-neutral-900 dark:border dark:border-white/10 dark:text-gray-100">
                 <button
                     onClick={onClose}
-                    className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition"
+                    className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition dark:hover:bg-white/5"
                     aria-label="Close"
                     type="button"
                 >
@@ -111,7 +111,7 @@ export default function CreatePost({
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <input
-                        className="border rounded-lg px-3 py-2"
+                        className="border rounded-lg px-3 py-2 dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                         type="text"
                         placeholder="Title"
                         value={title}
@@ -121,7 +121,7 @@ export default function CreatePost({
                     />
 
                     <textarea
-                        className="border rounded-lg px-3 py-2 resize-none min-h-[80px]"
+                        className="border rounded-lg px-3 py-2 resize-none min-h-[80px] dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                         placeholder="What's on your mind?"
                         value={content}
                         onChange={e => setContent(e.target.value)}
@@ -152,17 +152,17 @@ export default function CreatePost({
                                 <button
                                     type="button"
                                     onClick={onPickFile}
-                                    className="w-full border border-dashed rounded-lg py-6 flex flex-col items-center justify-center hover:bg-zinc-50 transition"
+                                    className="w-full border border-dashed rounded-lg py-6 flex flex-col items-center justify-center hover:bg-zinc-50 transition dark:border-white/20 dark:hover:bg-white/5"
                                     disabled={loading}
                                 >
                                     <ImageIcon size={22} className="mb-1" />
-                                    <span className="text-sm text-zinc-600">Click to choose an image</span>
-                                    <span className="text-[11px] text-zinc-400 mt-1">
+                                    <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose an image</span>
+                                    <span className="text-[11px] text-zinc-400 mt-1 dark:text-gray-400">
                                         PNG, JPG, WEBP, GIF · up to 8MB
                                     </span>
                                 </button>
                             ) : (
-                                <div className="rounded-lg border p-2">
+                                <div className="rounded-lg border p-2 dark:border-white/20">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={previewUrl}
@@ -186,7 +186,7 @@ export default function CreatePost({
                     {error && <div className="text-red-500 text-sm">{error}</div>}
 
                     <button
-                        className="bg-green-600 text-white rounded-lg py-2 font-semibold mt-2 hover:bg-green-700 transition disabled:opacity-60"
+                        className="bg-green-600 text-white rounded-lg py-2 font-semibold mt-2 hover:bg-green-700 transition disabled:opacity-60 dark:bg-green-600 dark:hover:bg-green-500"
                         type="submit"
                         disabled={loading}
                     >

@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction, CSSProperties } from 'react';
 import { Plus, X, Trash2, ArrowUpRight, ArrowDownRight, Sliders, Calendar } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
+import { HEATMAP_COLORS_DARK, HEATMAP_COLORS_LIGHT } from '@/lib/heatmapColors';
 
 import {
     fetchAllNutritionData,
@@ -89,10 +91,12 @@ const DEFAULT_LEVELS: Record<HMMetric, number[]> = {
     c: [0, 60, 120, 180, Infinity],
     p: [0, 50, 100, 150, Infinity],
 };
-const COLORS = ['#e5e7eb', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399'];
-
 /** ---------- page ---------- */
 export default function Nutrition() {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+    const heatmapColors = isDark ? HEATMAP_COLORS_DARK : HEATMAP_COLORS_LIGHT;
+
     /** Macro goals (now editable) */
     const [goals, setGoals] = useState<Macro>({ kcal: 2800, p: 200, f: 80, c: 300 });
     const [openEditGoals, setOpenEditGoals] = useState(false);
@@ -262,25 +266,21 @@ export default function Nutrition() {
     };
 
     /** Layout */
+    const selectedTabClass =
+        "flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10";
+    const unselectedTabClass =
+        "flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30";
+
     const mobileTabs = (
         <div className="px-4 pb-4">
             <div className="flex gap-2 text-sm">
-                <Link
-                    href="/dashboard"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
-                >
+                <Link href="/dashboard" className={unselectedTabClass}>
                     workouts
                 </Link>
-                <Link
-                    href="/dashboard/wellness"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
-                >
+                <Link href="/dashboard/wellness" className={unselectedTabClass}>
                     wellness
                 </Link>
-                <Link
-                    href="/dashboard/nutrition"
-                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white"
-                >
+                <Link href="/dashboard/nutrition" className={selectedTabClass}>
                     nutrition
                 </Link>
             </div>
@@ -288,33 +288,34 @@ export default function Nutrition() {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#f8f8f8] xl:h-screen xl:overflow-hidden">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white xl:h-screen xl:overflow-hidden">
             <MobileHeader title="nutrition log" href="/dashboard/nutrition" subContent={mobileTabs} />
 
             {/* Header */}
-            <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
-                <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight">nutrition log</h1>
+            <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5 dark:bg-neutral-900 dark:border-b dark:border-white/10">
+                <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight dark:text-green-400">nutrition log</h1>
                 <nav className="flex gap-2 text-sm">
                     <Link
                         href="/dashboard"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
                     >
                         workouts
                     </Link>
                     <Link
                         href="/dashboard/wellness"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
                     >
                         wellness
                     </Link>
-                    <Link href="/dashboard/nutrition" className="rounded-full bg-black px-6 py-2 font-medium text-white">
+                    <Link href="/dashboard/nutrition" 
+                        className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
                         nutrition
                     </Link>
                 </nav>
             </header>
 
             {/* Content */}
-            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-4 sm:px-4 xl:px-6 xl:pb-4 xl:pt-4 xl:overflow-y-auto">
+            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-4 sm:px-4 xl:px-6 xl:pb-4 xl:pt-4 xl:overflow-y-auto scrollbar-slim">
                 <div className="mx-auto flex w-full max-w-[375px] flex-col gap-6 xl:max-w-[1400px] xl:grid xl:min-h-[820px] xl:h-full xl:min-w-0 xl:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
                     <section className="col-span-12 min-h-0 xl:col-span-4 xl:flex xl:flex-col">
@@ -334,11 +335,11 @@ export default function Nutrition() {
                     {/* MIDDLE — Bodyweight + Heatmap */}
                     <section className="col-span-12 min-h-0 xl:col-span-5 xl:flex xl:flex-col gap-3">
                         <div className="mx-auto flex w-full max-w-[375px] flex-col gap-3 xl:flex-1 xl:max-w-none">
-                            <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm xl:flex-1">
-                                <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} />
+                            <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none xl:flex-1">
+                                <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} isDark={isDark} />
                             </div>
 
-                            <div className="relative min-h-[220px] flex flex-col rounded-xl border bg-white p-3 shadow-sm xl:flex-1">
+                            <div className="relative min-h-[220px] flex flex-col rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none xl:flex-1">
                                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
                                         <h3 className="font-semibold">
@@ -350,7 +351,7 @@ export default function Nutrition() {
                                     </div>
                                     <button
                                         onClick={() => setOpenEditLevels(true)}
-                                        className="inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50"
+                                        className="inline-flex flex-shrink-0 items-center rounded-md border p-2 text-xs hover:bg-zinc-50 dark:hover:bg-white/10"
                                         title="Edit heatmap keys"
                                     >
                                         <Sliders size={14} />
@@ -361,7 +362,11 @@ export default function Nutrition() {
                                         <button
                                             key={m}
                                             onClick={() => setHeatMetric(m)}
-                                            className={`rounded-md px-2 py-1 text-xs capitalize ${heatMetric === m ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                            className={`rounded-md px-2 py-1 text-xs capitalize ${
+                                                heatMetric === m
+                                                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                                                    : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10'
+                                            }`}
                                             title={m === 'kcal' ? 'Calories' : m === 'f' ? 'Fat' : m === 'c' ? 'Carbs' : 'Protein'}
                                         >
                                             {m === 'kcal' ? 'kcal' : m === 'f' ? 'fat' : m === 'c' ? 'carbs' : 'protein'}
@@ -376,13 +381,14 @@ export default function Nutrition() {
                                             height={140}
                                             showAlternateDays
                                             levels={heatmapLevels[heatMetric]}
-                                            colors={COLORS}
+                                            colors={heatmapColors}
+                                            isDark={isDark}
                                         />
                                     </div>
                                 </div>
 
-                                <div className="mt-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] text-zinc-600">
-                                    <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} />
+                                <div className="mt-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] text-zinc-600 dark:text-zinc-300">
+                                    <HeatmapLegend metric={heatMetric} levels={heatmapLevels[heatMetric]} colors={heatmapColors} isDark={isDark} />
                                 </div>
                             </div>
                         </div>
@@ -391,7 +397,7 @@ export default function Nutrition() {
                     {/* RIGHT — Meals for selected date */}
                     <section className="col-span-12 min-h-0 xl:col-span-3 xl:flex xl:flex-col">
                         <div className="mx-auto flex w-full max-w-[375px] flex-col xl:flex-1 xl:max-w-none">
-                            <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm">
+                            <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">
                                         {dateISO === fmtDate(new Date()) ? "Today’s meals" : `${dateISO} meals`}
@@ -495,7 +501,7 @@ function MacrosFlipCard({
     const [flipped, setFlipped] = useState(false);
 
     return (
-        <div className="rounded-xl border bg-white shadow-sm [perspective:1200px] xl:h-full">
+        <div className="rounded-xl border bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none [perspective:1200px] xl:h-full">
             {/* toolbar */}
             <div className="flex flex-nowrap items-center gap-3 px-4 pt-4 text-sm overflow-x-auto">
                 <h3 className="whitespace-nowrap font-semibold">Macros</h3>
@@ -503,13 +509,13 @@ function MacrosFlipCard({
                     type="date"
                     value={dateISO}
                     onChange={(e) => onDateChange(e.target.value)}
-                    className="h-7 w-[130px] flex-shrink-0 rounded-md border px-2 text-xs outline-none"
+                    className="h-7 w-[130px] flex-shrink-0 rounded-md border px-2 text-xs outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                     aria-label="Change date"
                 />
                 <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                     <button
                         onClick={onEditGoals}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs hover:bg-zinc-50"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs hover:bg-zinc-50 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                         title="Edit macro goals"
                         aria-label="Edit macro goals"
                     >
@@ -517,7 +523,9 @@ function MacrosFlipCard({
                     </button>
                     <button
                         aria-label={flipped ? 'Close add food' : 'Add food'}
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${flipped ? 'bg-neutral-200 text-black' : 'bg-black text-white'} hover:opacity-90`}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${
+                            flipped ? 'bg-neutral-200 text-black dark:bg-white/20 dark:text-white' : 'bg-black text-white dark:bg-white dark:text-black'
+                        } hover:opacity-90`}
                         onClick={() => setFlipped((v) => !v)}
                         title={flipped ? 'Close' : 'Add food'}
                     >
@@ -544,7 +552,7 @@ function MacrosFlipCard({
                 </div>
 
                 {/* BACK — Add food */}
-                <div className="absolute inset-0 overflow-hidden p-4 [transform:rotateY(180deg)] backface-hidden">
+                <div className="absolute inset-0 overflow-hidden p-4 [transform:rotateY(180deg)] backface-hidden dark:bg-neutral-900">
                     <AddFoodPanel meals={meals} {...addUI} />
                 </div>
             </div>
@@ -557,14 +565,14 @@ function RingBig({ label, value, goal, color }: { label: string; value: number; 
     const pct = Math.min(1, value / Math.max(1, goal));
     const R = 90; const C = 2 * Math.PI * R;
     return (
-        <div className="relative flex items-center justify-center bg-white p-0.5 sm:p-2">
+        <div className="relative flex items-center justify-center bg-white p-0.5 sm:p-2 dark:bg-transparent">
             <svg viewBox="0 0 240 240" className="aspect-square w-full max-w-[220px]">
-                <circle cx="120" cy="120" r={R} stroke="#e5e7eb" strokeWidth="10" fill="none" strokeLinecap="round" />
+                <circle cx="120" cy="120" r={R} stroke="#e5e7eb" strokeWidth="10" fill="none" strokeLinecap="round" className="dark:stroke-white/10" />
                 <circle cx="120" cy="120" r={R} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={`${C * pct},999`} transform="rotate(-90 120 120)" />
             </svg>
             <div className="absolute text-center">
                 <div className="text-base md:text-base font-semibold">{value} / {goal}</div>
-                <div className="text-xs md:text-xs text-neutral-500">{label}</div>
+                <div className="text-xs md:text-xs text-neutral-500 dark:text-neutral-300">{label}</div>
             </div>
         </div>
     );
@@ -590,7 +598,7 @@ function AddFoodPanel({
     const [hiddenPresets, setHiddenPresets] = useState<string[]>([]);
     const [presetsLoaded, setPresetsLoaded] = useState(false);
 
-    const fieldCls = 'h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/10';
+    const fieldCls = 'h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/10 dark:border-white/20 dark:bg-transparent dark:text-gray-100';
 
     const addCustomFood = async () => {
         const kcal = parseFloat(cf.kcal);
@@ -720,7 +728,7 @@ function AddFoodPanel({
             </div>
 
             {/* Collapsible custom food form */}
-            <div id="custom-food-panel" className={`mt-2 overflow-hidden rounded-lg border transition-all duration-300 ${showCustom ? 'max-h-[420px] opacity-100 p-3' : 'max-h-0 opacity-0 p-0'}`}>
+            <div id="custom-food-panel" className={`mt-2 overflow-hidden rounded-lg border transition-all duration-300 dark:border-white/20 dark:bg-neutral-900/50 ${showCustom ? 'max-h-[420px] opacity-100 p-3' : 'max-h-0 opacity-0 p-0'}`}>
                 <div className="grid grid-cols-12 gap-2">
                     <input className={`${fieldCls} col-span-12 md:col-span-6`} placeholder="Name" value={cf.name} onChange={(e) => setCf((s) => ({ ...s, name: e.target.value }))} />
                     <input className={`${fieldCls} col-span-6 md:col-span-3`} placeholder="Grams" inputMode="numeric" value={cf.grams} onChange={(e) => setCf((s) => ({ ...s, grams: e.target.value }))} />
@@ -735,8 +743,8 @@ function AddFoodPanel({
             </div>
 
             {/* list */}
-            <div className="mt-3 min-h-0 flex-1 overflow-auto rounded-lg border">
-                <ul className="divide-y">
+            <div className="mt-3 min-h-0 flex-1 overflow-auto rounded-lg border dark:border-white/20">
+                <ul className="divide-y dark:divide-white/10">
                     {list.map((f) => {
                         const isCustom = customFoods.some((cf) => cf.id === f.id);
                         return (
@@ -765,12 +773,16 @@ function AddFoodPanel({
 
             {/* metric toggle + per-meal tiles */}
             <div className="mt-3">
-                <div className="mb-2 inline-flex rounded-lg border bg-white p-1 text-sm">
+            <div className="mb-2 inline-flex rounded-lg border bg-white p-1 text-sm dark:border-white/20 dark:bg-white/10">
                     {(['kcal', 'p', 'c', 'f'] as const).map((m) => (
                         <button
                             key={m}
                             onClick={() => setMetric(m)}
-                            className={`rounded-md px-3 py-1 capitalize ${metric === m ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                            className={`rounded-md px-3 py-1 capitalize ${
+                                metric === m
+                                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                                    : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10'
+                            }`}
                             title={m === 'kcal' ? 'Calories' : m === 'p' ? 'Protein' : m === 'c' ? 'Carbs' : 'Fat'}
                         >
                             {m === 'kcal' ? 'kcal' : m === 'p' ? 'protein' : m === 'c' ? 'carbs' : 'fat'}
@@ -780,9 +792,9 @@ function AddFoodPanel({
 
                 <div className="grid grid-cols-4 gap-2 text-center text-[12px]">
                     {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((m) => (
-                        <div key={m} className="rounded border bg-white px-2 py-1">
-                            <div className="text-[10px] uppercase tracking-wide text-zinc-500">{m}</div>
-                            <div className="text-zinc-700">{mealMetric(m, meals as any, metric)} {unitLabel}</div>
+                        <div key={m} className="rounded border bg-white px-2 py-1 dark:border-white/20 dark:bg-white/5">
+                            <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-300">{m}</div>
+                            <div className="text-zinc-700 dark:text-white">{mealMetric(m, meals as any, metric)} {unitLabel}</div>
                         </div>
                     ))}
                 </div>
@@ -795,9 +807,11 @@ function AddFoodPanel({
 function BWChartLiftsStyle({
     points,
     onAdd,
+    isDark = false,
 }: {
     points: BWPoint[];
     onAdd: (dateISO: string, weight: number) => void;
+    isDark?: boolean;
 }) {
     const [range, setRange] = useState<RangeKey>('1W');
     const [unit, setUnit] = useState<'lbs' | 'kg'>('lbs');
@@ -812,6 +826,12 @@ function BWChartLiftsStyle({
     const LBS_PER_KG = 2.20462262185;
     const toDisplay = (vLbs: number) => unit === 'kg' ? vLbs / LBS_PER_KG : vLbs;
     const fmtUnit = unit;
+    const gridColor = isDark ? '#1f2937' : '#e5e7eb';
+    const innerGrid = isDark ? '#111827' : '#f1f5f9';
+    const labelColor = isDark ? '#d1d5db' : '#6b7280';
+    const hoverLineColor = isDark ? '#4b5563' : '#e5e7eb';
+    const hoverDotFill = isDark ? '#0f172a' : '#ffffff';
+    const lineColor = '#16a34a';
 
     const labels = useMemo(() => {
         if (range === 'ALL') {
@@ -998,12 +1018,16 @@ function BWChartLiftsStyle({
 
     const Delta = () =>
         delta && delta.diff !== 0 ? (
-            <span className={`inline-flex items-center gap-1 text-xs ${delta.diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <span
+                className={`inline-flex items-center gap-1 text-xs ${
+                    delta.diff > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                }`}
+            >
                 {delta.diff > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                 <span>{Math.abs(delta.diff)} {fmtUnit}</span>
             </span>
         ) : (
-            <span className="text-xs text-zinc-500">—</span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">—</span>
         );
 
     // --- Tooltip left (CSS px) from hover.cx (SVG units), clamped to chart width ---
@@ -1021,9 +1045,9 @@ function BWChartLiftsStyle({
             <div className="mb-3 flex flex-wrap items-center gap-3 sm:mb-1">
                 <div className="min-w-0 flex-1">
                     <h3 className="font-semibold whitespace-nowrap">{title}</h3>
-                    <div className="flex items-center gap-2 text-xs text-zinc-600 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
                         <Delta />
-                        <span className="text-zinc-400">•</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">•</span>
                         <span className="uppercase tracking-wide">{fmtUnit}</span>
                     </div>
                 </div>
@@ -1045,7 +1069,7 @@ function BWChartLiftsStyle({
                                             dateInputRef.current?.showPicker?.();
                                             dateInputRef.current?.focus();
                                         }}
-                                        className="flex h-full w-full items-center justify-center rounded-lg border text-green-700"
+                                        className="flex h-full w-full items-center justify-center rounded-lg border text-green-700 dark:border-white/20 dark:text-green-300"
                                         aria-label="Select date"
                                     >
                                         <Calendar size={16} />
@@ -1061,7 +1085,7 @@ function BWChartLiftsStyle({
                                 <input
                                     placeholder={fmtUnit}
                                     inputMode="decimal"
-                                    className="h-8 w-20 rounded-lg border px-2 text-base outline-none"
+                                    className="h-8 w-20 rounded-lg border px-2 text-base outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                     value={newW}
                                     onChange={(e) => setNewW(e.target.value)}
                                 />
@@ -1096,12 +1120,12 @@ function BWChartLiftsStyle({
                                         type="date"
                                         value={newDate}
                                         onChange={(e) => setNewDate(e.target.value)}
-                                        className="h-9 w-[100px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[130px]"
+                                        className="h-9 w-[100px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[130px] dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                     />
                                     <input
                                         placeholder={`weight (${fmtUnit})`}
                                         inputMode="decimal"
-                                        className="h-9 w-[80px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[110px]"
+                                        className="h-9 w-[80px] rounded-md border px-1 text-xs outline-none sm:h-7 sm:w-[110px] dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                         value={newW}
                                         onChange={(e) => setNewW(e.target.value)}
                                     />
@@ -1152,15 +1176,15 @@ function BWChartLiftsStyle({
                         onPointerCancel={onPointerCancel}
                         style={isCoarsePointer ? { touchAction: 'none' } : undefined}
                     >
-                    <line x1={40} y1={28 + (svgH - 28 - 22)} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
-                    <line x1={40} y1={28} x2={40} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
-                    <line x1={40 + (svgW - 40 - 40)} y1={28} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
+                    <line x1={40} y1={28 + (svgH - 28 - 22)} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke={gridColor} />
+                    <line x1={40} y1={28} x2={40} y2={28 + (svgH - 28 - 22)} stroke={gridColor} />
+                    <line x1={40 + (svgW - 40 - 40)} y1={28} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke={gridColor} />
                     {yTicks.map((t, i) => {
                         const yy = 28 + (svgH - 28 - 22) - ((t - minY) / (maxY - minY || 1)) * (svgH - 28 - 22);
                         return (
                             <g key={i}>
-                                <line x1={40} y1={yy} x2={40 + (svgW - 40 - 40)} y2={yy} stroke="#f1f5f9" />
-                                <text x={34} y={yy + 3} fontSize="10" textAnchor="end" fill="#6b7280">
+                                <line x1={40} y1={yy} x2={40 + (svgW - 40 - 40)} y2={yy} stroke={innerGrid} />
+                                <text x={34} y={yy + 3} fontSize="10" textAnchor="end" fill={labelColor}>
                                     {Math.round(t)}
                                 </text>
                             </g>
@@ -1168,15 +1192,15 @@ function BWChartLiftsStyle({
                     })}
                     {labels.length > 0 && (
                         <>
-                            <text x={40} y={28 + (svgH - 28 - 22) + 14} fontSize="9" textAnchor="start" fill="#6b7280">
+                            <text x={40} y={28 + (svgH - 28 - 22) + 14} fontSize="9" textAnchor="start" fill={labelColor}>
                                 {labels[0].slice(5).replace('-', '/')}
                             </text>
-                            <text x={40 + (svgW - 40 - 40)} y={28 + (svgH - 28 - 22) + 14} fontSize="9" textAnchor="end" fill="#6b7280">
+                            <text x={40 + (svgW - 40 - 40)} y={28 + (svgH - 28 - 22) + 14} fontSize="9" textAnchor="end" fill={labelColor}>
                                 {labels[Math.max(0, labels.length - 1)].slice(5).replace('-', '/')}
                             </text>
                         </>
                     )}
-                    {series.some((v) => v > 0) && path && <path d={path} fill="none" stroke="#16a34a" strokeWidth={2} />}
+                    {series.some((v) => v > 0) && path && <path d={path} fill="none" stroke={lineColor} strokeWidth={2} />}
                     {series.map((v, i) =>
                         v > 0 ? (
                             <circle
@@ -1184,14 +1208,14 @@ function BWChartLiftsStyle({
                                 cx={40 + (i / Math.max(1, Math.max(1, labels.length - 1))) * (svgW - 40 - 40)}
                                 cy={28 + (svgH - 28 - 22) - ((v - minY) / (maxY - minY || 1)) * (svgH - 28 - 22)}
                                 r={2.4}
-                                fill="#16a34a"
+                                fill={lineColor}
                             />
                         ) : null
                     )}
                     {hover && labels.length > 0 && (
                         <>
-                            <line x1={hover.cx} y1={28} x2={hover.cx} y2={28 + (svgH - 28 - 22)} stroke="#e5e7eb" />
-                            {hover.cy != null && <circle cx={hover.cx} cy={hover.cy} r={3.8} fill="white" stroke="#16a34a" strokeWidth={2} />}
+                            <line x1={hover.cx} y1={28} x2={hover.cx} y2={28 + (svgH - 28 - 22)} stroke={hoverLineColor} />
+                            {hover.cy != null && <circle cx={hover.cx} cy={hover.cy} r={3.8} fill={hoverDotFill} stroke={lineColor} strokeWidth={2} />}
                         </>
                     )}
                     <rect x={40} y={28} width={svgW - 40 - 40} height={svgH - 28 - 22} fill="transparent" />
@@ -1202,7 +1226,7 @@ function BWChartLiftsStyle({
                 {hover && labels.length > 0 && (
                     <div
                         ref={tipRef}
-                        className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow"
+                        className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                         style={{ left: tooltipLeft, top: 120 }}
                     >
                         <div className="text-[11px] text-zinc-500">{labels[hover.i]}</div>
@@ -1224,7 +1248,11 @@ function BWChartLiftsStyle({
                     {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                         <button
                             key={r}
-                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                            className={`h-8 rounded-full px-3 text-sm ${
+                                r === range
+                                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                                    : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10'
+                            }`}
                             onClick={() => setRange(r)}
                         >
                             {r}
@@ -1237,14 +1265,14 @@ function BWChartLiftsStyle({
                     role="switch"
                     aria-checked={unit === 'kg'}
                     onClick={() => setUnit(unit === 'lbs' ? 'kg' : 'lbs')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-8 w-[96px] items-center rounded-full border bg-white p-1 text-xs shadow-sm hover:bg-zinc-50"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-8 w-[96px] items-center rounded-full border bg-white p-1 text-xs shadow-sm hover:bg-zinc-50 dark:border-white/20 dark:bg-neutral-800 dark:text-neutral-200"
                     title="Toggle units"
                 >
-                    <span className={`z-10 flex-1 text-center ${unit === 'lbs' ? 'text-black' : 'text-zinc-500'}`}>lbs</span>
-                    <span className={`z-10 flex-1 text-center ${unit === 'kg' ? 'text-black' : 'text-zinc-500'}`}>kg</span>
+                    <span className={`z-10 flex-1 text-center ${unit === 'lbs' ? 'text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>lbs</span>
+                    <span className={`z-10 flex-1 text-center ${unit === 'kg' ? 'text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>kg</span>
                     <span
                         className={`absolute left-1 top-1 h-6 w-10 rounded-full bg-zinc-200 transition-transform ${unit === 'kg' ? 'translate-x-[46px]' : 'translate-x-0'
-                            }`}
+                            } dark:bg-white/20`}
                     />
                 </button>
             </div>
@@ -1261,6 +1289,7 @@ function YearHeatmap({
     levels,
     colors,
     showAlternateDays = false,
+    isDark = false,
 }: {
     width: number;
     height: number;
@@ -1268,6 +1297,7 @@ function YearHeatmap({
     levels: number[];
     colors: string[];
     showAlternateDays?: boolean;
+    isDark?: boolean;
 }) {
     const cols = 53, rows = 7, pad = 8, labelTop = 14, labelRight = 30, gap = 1.8;
     const innerW = width - pad * 2 - labelRight;
@@ -1303,6 +1333,8 @@ function YearHeatmap({
     const altDayLabels = ['Mon', 'Wed', 'Fri', 'Sun'];
     const dayLabels = showAlternateDays ? altDayLabels : fullDayLabels;
     const dayIndices = showAlternateDays ? [0, 2, 4, 6] : [0, 1, 2, 3, 4, 5, 6];
+    const labelColor = isDark ? '#d1d5db' : '#6b7280';
+    const borderColor = isDark ? '#4b5563' : undefined;
 
     return (
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
@@ -1313,19 +1345,32 @@ function YearHeatmap({
                 const y = 8 + labelTop + r * (cell + gap);
                 const li = levels.findIndex((t) => item.val <= t);
                 const fill = colors[Math.max(0, li)];
-                return <rect key={idx} x={x} y={y} width={cell} height={cell} rx="2" ry="2" fill={fill} />;
+                return (
+                    <rect
+                        key={idx}
+                        x={x}
+                        y={y}
+                        width={cell}
+                        height={cell}
+                        rx="2"
+                        ry="2"
+                        fill={fill}
+                        stroke={borderColor}
+                        strokeWidth={borderColor ? 0.7 : 0}
+                    />
+                );
             })}
 
             {monthTicks.map((t, i) => {
                 const x = 8 + t.col * (cell + gap) + cell / 2;
-                return <text key={i} x={x} y={18} fontSize="10" textAnchor="middle" fill="#6b7280">{t.label}</text>;
+                return <text key={i} x={x} y={18} fontSize="10" textAnchor="middle" fill={labelColor}>{t.label}</text>;
             })}
 
             {dayLabels.map((lb, ix) => {
                 const r = dayIndices[ix];
                 const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
                 const x = width - 26;
-                return <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill="#6b7280">{lb}</text>;
+                return <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill={labelColor}>{lb}</text>;
             })}
         </svg>
     );
@@ -1338,12 +1383,14 @@ function ResponsiveHeatmap({
     showAlternateDays = false,
     levels,
     colors,
+    isDark = false,
 }: {
     valuesByDate: Record<string, number>;
     height: number;
     showAlternateDays?: boolean;
     levels: number[];
     colors: string[];
+    isDark?: boolean;
 }) {
     const { ref, width } = useMeasure<HTMLDivElement>();
     const w = Math.max(420, Math.floor(width));
@@ -1356,13 +1403,14 @@ function ResponsiveHeatmap({
                 width={w}
                 levels={levels}
                 colors={colors}
+                isDark={isDark}
             />
         </div>
     );
 }
 
 /** ---------- small helpers ---------- */
-function HeatmapLegend({ metric, levels }: { metric: HMMetric; levels: number[] }) {
+function HeatmapLegend({ metric, levels, colors, isDark }: { metric: HMMetric; levels: number[]; colors: string[]; isDark: boolean }) {
     // levels = [0, t1, t2, t3, Infinity]
     const labels = [
         '0',
@@ -1373,21 +1421,26 @@ function HeatmapLegend({ metric, levels }: { metric: HMMetric; levels: number[] 
             ? `${Number.isFinite(levels[3]) ? `${levels[3]}+` : '3000+'}`
             : `${Number.isFinite(levels[3]) ? `${levels[3]}+` : '+'}`,
     ];
+    const borderColor = isDark ? '#4b5563' : undefined;
     return (
-        <div className="flex flex-nowrap items-center gap-6 whitespace-nowrap text-[11px] text-zinc-600 xl:flex-wrap flex-shrink-0">
-            <LegendItem label={labels[0]} color={COLORS[0]} />
-            <LegendItem label={labels[1]} color={COLORS[1]} />
-            <LegendItem label={labels[2]} color={COLORS[2]} />
-            <LegendItem label={labels[3]} color={COLORS[3]} />
-            <LegendItem label={labels[4]} color={COLORS[4]} />
+        <div className="flex flex-nowrap items-center gap-6 whitespace-nowrap text-[11px] text-zinc-600 dark:text-zinc-300 xl:flex-wrap flex-shrink-0">
+            <LegendItem label={labels[0]} color={colors[0]} borderColor={borderColor} />
+            <LegendItem label={labels[1]} color={colors[1]} />
+            <LegendItem label={labels[2]} color={colors[2]} />
+            <LegendItem label={labels[3]} color={colors[3]} />
+            <LegendItem label={labels[4]} color={colors[4]} />
         </div>
     );
 }
 
-function LegendItem({ label, color }: { label: string; color: string }) {
+function LegendItem({ label, color, borderColor }: { label: string; color: string; borderColor?: string }) {
+    const style: React.CSSProperties = { background: color };
+    if (borderColor) {
+        style.border = `1px solid ${borderColor}`;
+    }
     return (
         <div className="flex items-center gap-2">
-            <span className="inline-block h-3 w-3 rounded" style={{ background: color }} />
+            <span className="inline-block h-3 w-3 rounded" style={style} />
             <span>{label}</span>
         </div>
     );
@@ -1418,10 +1471,10 @@ function EditGoalsModal({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-3">
-            <div className="w-full max-w-[480px] rounded-xl border bg-white p-4 shadow-xl">
+            <div className="w-full max-w-[480px] rounded-xl border bg-white p-4 shadow-xl dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100">
                 <div className="mb-2 flex items-center justify-between">
                     <h3 className="font-semibold">Edit macro goals</h3>
-                    <button className="rounded-md p-1 hover:bg-zinc-100" onClick={onClose} aria-label="Close"><X size={16} /></button>
+                    <button className="rounded-md p-1 hover:bg-zinc-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close"><X size={16} /></button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1447,9 +1500,9 @@ function EditGoalsModal({
                 </div>
 
                 <div className="mt-4 flex items-center justify-end gap-2">
-                    <button className="rounded-md border px-3 py-2 text-sm hover:bg-zinc-50" onClick={onClose}>Cancel</button>
+                    <button className="rounded-md border px-3 py-2 text-sm hover:border-zinc-400 dark:hover:border-white/40" onClick={onClose}>Cancel</button>
                     <button
-                        className="rounded-md bg-black px-3 py-2 text-sm text-white hover:opacity-90"
+                        className="rounded-md border px-3 py-2 text-sm hover:border-zinc-400 dark:hover:border-white/40"
                         onClick={() => { void onSave(form); }}
                     >
                         Save
@@ -1512,14 +1565,14 @@ function EditLevelsModal({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-3">
-            <div className="w-full max-w-[540px] rounded-xl border bg-white p-4 shadow-xl">
+            <div className="w-full max-w-[540px] rounded-xl border bg-white p-4 shadow-xl dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100">
                 <div className="mb-2 flex items-center justify-between">
                     <h3 className="font-semibold">Heatmap keys</h3>
-                    <button className="rounded-md p-1 hover:bg-zinc-100" onClick={onClose} aria-label="Close"><X size={16} /></button>
+                    <button className="rounded-md p-1 hover:bg-zinc-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close"><X size={16} /></button>
                 </div>
 
                 {/* Minimal, compact grid */}
-                <div className="rounded-lg border">
+                <div className="rounded-lg border dark:border-white/20">
                     <div className="grid grid-cols-12 items-center border-b bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
                         <div className="col-span-4">Metric</div>
                         <div className="col-span-2 text-center">t1</div>
@@ -1552,8 +1605,8 @@ function EditLevelsModal({
                 </div>
 
                 <div className="mt-4 flex items-center justify-end gap-2">
-                    <button className="rounded-md border px-3 py-2 text-sm hover:bg-zinc-50" onClick={onClose}>Cancel</button>
-                    <button className="rounded-md bg-black px-3 py-2 text-sm text-white hover:opacity-90" onClick={save}>
+                    <button className="rounded-md border px-3 py-2 text-sm hover:border-zinc-400 dark:hover:border-white/40" onClick={onClose}>Cancel</button>
+                    <button className="rounded-md border px-3 py-2 text-sm hover:border-zinc-400 dark:hover:border-white/40" onClick={save}>
                         Save
                     </button>
                 </div>

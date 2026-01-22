@@ -31,19 +31,19 @@ export default function FollowListModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-4">
+        <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center dark:bg-black/70">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-4 dark:bg-neutral-900 dark:text-gray-100 dark:border dark:border-white/10">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold">{title}</h3>
-                    <button className="p-1 rounded hover:bg-gray-100" onClick={onClose} aria-label="Close">
+                    <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close">
                         <X size={18} />
                     </button>
                 </div>
 
                 {items.length === 0 ? (
-                    <div className="text-sm text-gray-400">No users to show.</div>
+                    <div className="text-sm text-gray-400 dark:text-gray-400">No users to show.</div>
                 ) : (
-                    <ul className="divide-y">
+                    <ul className="divide-y dark:divide-white/10">
                         {items.map((u) => {
                             const href =
                                 me && me === u.id
@@ -59,12 +59,12 @@ export default function FollowListModal({
                                             className="w-8 h-8 rounded-full object-cover"
                                         />
                                     ) : (
-                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs">
+                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs dark:bg-white/10">
                                             {(u.username || u.name || "U").slice(0, 2)}
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <Link href={href} className="font-medium hover:underline truncate">
+                                        <Link href={href} className="font-medium hover:underline truncate dark:text-gray-100">
                                             {u.username || u.name || "User"}
                                         </Link>
                                     </div>

@@ -75,6 +75,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     );
 
     const [shareHint, setShareHint] = useState<string | null>(null);
+    const [shareActive, setShareActive] = useState(false);
 
     // Posts
     const [gridPosts, setGridPosts] = useState<BasicPost[]>(posts ?? []);
@@ -201,10 +202,15 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
         try {
             await navigator.clipboard.writeText(url);
             setShareHint("Profile link copied!");
+            setShareActive(true);
         } catch {
             setShareHint(url);
+            setShareActive(false);
         }
-        setTimeout(() => setShareHint(null), 2000);
+        setTimeout(() => {
+            setShareHint(null);
+            setShareActive(false);
+        }, 2000);
     };
 
     const [showNotifications, setShowNotifications] = useState(false);
@@ -215,11 +221,11 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
     return (
-        <div className="flex min-h-screen w-full flex-col lg:flex-row gap-6 lg:gap-0">
+        <div className="flex min-h-screen w-full flex-col lg:flex-row gap-6 lg:gap-0 bg-[#f8f8f8] dark:bg-[#050505] dark:text-gray-100">
             {/* Sidebar (profile content) – mobile top, desktop sticky */}
             <aside
                 className={clsx(
-                    "w-full bg-white flex flex-col items-center pt-6 pb-6 shadow-sm lg:shadow-none",
+                    "w-full bg-white flex flex-col items-center pt-6 pb-6 shadow-sm lg:shadow-none dark:bg-[#050505] dark:bg-neutral-900 dark:border-b dark:border-white/5 dark:text-gray-100",
                     "lg:w-72 lg:pt-8 lg:pb-0 lg:sticky lg:top-[84px] lg:self-start lg:h-[calc(100vh-84px)]"
                 )}
             >
@@ -231,11 +237,11 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             <img
                                 src={user.image}
                                 alt={user.username || user.name || "Profile picture"}
-                                className="w-20 h-20 rounded-full object-cover border border-gray-200"
+                                className="w-20 h-20 rounded-full object-cover border border-gray-200 dark:border-white/20"
                             />
                         ) : (
-                            <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
-                                <span className="text-green-700 font-semibold text-lg select-none">
+                            <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center dark:bg-neutral-800 dark:border-white/20">
+                                <span className="text-green-700 font-semibold text-lg select-none dark:text-green-400">
                                     {(user.name || user.username || "U").slice(0, 2)}
                                 </span>
                             </div>
@@ -244,11 +250,11 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
                     {/* Name / handle / role */}
                     <div className="text-center space-y-1">
-                        <h2 className="font-semibold text-lg text-zinc-900 truncate max-w-[200px]">
+                        <h2 className="font-semibold text-lg text-zinc-900 truncate max-w-[200px] dark:text-white">
                             {user.name || user.username || "User"}
                         </h2>
                         {user.role && (
-                            <div className="text-xs uppercase tracking-wide text-gray-400">
+                            <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">
                                 {user.role.toLowerCase()}
                             </div>
                         )}
@@ -256,7 +262,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
                     {/* Location (subtle) */}
                     {user.location && (
-                        <div className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
+                        <div className="text-xs text-gray-500 text-center flex items-center justify-center gap-1 dark:text-gray-400">
                             <MapPin size={15} />
                             <span>{user.location}</span>
                         </div>
@@ -265,53 +271,53 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
                     {/* Stats row */}
                     <div className="w-full mt-2">
-                        <div className="flex items-center justify-between text-center text-xs text-gray-500">
+                        <div className="flex items-center justify-between text-center text-xs text-gray-500 dark:text-gray-400">
                             <button
                                 onClick={openFollowers}
                                 disabled={!canViewPrivate}
                                 className={clsx(
                                     "flex-1 flex flex-col py-1 rounded-md text-center items-center",
                                     canViewPrivate
-                                        ? "hover:bg-gray-50 transition"
+                                        ? "hover:bg-gray-50 transition dark:hover:bg-white/5"
                                         : "opacity-60 cursor-not-allowed"
                                 )}
                                 title={canViewPrivate ? "View followers" : "Private"}
                             >
-                                <span className="text-sm font-semibold text-zinc-900">
+                                <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                                     {followers}
                                 </span>
-                                <span>Followers</span>
+                                <span className="block text-[11px] tracking-wide">followers</span>
                             </button>
-                            <div className="w-px h-8 bg-gray-200" />
+                            <div className="w-px h-8 bg-gray-200 dark:bg-white/10" />
                             <button
                                 onClick={openFollowing}
                                 disabled={!canViewPrivate}
                                 className={clsx(
-                                    "flex-1 flex flex-col py-1 rounded-md text-center items-center",
+                                    "flex-1 flex.flex-col py-1 rounded-md text-center items-center",
                                     canViewPrivate
-                                        ? "hover:bg-gray-50 transition"
+                                        ? "hover:bg-gray-50 transition dark:hover:bg-white/5"
                                         : "opacity-60 cursor-not-allowed"
                                 )}
                                 title={canViewPrivate ? "View following" : "Private"}
                             >
-                                <span className="text-sm font-semibold text-zinc-900">
+                                <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                                     {following}
                                 </span>
-                                <span>Following</span>
+                                <span className="block text-[11px] tracking-wide">following</span>
                             </button>
-                            <div className="w-px h-8 bg-gray-200" />
+                            <div className="w-px h-8 bg-gray-200 dark:bg-white/10" />
                             <div className="flex-1 flex flex-col py-1 text-center items-center">
-                                <span className="text-sm font-semibold text-zinc-900">
+                                <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                                     {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
                                 </span>
-                                <span className="">Posts</span>
+                                <span className="block text-[11px] tracking-wide">posts</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Bio – trimmed & subtle */}
                     {trainee?.bio && (
-                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4">
+                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
                             {trainee.bio}
                         </p>
                     )}
@@ -326,6 +332,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     className={clsx(
                                         "w-full py-2 rounded-full text-sm font-medium transition",
                                         "border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white",
+                                        "dark:border-white dark:text-white dark:hover:bg-white/10",
                                         "disabled:opacity-60 disabled:cursor-not-allowed"
                                     )}
                                 >
@@ -362,14 +369,19 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleMessage}
-                                        className="flex-1 py-1.5 rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1"
+                                        className="flex-1 py-1.5 rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                     >
                                         <MessageSquare size={16} />
                                         <span>Message</span>
                                     </button>
                                     <button
                                         onClick={handleShare}
-                                        className="w-9 h-9 rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center"
+                                        className={clsx(
+                                            "w-9 h-9 shrink-0 rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 dark:bg-transparent dark:hover:bg-white/10",
+                                            shareActive
+                                                ? "text-green-500 border-green-500 dark:text-green-400 dark:border-green-500"
+                                                : "text-zinc-700 border-gray-200 dark:text-gray-100 dark:border-white/20"
+                                        )}
                                         title="Copy profile link"
                                     >
                                         <Share2 size={16} />
@@ -377,7 +389,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 </div>
 
                                 {shareHint && (
-                                    <div className="text-[11px] text-gray-500 text-center">
+                                    <div className="text-[11px] text-gray-500 text-center dark:text-gray-400">
                                         {shareHint}
                                     </div>
                                 )}
@@ -385,13 +397,13 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         ) : (
                             <>
                                 <button
-                                        className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                                        className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                     onClick={() => router.push("/settings")}
                                 >
                                     Edit profile
                                 </button>
                                 <button
-                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition"
+                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                     onClick={() => setShowNotifications(true)}
                                 >
                                     View notifications
@@ -404,32 +416,32 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
 
             {/* Main Content + overlay */}
-            <main className="flex-1 w-full p-4 sm:p-6 lg:p-8 relative bg-[#f8f8f8] min-h-screen lg:min-h-full">
+            <main className="flex-1 w-full p-4 sm:p-6 lg:p-8 relative bg-[#f8f8f8] min-h-screen lg:min-h-full dark:bg-[#050505] dark:text-gray-100">
                 {!canViewPrivate ? (
                     <PrivatePlaceholder />
                 ) : (
                     <>
                         {/* Header row – now sticky */}
-                        <div className="mb-4 flex items-center justify-between bg-[#f8f8f8] py-2 lg:sticky lg:top-0 lg:z-10">
+                        <div className="mb-4 flex items-center justify-between bg-[#f8f8f8] py-2 lg:sticky lg:top-0 lg:z-10 dark:bg-[#050505]">
                             <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-semibold.text-zinc-900">Posts</h3>
+                                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Posts</h3>
                                 {isOwnProfile && (
                                     <button
                                         type="button"
                                         onClick={() => setShowCreatePost(true)}
-                                        className="px-3 py-1.5 rounded-full border text-xs font-medium bg-white.hover:bg-zinc-50 transition"
+                                        className="px-3 py-1.5 rounded-full border text-xs font-medium bg-white hover:bg-zinc-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                     >
                                         + Add Post
                                     </button>
                                 )}
                             </div>
-                            <div className="inline-flex rounded-full border bg-white p-1 shadow-sm">
+                            <div className="inline-flex rounded-full border bg-white p-1 shadow-sm dark:bg-transparent dark:border-white/10">
                                 <button
                                     className={clsx(
                                         "px-3 py-1 text-sm rounded-full",
                                         viewMode === "grid"
-                                            ? "bg-black text-white"
-                                            : "text-gray-600 hover:bg-zinc-50"
+                                            ? "bg-black text-white dark:bg-white dark:text-black"
+                                            : "text-gray-600 hover:bg-zinc-50 dark:text-gray-300 dark:hover:bg-white/10"
                                     )}
                                     onClick={() => setViewMode("grid")}
                                 >
@@ -439,8 +451,8 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     className={clsx(
                                         "px-3 py-1 text-sm rounded-full",
                                         viewMode === "scroll"
-                                            ? "bg-black text-white"
-                                            : "text-gray-600 hover:bg-zinc-50"
+                                            ? "bg-black text-white dark:bg-white dark:text-black"
+                                            : "text-gray-600 hover:bg-zinc-50 dark:text-gray-300 dark:hover:bg-white/10"
                                     )}
                                     onClick={() => setViewMode("scroll")}
                                 >
@@ -450,7 +462,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         </div>
 
                         {postsLoading && !fullPosts && (
-                            <div className="text-gray-500">Loading posts…</div>
+                            <div className="text-gray-500 dark:text-gray-400">Loading posts…</div>
                         )}
 
                         {viewMode === "grid" ? (
@@ -479,10 +491,10 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
                 {/* Focus overlay */}
                 {focusPostId && (
-                    <div className="fixed inset-0 bg-[#f8f8f8] z-50 w-full h-full overflow-y-auto lg:absolute lg:overflow-hidden">
-                        <div className="p-4 flex items-center justify-between sticky top-0 bg-[#f8f8f8] z-10">
+                    <div className="fixed inset-0 bg-[#f8f8f8] z-50 w-full h-full overflow-y-auto lg:absolute lg:overflow-hidden dark:bg-[#050505]">
+                        <div className="p-4 flex items-center justify-between sticky top-0 bg-[#f8f8f8] z-10 dark:bg-[#050505]">
                             <button
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white hover:bg-zinc-50 text-sm"
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white hover:bg-zinc-50 text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                 onClick={() => setFocusPostId(null)}
                                 title="Back to profile"
                             >
@@ -491,7 +503,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             </button>
                             {isOwnProfile && (
                                 <button
-                                    className="p-2 rounded-full hover:bg-red-50 text-red-500"
+                                    className="p-2 rounded-full text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
                                     title="Delete post"
                                     onClick={() => handleDeletePost(focusPostId)}
                                 >
@@ -500,7 +512,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             )}
                         </div>
                         <div className="px-3 sm:px-6 pb-6">
-                            <div className="rounded-xl bg-[#f8f8f8] shadow max-w-full max-h-[calc(100vh-140px)] overflow-y-auto">
+                            <div className="rounded-xl bg-[#f8f8f8] scrollbar-slim max-w-full max-h-[calc(100vh-140px)] overflow-y-auto dark:bg-[#050505] dark:shadow-none">
                                 <PostDetail postId={focusPostId} flat />
                             </div>
                         </div>
@@ -537,8 +549,8 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 function ProfileStat({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div className="flex justify-between">
-            <span className="font-semibold">{value}</span>
-            <span className="text-gray-500">{label}</span>
+            <span className="font-semibold dark:text-white">{value}</span>
+            <span className="text-gray-500 dark:text-gray-400">{label}</span>
         </div>
     );
 }
@@ -549,7 +561,7 @@ function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string)
             {posts.map((post) => (
                 <button
                     key={post.id}
-                    className="bg-white rounded-xl flex.items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 hover:shadow-sm hover:opacity-95 transition"
+                    className="bg-white rounded-xl flex items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 hover:shadow-sm hover:opacity-95 transition dark:bg-neutral-900 dark:border-white/10"
                     title={post.title}
                     onClick={() => onOpen(post.id)}
                 >
@@ -561,7 +573,7 @@ function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string)
                             className="object-cover w-full h-full"
                         />
                     ) : (
-                        <span className="text-gray-700 font-medium text-base text-center px-4">
+                        <span className="text-gray-700 font-medium text-base text-center px-4 dark:text-gray-100">
                             {post.title}
                         </span>
                     )}
@@ -610,15 +622,15 @@ function ScrollFeed({
     };
 
     if (!posts || posts.length === 0) {
-        return <div className="text-gray-400 text-center py-12">No posts yet.</div>;
+        return <div className="text-gray-400 text-center py-12 dark:text-gray-500">No posts yet.</div>;
     }
 
     return (
-        <div className="space-y-6 max-w-xl">
+        <div className="space-y-6 max-w-xl dark:text-gray-100">
             {posts.map((p) => {
                 const authorBits = (
                     <>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-300">
                             by{' '}
                             {p.author?.username ? (
                                 <Link
@@ -632,7 +644,7 @@ function ScrollFeed({
                             )}
                         </span>
                         <span
-                            className="text-xs text-gray-400"
+                            className="text-xs text-gray-400 dark:text-gray-300"
                             title={new Date(p.createdAt).toLocaleString()}
                         >
                             {fmt(p.createdAt)}
@@ -647,7 +659,7 @@ function ScrollFeed({
                                 'flex items-center gap-1 text-xs transition',
                                 p.didLike
                                     ? 'text-red-500 font-bold'
-                                    : 'text-gray-400 hover:text-red-400'
+                                    : 'text-gray-400 hover:text-red-400 dark:text-gray-300 dark:hover:text-red-500'
                             )}
                             onClick={() => onLike(p.id)}
                             title={p.didLike ? 'Unlike' : 'Like'}
@@ -664,8 +676,8 @@ function ScrollFeed({
                             className={clsx(
                                 'flex items-center gap-1 text-xs transition',
                                 openComments[p.id]
-                                    ? 'text-green-600 font-semibold'
-                                    : 'text-gray-400 hover:text-green-600'
+                                    ? 'text-green-500 font-semibold'
+                                    : 'text-gray-400 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-500'
                             )}
                             onClick={() => toggleComments(p.id)}
                             title="Toggle comments"
@@ -675,7 +687,7 @@ function ScrollFeed({
                         </button>
 
                         <button
-                            className="flex items-center gap-1 text-xs transition text-gray-500 hover:text-green-700"
+                            className="flex items-center gap-1 text-xs transition text-gray-500 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
                             onClick={() => handleShare(p.id)}
                             title="Copy link"
                         >
@@ -688,11 +700,11 @@ function ScrollFeed({
                 return (
                     <article
                         key={p.id}
-                        className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
+                        className="relative bg-white rounded-2xl shadow-lg px-6 py-5 text-gray-900 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none dark:text-gray-100"
                     >
                         {canDelete && (
                             <button
-                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition"
+                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
                                 title="Delete post"
                                 onClick={() => onDelete(p.id)}
                             >
@@ -702,17 +714,17 @@ function ScrollFeed({
 
                         <div className="flex flex-col gap-1 mb-2">
                             <button
-                                className="font-bold text-lg text-gray-800 text-left hover:underline"
+                                className="font-bold text-lg text-gray-800 text-left hover:underline dark:text-white"
                                 onClick={() => onOpen(p.id)}
                                 title="Open post"
                             >
                                 {p.title}
                             </button>
 
-                            <div className="flex flex-wrap items-center gap-2 md:hidden">
+                        <div className="flex flex-wrap items-center gap-2 md:hidden text-gray-600 dark:text-gray-400">
                                 {authorBits}
                             </div>
-                            <div className="hidden md:flex flex-wrap items-center gap-3">
+                            <div className="hidden md:flex flex-wrap items-center gap-3 text-gray-600 dark:text-gray-400">
                                 {authorBits}
                                 <div className="flex flex-wrap items-center gap-4">
                                     {actionButtons}
@@ -720,12 +732,12 @@ function ScrollFeed({
                             </div>
                         </div>
 
-                        <div className="mt-2 flex md:hidden flex-wrap items-center gap-4">
+                        <div className="mt-2 flex md:hidden flex-wrap items-center gap-4 text-gray-600 dark:text-gray-400">
                             {actionButtons}
                         </div>
 
                         {p.content && (
-                            <div className="text-zinc-800 mt-3 whitespace-pre-wrap">{p.content}</div>
+                            <div className="text-zinc-800 mt-3 whitespace-pre-wrap dark:text-gray-200">{p.content}</div>
                         )}
 
                         {p.imageUrl && (
@@ -734,7 +746,7 @@ function ScrollFeed({
                                 <img
                                     src={p.imageUrl}
                                     alt=""
-                                    className="w-full max-h-[540px] object-contain rounded-xl border cursor-pointer"
+                                    className="w-full max-h-[540px] object-contain rounded-xl border cursor-pointer dark:border-white/10"
                                     onClick={() => onOpen(p.id)}
                                 />
                             </div>
@@ -761,7 +773,7 @@ function ScrollFeed({
 function PrivatePlaceholder() {
     return (
         <div className="w-full h-[60vh] flex items-center justify-center">
-            <div className="flex items-center gap-3 text-gray-500">
+            <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
                 <Lock size={20} />
                 <span>This account is private. Follow to see their posts.</span>
             </div>

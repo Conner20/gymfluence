@@ -46,12 +46,12 @@ export default function ProfilePage() {
     const username = session?.user?.username ?? user?.username ?? "Profile";
 
     const Shell = ({ children }: { children: React.ReactNode }) => (
-        <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
+        <div className="min-h-screen bg-[#f8f8f8] flex flex-col dark:bg-[#050505]">
             <MobileHeader title={username} href="/profile" />
 
             {/* Desktop header */}
-            <header className="hidden lg:flex sticky top-0 z-30 w-full bg-white py-6 justify-start pl-[40px]">
-                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+            <header className="hidden lg:flex sticky top-0 z-30 w-full py-6 justify-start pl-[40px] bg-white dark:bg-neutral-900">
+                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none dark:text-green-400">
                     <span>{username}</span>
                 </h1>
             </header>

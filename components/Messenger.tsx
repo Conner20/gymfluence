@@ -36,7 +36,7 @@ function SharedPostModal({
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-xl shadow-2xl w-[min(96vw,1100px)]"
+                className="bg-white rounded-xl shadow-2xl w-[min(96vw,1100px)] dark:bg-neutral-900 dark:text-gray-100 dark:shadow-none"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between px-4 py-2">
@@ -44,13 +44,13 @@ function SharedPostModal({
                     <div className="flex items-center gap-4 text-sm">
                         <a
                             href={`/post/${encodeURIComponent(postId)}`}
-                            className="text-gray-600 hover:underline"
+                            className="text-gray-600 hover:underline dark:text-gray-300"
                             target="_blank"
                             rel="noreferrer"
                         >
                             Open in new tab
                         </a>
-                        <button className="text-gray-600 hover:text-black" onClick={onClose}>
+                        <button className="text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white" onClick={onClose}>
                             Close
                         </button>
                     </div>
@@ -151,7 +151,7 @@ function Avatar({
 
     return (
         <div
-            className="rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase"
+            className="rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase dark:bg-neutral-700 dark:text-white"
             style={{ width: dim, height: dim }}
         >
             {initials}
@@ -950,7 +950,7 @@ export default function Messenger() {
 
     const ShareCard = ({ m }: { m: ThreadMessage }) => {
         const containerClasses =
-            'block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline';
+            'block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-white/10';
 
         // PROFILE SHARE
         if (m.sharedUser || (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.test(m.content))) {
@@ -987,8 +987,8 @@ export default function Messenger() {
                     <div className="flex items-center gap-3">
                         <Avatar user={u ?? null} size={40} fallbackChar="P" />
                         <div className="min-w-0">
-                            <div className="text-sm font-medium truncate text-black">{display}</div>
-                            <div className="text-xs truncate text-black">Open profile</div>
+                            <div className="text-sm font-medium truncate text-black dark:text-white">{display}</div>
+                            <div className="text-xs truncate text-black dark:text-gray-300">Open profile</div>
                         </div>
                     </div>
                 </a>
@@ -1019,13 +1019,13 @@ export default function Messenger() {
                                 className="w-10 h-10 object-cover rounded-md border-2 border-black flex-shrink-0"
                             />
                         ) : (
-                            <div className="w-10 h-10 rounded-md bg-white border-2 border-black flex items-center justify-center text-xs">
+                            <div className="w-10 h-10 rounded-md bg-white border-2 border-black flex items-center justify-center text-xs dark:bg-neutral-800 dark:border-white/40 dark:text-white">
                                 P
                             </div>
                         )}
                         <div className="min-w-0">
-                            <div className="text-sm font-medium truncate text-black">{p.title}</div>
-                            <div className="text-xs truncate text-black">by {author}</div>
+                            <div className="text-sm font-medium truncate text-black dark:text-white">{p.title}</div>
+                            <div className="text-xs truncate text-black dark:text-gray-300">by {author}</div>
                         </div>
                     </div>
                 </button>
@@ -1048,12 +1048,12 @@ export default function Messenger() {
     return (
         <>
             <div
-                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row flex-1 min-h-0 h-full max-h-[calc(100vh-130px)] lg:h-[83vh] lg:max-h-[83vh]"
+                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row flex-1 min-h-0 h-full max-h-[calc(100vh-130px)] lg:h-[83vh] lg:max-h-[83vh] dark:bg-neutral-900 dark:text-gray-100 dark:lg:ring-white/10 dark:lg:shadow-none"
             >
                 {/* Left column */}
                 <aside
                     className={clsx(
-                        'border-b lg:border-b-0 lg:border-r w-full lg:w-[340px] flex-shrink-0 flex flex-col h-full min-h-0 max-h-[calc(100vh-130px)] lg:max-h-none',
+                        'border-b lg:border-b-0 lg:border-r w-full lg:w-[340px] flex-shrink-0 flex flex-col h-full min-h-0 max-h-[calc(100vh-130px)] lg:max-h-none bg-white dark:bg-neutral-900 dark:border-white/10',
                         mobileView === 'thread' ? 'hidden lg:flex' : 'flex'
                     )}
                 >
@@ -1064,7 +1064,7 @@ export default function Messenger() {
                                 setShowNewGroup(true);
                                 router.replace(`${pathname}?newGroup=1`);
                             }}
-                            className="text-xs px-2 py-1 rounded bg-gray-900 text-white hover:bg-black"
+                            className="text-xs px-2 py-1 rounded border border-white bg-black text-white hover:bg-neutral-900 dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10"
                         >
                             New Group
                         </button>
@@ -1072,7 +1072,7 @@ export default function Messenger() {
 
                     <div className="px-3 pb-3">
                         <input
-                            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100 dark:placeholder:text-gray-400"
                             placeholder="Search followers or conversations…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -1081,19 +1081,19 @@ export default function Messenger() {
 
                     {search && (
                         <div className="px-3 pb-2">
-                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1 dark:text-gray-500">
                                 Start chat
                             </div>
-                            <div className="border rounded-md max-h-40 overflow-y-auto divide-y">
+                            <div className="border rounded-md max-h-40 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/10">
                                 {searchLoading ? (
-                                    <div className="p-2 text-sm text-gray-500">Searching…</div>
+                                    <div className="p-2 text-sm text-gray-500 dark:text-gray-400">Searching…</div>
                                 ) : searchFollowers.length === 0 ? (
                                     <div className="p-2 text-sm text-gray-400">No matches</div>
                                 ) : (
                                     searchFollowers.map((u) => (
                                         <div
                                             key={u.id}
-                                            className="p-2 text-sm hover:bg-gray-50 cursor-pointer flex items-center gap-2"
+                                            className="p-2 text-sm hover:bg-gray-50 cursor-pointer flex items-center gap-2 dark:hover:bg-white/5"
                                             onClick={() => startChatWithUser(u)}
                                         >
                                             <Avatar user={u} size={24} />
@@ -1105,13 +1105,13 @@ export default function Messenger() {
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto px-0">
+                    <div className="flex-1 overflow-y-auto px-0 scrollbar-slim">
                         <div className="px-0">
-                            <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400">
+                            <div className="px-4 pb-2 text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
                                 Conversations
                             </div>
                             {convosLoading ? (
-                                <div className="px-4 py-2 text-sm text-gray-500">Loading…</div>
+                            <div className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">Loading…</div>
                             ) : convosError ? (
                                 <div className="px-4 py-2 text-sm text-red-500">{convosError}</div>
                             ) : normalized.length === 0 ? (
@@ -1140,14 +1140,14 @@ export default function Messenger() {
                                             <li
                                                 key={realGroup ? `grp:${c.id}` : `dm:${c.other?.id}`}
                                                 className={clsx(
-                                                    'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b',
-                                                    active && 'bg-gray-100'
+                                                    'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b dark:hover:bg-white/5 dark:border-white/5',
+                                                    active && 'bg-gray-100 dark:bg-white/10'
                                                 )}
                                                 onClick={() => onPick(c)}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     {realGroup ? (
-                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase dark:bg-neutral-700 dark:text-white">
                                                             G
                                                         </div>
                                                     ) : (
@@ -1170,7 +1170,7 @@ export default function Messenger() {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <div className="text-xs text-gray-500 truncate">
+                                                        <div className="text-xs text-gray-500 truncate dark:text-gray-400">
                                                             {previewText}
                                                         </div>
                                                     </div>
@@ -1183,7 +1183,7 @@ export default function Messenger() {
                                                     )}
                                                     {/* Trash icon to delete conversation */}
                                                     <button
-                                                        className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0"
+                                                        className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0 dark:text-gray-400 dark:hover:text-red-400"
                                                         title="Delete conversation"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -1205,9 +1205,9 @@ export default function Messenger() {
                 {/* Right column */}
                 <section
                     className={clsx(
-                        'flex flex-col h-full flex-1 overflow-hidden w-full max-w-full min-h-0',
+                        'flex flex-col h-full flex-1 overflow-hidden w-full max-w-full min-h-[calc(100vh-140px)]',
                         mobileView === 'thread' ? 'flex' : 'hidden',
-                        'lg:flex'
+                        'lg:flex lg:min-h-0'
                     )}
                 >
                     {/* Header */}
@@ -1215,7 +1215,7 @@ export default function Messenger() {
                         <button
                             type="button"
                             className={clsx(
-                                'lg:hidden text-sm text-gray-600 mr-2',
+                                'lg:hidden text-sm text-gray-600 mr-2 dark:text-gray-300',
                                 mobileView === 'thread' ? 'block' : 'hidden'
                             )}
                             onClick={() => setMobileView('list')}
@@ -1225,7 +1225,7 @@ export default function Messenger() {
                         {activeConvoId ? (
                             <>
                                 {activeGroupMembers ? (
-                                    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase dark:bg-neutral-700 dark:text-white">
                                         G
                                     </div>
                                 ) : (
@@ -1274,7 +1274,7 @@ export default function Messenger() {
                                             setAddSelectedIds([]);
                                             setShowManage(true);
                                         }}
-                                        className="text-xs px-3 py-1 rounded-full border hover:bg-gray-50 w-auto"
+                                        className="text-xs px-3 py-1 rounded-full border hover:bg-gray-50 w-auto dark:border-white/10 dark:hover:bg-white/10"
                                         title="Manage conversation"
                                     >
                                         Manage
@@ -1282,27 +1282,27 @@ export default function Messenger() {
                                 )}
                             </>
                         ) : (
-                            <div className="text-sm text-gray-500">Select a conversation</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">Select a conversation</div>
                         )}
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4" ref={messagesPaneRef}>
+                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 scrollbar-slim" ref={messagesPaneRef}>
                         {!activeConvoId ? (
-                            <div className="text-center text-sm text-gray-400 mt-20">
+                            <div className="text-center text-sm text-gray-400 mt-20 dark:text-gray-500">
                                 No conversation selected.
                             </div>
                         ) : threadLoading && messages.length === 0 ? (
-                            <div className="text-center text-sm text-gray-400 mt-20">Loading…</div>
+                            <div className="text-center text-sm text-gray-400 mt-20 dark:text-gray-500">Loading…</div>
                         ) : messages.length === 0 ? (
-                            <div className="text-center text-sm text-gray-300 mt-20">No messages yet.</div>
+                            <div className="text-center text-sm text-gray-300 mt-20 dark:text-gray-500">No messages yet.</div>
                         ) : (
                             <div className="space-y-3">
                                 {messages.map((m) => {
                                     if (isSystemMessage(m)) {
                                         return (
                                             <div key={m.id} className="w-full flex">
-                                                <div className="mx-auto text-[12px] text-gray-500 italic">
+                                                <div className="mx-auto text-[12px] text-gray-500 italic dark:text-gray-400">
                                                     {systemText(m)}
                                                 </div>
                                             </div>
@@ -1328,7 +1328,7 @@ export default function Messenger() {
                                         >
                                             {activeGroupMembers && !m.isMine && (
                                                 <button
-                                                    className="text-[11px] mb-0.5 text-left pl-1 text-gray-600 hover:underline"
+                                                    className="text-[11px] mb-0.5 text-left pl-1 text-gray-600 hover:underline dark:text-gray-400"
                                                     onClick={() => goToProfile(sender || null)}
                                                     title={senderLabel}
                                                 >
@@ -1340,7 +1340,7 @@ export default function Messenger() {
                                                     'rounded-2xl px-3 py-2 text-sm break-words max-w-[70%] inline-block',
                                                     m.isMine
                                                         ? 'bg-green-600 text-white'
-                                                        : 'bg-gray-100 text-gray-800'
+                                                        : 'bg-gray-100 text-gray-800 dark:bg-neutral-800 dark:text-gray-100'
                                                 )}
                                                 title={new Date(m.createdAt).toLocaleString()}
                                             >
@@ -1360,7 +1360,7 @@ export default function Messenger() {
                                             </div>
                                             <div
                                                 className={clsx(
-                                                    'mt-1 text-[10px] leading-none text-gray-400',
+                                                    'mt-1 text-[10px] leading-none text-gray-400 dark:text-gray-500',
                                                     m.isMine ? 'text-right pr-1' : 'text-left pl-1'
                                                 )}
                                             >
@@ -1379,20 +1379,20 @@ export default function Messenger() {
                     </div>
 
                     {/* Composer */}
-                    <div className="border-t flex flex-col gap-2 px-3 sm:px-4 py-3 flex-shrink-0">
+                    <div className="border-t flex flex-col gap-2 px-3 sm:px-4 py-3 flex-shrink-0 dark:border-white/10">
                         {/* Share draft preview bar */}
                         {shareDraft && (
-                            <div className="border rounded-lg p-2 flex items-center gap-3">
+                            <div className="border rounded-lg p-2 flex items-center gap-3 dark:border-white/10">
                                 {shareDraft.type === 'profile' ? (
                                     <>
                                         <Avatar
                                             user={
                                                 shareDraft.userId
                                                     ? {
-                                                        id: shareDraft.userId,
-                                                        username: shareDraft.label ?? null,
-                                                        name: shareDraft.label ?? null,
-                                                    }
+                                                          id: shareDraft.userId,
+                                                          username: shareDraft.label ?? null,
+                                                          name: shareDraft.label ?? null,
+                                                      }
                                                     : null
                                             }
                                             size={32}
@@ -1405,63 +1405,62 @@ export default function Messenger() {
                                                     {shareDraft.label || 'Profile'}
                                                 </span>
                                             </div>
-                                            <div className="text-xs text-gray-500 truncate">
+                                            <div className="text-xs text-gray-500 truncate dark:text-gray-400">
                                                 {shareDraft.url}
                                             </div>
                                         </div>
                                     </>
                                 ) : (
-                                    <>
+                                    <div className="flex w-full items-start gap-3">
                                         {shareDraft.post.imageUrl && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
                                                 src={shareDraft.post.imageUrl}
                                                 alt=""
-                                                className="w-10 h-10 object-cover rounded-md"
+                                                className="hidden sm:block w-10 h-10 object-cover rounded-md"
                                             />
                                         )}
-                                        <div className="text-sm min-w-0">
-                                            <div className="truncate">
-                                                Sharing post:{' '}
-                                                <span className="font-medium">
-                                                    {shareDraft.post.title}
-                                                </span>
+                                        <div className="text-sm min-w-0 flex-1">
+                                            <div className="truncate font-semibold">
+                                                Sharing post
                                             </div>
-                                            <div className="text-xs text-gray-500 truncate">
+                                            <div className="text-xs text-gray-500 truncate dark:text-gray-400">
                                                 by{' '}
                                                 {shareDraft.post.author.name ||
                                                     shareDraft.post.author.username ||
                                                     'Author'}
                                             </div>
                                         </div>
-                                        <div className="flex-1" />
+                                    </div>
+                                )}
+                                <div className="ml-auto flex items-center gap-2">
+                                    {shareDraft.type === 'post' && (
                                         <button
                                             type="button"
-                                            className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                                            className="text-xs px-2 py-1 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
                                             onClick={() => setOpenPostId(shareDraft.post.id)}
                                         >
                                             Preview
                                         </button>
-                                    </>
-                                )}
-                                <div className="flex-1" />
-                                <button
-                                    className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
-                                    onClick={() => {
-                                        setShareDraft(null);
-                                        const sp = new URLSearchParams(searchParams?.toString());
-                                        sp.delete('shareType');
-                                        sp.delete('shareId');
-                                        sp.delete('shareUrl');
-                                        sp.delete('shareLabel');
-                                        sp.delete('shareUserId');
-                                        router.replace(
-                                            `${pathname}${sp.toString() ? `?${sp}` : ''}`
-                                        );
-                                    }}
-                                >
-                                    Remove
-                                </button>
+                                    )}
+                                    <button
+                                        className="text-xs px-2 py-1 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                                        onClick={() => {
+                                            setShareDraft(null);
+                                            const sp = new URLSearchParams(searchParams?.toString());
+                                            sp.delete('shareType');
+                                            sp.delete('shareId');
+                                            sp.delete('shareUrl');
+                                            sp.delete('shareLabel');
+                                            sp.delete('shareUserId');
+                                            router.replace(
+                                                `${pathname}${sp.toString() ? `?${sp}` : ''}`
+                                            );
+                                        }}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
                             </div>
                         )}
 
@@ -1469,7 +1468,7 @@ export default function Messenger() {
                             <input
                                 key={activeConvoId || activeOther?.id || 'no-thread'}
                                 ref={inputRef}
-                                className="flex-1 h-full border rounded-full px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40"
+                                className="flex-1 h-full border rounded-full px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
                                 placeholder="Type a message..."
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
@@ -1503,8 +1502,8 @@ export default function Messenger() {
                                 className={clsx(
                                     'px-3 py-2 rounded-full text-sm font-medium border flex items-center justify-center',
                                     !(activeConvoId || activeOther) || !session
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white hover:bg-gray-50'
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-neutral-800 dark:text-gray-500'
+                                        : 'bg-white hover:bg-gray-50 dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100 dark:hover:bg-white/10'
                                 )}
                                 title="Attach images"
                             >
@@ -1523,8 +1522,8 @@ export default function Messenger() {
                                     !(activeConvoId || activeOther) ||
                                         !session ||
                                         (!draft.trim() && files.length === 0 && !shareDraft)
-                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                        : 'bg-gray-900 text-white hover:bg-black'
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-neutral-700 dark:text-gray-500'
+                                        : 'bg-gray-900 text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-200'
                                 )}
                             >
                                 Send
@@ -1532,8 +1531,8 @@ export default function Messenger() {
                         </div>
 
                         {files.length > 0 && (
-                            <div className="border rounded-lg p-2">
-                                <div className="text-xs text-gray-500 mb-2">Attachments</div>
+                            <div className="border rounded-lg p-2 dark:border-white/10">
+                                <div className="text-xs text-gray-500 mb-2 dark:text-gray-400">Attachments</div>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {previews.map((url, i) => (
                                         <div key={i} className="relative group">
@@ -1575,13 +1574,13 @@ export default function Messenger() {
                         }}
                     >
                         <div
-                            className="bg-white p-5 rounded-xl shadow-lg w-[520px] max-w-[92vw]"
+                            className="bg-white p-5 rounded-xl shadow-lg w-[520px] max-w-[92vw] dark:bg-neutral-900 dark:text-gray-100"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between mb-3">
                                 <div className="text-lg font-semibold">New Group</div>
                                 <button
-                                    className="text-sm text-gray-500 hover:text-black"
+                                    className="text-sm text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
                                     onClick={() => {
                                         setShowNewGroup(false);
                                         setSelectedIds([]);
@@ -1593,17 +1592,17 @@ export default function Messenger() {
                                 </button>
                             </div>
 
-                            <div className="mb-2 text-xs text-gray-500">Add at least 2 people</div>
+                            <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">Add at least 2 people</div>
                             <input
-                                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
                                 placeholder="Search your followers…"
                                 value={groupQuery}
                                 onChange={(e) => setGroupQuery(e.target.value)}
                             />
 
-                            <div className="mt-3 border rounded-md max-h-56 overflow-y-auto divide-y">
+                            <div className="mt-3 border rounded-md max-h-56 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/10">
                                 {groupLoading ? (
-                                    <div className="p-3 text-sm text-gray-500">Searching…</div>
+                                    <div className="p-3 text-sm text-gray-500 dark:text-gray-400">Searching…</div>
                                 ) : groupResults.length === 0 ? (
                                     <div className="p-3 text-sm text-gray-400">No matches</div>
                                 ) : (
@@ -1612,7 +1611,7 @@ export default function Messenger() {
                                         return (
                                             <label
                                                 key={u.id}
-                                                className="p-2 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50"
+                                                className="p-2 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/10"
                                             >
                                                 <input
                                                     type="checkbox"
@@ -1646,9 +1645,9 @@ export default function Messenger() {
                             {selectedUsers.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     {selectedUsers.map((u) => (
-                                        <span
-                                            key={u.id}
-                                            className="px-2 py-1 text-xs bg-gray-100 rounded-full"
+                                    <span
+                                        key={u.id}
+                                        className="px-2 py-1 text-xs bg-gray-100 rounded-full dark:bg-white/10"
                                         >
                                             {displayName(u)}
                                         </span>
@@ -1658,7 +1657,7 @@ export default function Messenger() {
 
                             <div className="mt-4 flex justify-end gap-2">
                                 <button
-                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
+                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
                                     onClick={() => {
                                         setShowNewGroup(false);
                                         setSelectedIds([]);
@@ -1672,7 +1671,7 @@ export default function Messenger() {
                                     className={clsx(
                                         'text-sm px-3 py-2 rounded text-white',
                                         selectedIds.length < 2
-                                            ? 'bg-gray-300 cursor-not-allowed'
+                                            ? 'bg-gray-300 cursor-not-allowed dark:bg-neutral-700'
                                             : 'bg-green-600 hover:bg-green-700'
                                     )}
                                     disabled={selectedIds.length < 2}
@@ -1716,13 +1715,13 @@ export default function Messenger() {
                         onClick={() => setShowManage(false)}
                     >
                         <div
-                            className="bg-white p-5 rounded-xl shadow-lg w-[560px] max-w-[94vw]"
+                            className="bg-white p-5 rounded-xl shadow-lg w-[560px] max-w-[94vw] dark:bg-neutral-900 dark:text-gray-100"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between mb-3">
                                 <div className="text-lg font-semibold">Manage Group</div>
                                 <button
-                                    className="text-sm text-gray-500 hover:text-black"
+                                    className="text-sm text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
                                     onClick={() => setShowManage(false)}
                                 >
                                     Close
@@ -1734,13 +1733,13 @@ export default function Messenger() {
                                 <div className="text-sm font-medium mb-1">Group name</div>
                                 <div className="flex items-center gap-2">
                                     <input
-                                        className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                        className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
                                         placeholder="Optional group name"
                                         value={groupNameInput}
                                         onChange={(e) => setGroupNameInput(e.target.value)}
                                     />
                                     <button
-                                        className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
+                                        className="text-sm px-3 py-2 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
                                         onClick={async () => {
                                             try {
                                                 const res = await fetch(
@@ -1768,7 +1767,7 @@ export default function Messenger() {
                                         Save
                                     </button>
                                 </div>
-                                <div className="text-xs text-gray-500 mt-1">
+                                <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">
                                     Members will see a grey system line announcing the change.
                                 </div>
                             </div>
@@ -1776,7 +1775,7 @@ export default function Messenger() {
                             {/* Members list with remove */}
                             <div className="mb-5">
                                 <div className="text-sm font-medium mb-2">Members</div>
-                                <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                                <div className="border rounded-md divide-y max-h-48 overflow-y-auto dark:border-white/10 dark:divide-white/10">
                                     {activeGroupMembers.map((u) => (
                                         <div key={u.id} className="p-2 flex items-center gap-2">
                                             <Avatar user={u} size={28} />
@@ -1788,7 +1787,7 @@ export default function Messenger() {
                                                 {displayName(u)}
                                             </button>
                                             <button
-                                                className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                                                className="text-xs px-2 py-1 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
                                                 onClick={async () => {
                                                     try {
                                                         const res = await fetch(
@@ -1818,14 +1817,14 @@ export default function Messenger() {
                             <div className="mb-5">
                                 <div className="text-sm font-medium mb-1">Add people</div>
                                 <input
-                                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
                                     placeholder="Search your followers…"
                                     value={addQuery}
                                     onChange={(e) => setAddQuery(e.target.value)}
                                 />
-                                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y">
+                                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/10">
                                     {addLoading ? (
-                                        <div className="p-2 text-sm text-gray-500">Searching…</div>
+                                        <div className="p-2 text-sm text-gray-500 dark:text-gray-400">Searching…</div>
                                     ) : addResults.length === 0 ? (
                                         <div className="p-2 text-sm text-gray-400">No matches</div>
                                     ) : (
@@ -1839,7 +1838,7 @@ export default function Messenger() {
                                                     key={u.id}
                                                     className={clsx(
                                                         'p-2 text-sm flex items-center gap-2 cursor-pointer',
-                                                        alreadyIn ? 'opacity-50' : 'hover:bg-gray-50'
+                                                        alreadyIn ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/10'
                                                     )}
                                                 >
                                                     <input
@@ -1859,7 +1858,7 @@ export default function Messenger() {
                                                         {displayName(u)}
                                                     </div>
                                                     {alreadyIn && (
-                                                        <span className="ml-auto text-[11px] text-gray-400">
+                                                        <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">
                                                             In group
                                                         </span>
                                                     )}
@@ -1876,7 +1875,7 @@ export default function Messenger() {
                                             .map((u) => (
                                                 <span
                                                     key={u.id}
-                                                    className="px-2 py-1 text-xs bg-gray-100 rounded-full"
+                                                    className="px-2 py-1 text-xs bg-gray-100 rounded-full dark:bg-white/10"
                                                 >
                                                     {displayName(u)}
                                                 </span>
@@ -1889,7 +1888,7 @@ export default function Messenger() {
                                         className={clsx(
                                             'text-sm px-3 py-2 rounded text-white',
                                             addSelectedIds.length === 0
-                                                ? 'bg-gray-300 cursor-not-allowed'
+                                                ? 'bg-gray-300 cursor-not-allowed dark:bg-neutral-700'
                                                 : 'bg-green-600 hover:bg-green-700'
                                         )}
                                         disabled={addSelectedIds.length === 0}
@@ -1928,7 +1927,7 @@ export default function Messenger() {
                             {/* Danger zone */}
                             <div className="flex items-center justify-between">
                                 <button
-                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50"
+                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
                                     onClick={async () => {
                                         try {
                                             const res = await fetch(
@@ -1954,7 +1953,7 @@ export default function Messenger() {
                                 >
                                     Leave conversation
                                 </button>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
                                     If you are the last member, the conversation will be deleted.
                                 </div>
                             </div>

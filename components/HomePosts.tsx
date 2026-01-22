@@ -363,10 +363,10 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
     const canShare = useMemo(() => !!session, [session]);
 
     if (loading && posts.length === 0) {
-        return <div className="text-gray-500 p-8">Loading posts...</div>;
+        return <div className="p-8 text-gray-500 dark:text-gray-300">Loading posts...</div>;
     }
     if (error && posts.length === 0) {
-        return <div className="text-red-500 p-8">{error}</div>;
+        return <div className="p-8 text-red-500 dark:text-red-400">{error}</div>;
     }
 
     return (
@@ -381,7 +381,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                         "flex items-center gap-1 text-xs transition",
                                         post.didLike
                                             ? "text-red-500 font-bold"
-                                            : "text-gray-400 hover:text-red-400"
+                                            : "text-gray-400 hover:text-red-400 dark:text-gray-300 dark:hover:text-red-500"
                                     )}
                                     onClick={() => handleLike(post.id)}
                                     disabled={!session}
@@ -406,7 +406,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                         "flex items-center gap-1 text-xs transition",
                                         openComments[post.id]
                                             ? "text-green-600 font-semibold"
-                                            : "text-gray-400 hover:text-green-600"
+                                            : "text-gray-400 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-500"
                                     )}
                                     onClick={() => toggleComments(post.id)}
                                     title="Show comments"
@@ -419,8 +419,8 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                     className={clsx(
                                         "flex items-center gap-1 text-xs transition",
                                         canShare
-                                            ? "text-gray-500 hover:text-green-700"
-                                            : "text-gray-300 cursor-not-allowed"
+                                            ? "text-gray-500 hover:text-green-700 dark:text-gray-200 dark:hover:text-green-500"
+                                            : "text-gray-300 cursor-not-allowed dark:text-gray-500 dark:hover:text-green-500"
                                     )}
                                     onClick={() => canShare && openShareModal(post.id)}
                                     disabled={!canShare}
@@ -439,12 +439,12 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                         return (
                             <div
                                 key={post.id}
-                                className="relative bg-white rounded-2xl shadow-lg px-6 py-5"
+                                className="relative rounded-2xl bg-white px-6 py-5 shadow-lg dark:border dark:border-white/10 dark:bg-neutral-900 dark:shadow-none"
                             >
                             {post.author?.username === username && (
                                 <button
                                     onClick={() => handleDelete(post.id)}
-                                    className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition"
+                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
                                     title="Delete post"
                                 >
                                     <Trash2 size={20} />
@@ -452,13 +452,13 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                             )}
 
                             <div className="flex flex-col gap-1 mb-2">
-                                <span className="font-bold text-lg text-gray-800">
+                                <span className="font-bold text-lg text-gray-800 dark:text-white">
                                     {post.title}
                                 </span>
                                 {(() => {
                                     const authorBits = (
                                         <>
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-gray-500 dark:text-gray-300">
                                                 by{" "}
                                                 {post.author?.username ? (
                                                     post.author.username === username ? (
@@ -485,7 +485,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                                 )}
                                             </span>
                                             <span
-                                                className="text-xs text-gray-400"
+                                                className="text-xs text-gray-400 dark:text-gray-300"
                                                 title={new Date(post.createdAt).toLocaleString()}
                                             >
                                                 {formatRelativeTime(post.createdAt)}
@@ -515,7 +515,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
 
                             {/* Text content */}
                             {post.content && (
-                                <div className="text-gray-700 mt-2 whitespace-pre-wrap">
+                                <div className="text-gray-700 mt-2 whitespace-pre-wrap dark:text-gray-200">
                                     {post.content}
                                 </div>
                             )}
@@ -546,7 +546,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                     })}
 
                     {posts.length === 0 && !loading && (
-                        <div className="text-gray-400 text-center py-12">
+                        <div className="text-gray-400 text-center py-12 dark:text-gray-300">
                             No posts yet!
                         </div>
                     )}
@@ -555,7 +555,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                     {posts.length > 0 && (
                         <div
                             ref={loadMoreRef}
-                            className="py-6 text-center text-xs text-gray-400"
+                            className="py-6 text-center text-xs text-gray-400 dark:text-gray-300"
                         >
                             {isLoadingMore
                                 ? "Loading more posts..."
@@ -574,13 +574,13 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                     onClick={() => setSharePostId(null)}
                 >
                     <div
-                        className="bg-white rounded-xl shadow-xl w-[680px] max-w-[94vw] p-5"
+                        className="w-[680px] max-w-[94vw] rounded-xl bg-white p-5 shadow-xl dark:border dark:border-white/10 dark:bg-neutral-900 dark:shadow-none"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <div className="text-lg font-semibold">Share post</div>
+                            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">Share post</div>
                             <button
-                                className="text-gray-500 hover:text-black"
+                                className="text-gray-500 hover:text-black dark:text-gray-300 dark:hover:text-white"
                                 onClick={() => setSharePostId(null)}
                                 title="Close"
                             >
@@ -594,10 +594,10 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                 <div className="relative flex-1">
                                     <Search
                                         size={16}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                                     />
                                     <input
-                                        className="w-full pl-8 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30"
+                                        className="w-full pl-8 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 dark:border-white/10 dark:bg-transparent dark:text-gray-100"
                                         placeholder="Search followers to start a new chat…"
                                         value={shareQuery}
                                         onChange={(e) => setShareQuery(e.target.value)}
@@ -606,24 +606,24 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                             </div>
 
                             {shareQuery && (
-                                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y">
+                                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/5">
                                     {shareSearching ? (
-                                        <div className="p-2 text-sm text-gray-500">
+                                        <div className="p-2 text-sm text-gray-500 dark:text-gray-300">
                                             Searching…
                                         </div>
                                     ) : shareResults.length === 0 ? (
-                                        <div className="p-2 text-sm text-gray-400">
+                                        <div className="p-2 text-sm text-gray-400 dark:text-gray-300">
                                             No matches
                                         </div>
                                     ) : (
                                         shareResults.map((u) => (
                                             <button
                                                 key={u.id}
-                                                className="w-full text-left p-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                                                className="w-full text-left p-2 text-sm hover:bg-gray-50 flex items-center gap-2 dark:hover:bg-white/5 text-gray-700 dark:text-gray-100"
                                                 onClick={() => onPickUserToShare(u)}
                                                 title={`Share with ${displayName(u)}`}
                                             >
-                                                <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase">
+                                                <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] uppercase dark:bg-white/10 dark:text-white">
                                                     {(u.username || u.name || "U").slice(0, 2)}
                                                 </div>
                                                 <div className="truncate">
@@ -637,16 +637,16 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                         </div>
 
                         {/* Divider */}
-                        <div className="h-px bg-gray-100 my-3" />
+                        <div className="h-px bg-gray-100 my-3 dark:bg-white/10" />
 
                         {/* Existing conversations */}
                         <div>
-                            <div className="text-xs text-gray-500 mb-2">
+                            <div className="text-xs text-gray-500 mb-2 dark:text-gray-300">
                                 Or share to an existing conversation
                             </div>
-                            <div className="border rounded-md max-h-72 overflow-y-auto divide-y">
+                            <div className="border rounded-md max-h-72 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/5">
                                 {convosLoading ? (
-                                    <div className="p-3 text-sm text-gray-500">
+                                    <div className="p-3 text-sm text-gray-500 dark:text-gray-300">
                                         Loading conversations…
                                     </div>
                                 ) : convosError ? (
@@ -654,7 +654,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                         {convosError}
                                     </div>
                                 ) : convos.length === 0 ? (
-                                    <div className="p-3 text-sm text-gray-400">
+                                    <div className="p-3 text-sm text-gray-400 dark:text-gray-300">
                                         No conversations yet.
                                     </div>
                                 ) : (
@@ -677,18 +677,18 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                         return (
                                             <button
                                                 key={c.id}
-                                                className="w-full text-left p-3 hover:bg-gray-50 flex items-center gap-3"
+                                                className="w-full text-left p-3 hover:bg-gray-50 flex items-center gap-3 dark:hover:bg-white/5"
                                                 onClick={() => onPickConversationToShare(c)}
                                                 title={`Share with ${title}`}
                                             >
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase">
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase dark:bg-white/10 dark:text-white">
                                                     {initials}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="text-sm font-medium truncate">
+                                                    <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">
                                                         {title}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 truncate">
+                                                    <div className="text-xs text-gray-500 truncate dark:text-gray-400">
                                                         {preview}
                                                     </div>
                                                 </div>

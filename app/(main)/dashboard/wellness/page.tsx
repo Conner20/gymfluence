@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
 import { Moon, Droplet, Flame, Plus, X, Calendar } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 
 import {
     fetchWellnessData,
@@ -41,11 +42,21 @@ type SleepPoint = { date: string; hours: number | null };
 type WaterPoint = { date: string; liters: number };
 
 const AxisLabel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-    <span className={`text-[11px] text-neutral-500 ${className}`}>{children}</span>
+    <span className={`text-[11px] text-neutral-500 dark:text-neutral-300 ${className}`}>{children}</span>
 );
-const Dot = ({ cx, cy, r = 3, color = '#a855f7' }: { cx: number; cy: number; r?: number; color?: string }) => (
-    <circle cx={cx} cy={cy} r={r} fill={color} stroke="white" strokeWidth={1} />
-);
+const Dot = ({
+    cx,
+    cy,
+    r = 3,
+    color = '#a855f7',
+    strokeColor = '#ffffff',
+}: {
+    cx: number;
+    cy: number;
+    r?: number;
+    color?: string;
+    strokeColor?: string;
+}) => (<circle cx={cx} cy={cy} r={r} fill={color} stroke={strokeColor} strokeWidth={1} />);
 
 /* ------------------------------- Sleep chart ------------------------------ */
 function SleepLine({
@@ -54,12 +65,14 @@ function SleepLine({
     onAdd,
     onRange,
     goal,
+    isDark = false,
 }: {
     data: SleepPoint[];
     range: '1W' | '1M' | '3M' | '1Y';
     onAdd: (pt: SleepPoint) => void | Promise<void>;
     onRange: (r: '1W' | '1M' | '3M' | '1Y') => void;
     goal: number;
+    isDark?: boolean;
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
     const { ref: svgWrapRef, width: svgWidth } = useMeasure<HTMLDivElement>();
@@ -216,7 +229,11 @@ function SleepLine({
             {(['1W', '1M', '3M', '1Y'] as const).map((r) => (
                 <button
                     key={r}
-                    className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                    className={`h-8 rounded-full px-3 text-sm ${
+                        r === range
+                            ? 'bg-black text-white dark:bg-white dark:text-black'
+                            : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10'
+                    }`}
                     onClick={() => onRange(r)}
                 >
                     {r}
@@ -225,19 +242,24 @@ function SleepLine({
         </div>
     );
 
+    const gridColor = isDark ? '#1f2937' : '#eee';
+    const axisColor = isDark ? '#d1d5db' : '#9ca3af';
+    const subLabelColor = isDark ? 'text-green-300' : 'text-green-600';
+    const hoverLine = isDark ? '#4b5563' : '#d1d5db';
+
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
             {/* header - mobile */}
             <div className="flex flex-wrap items-start justify-between gap-3 lg:hidden">
                 <div className="min-w-0 flex-1">
-                    <h3 className="text-[15px] font-semibold">Sleep trend</h3>
-                    <div className="mt-0.5 text-[11px] text-green-600">avg last 7 days: {avg7.toFixed(1)} hrs</div>
+                    <h3 className="text-[15px] font-semibold text-black dark:text-white">Sleep trend</h3>
+                    <div className={`mt-0.5 text-[11px] ${subLabelColor}`}>avg last 7 days: {avg7.toFixed(1)} hrs</div>
                     <div className="mt-1 flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1 text-xs text-neutral-700">
+                        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-200">
                             <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
                             Sleep (hrs)
                         </span>
-                        <span className="text-xs text-neutral-400">· {range}</span>
+                        <span className="text-xs text-neutral-400 dark:text-neutral-500">· {range}</span>
                     </div>
                 </div>
 
@@ -256,7 +278,7 @@ function SleepLine({
                                         mobileDateInputRef.current?.showPicker?.();
                                         mobileDateInputRef.current?.focus();
                                     }}
-                                    className="flex h-full w-full items-center justify-center rounded-lg border text-purple-600"
+                                    className="flex h-full w-full items-center justify-center rounded-lg border text-purple-600 dark:border-white/20 dark:text-purple-200"
                                     aria-label="Select date"
                                 >
                                     <Calendar size={16} />
@@ -275,17 +297,17 @@ function SleepLine({
                                 type="date"
                                 value={newDate}
                                 onChange={(e) => setNewDate(e.target.value)}
-                                className="hidden sm:block sm:h-8 sm:w-[120px] sm:rounded-lg sm:border sm:px-2 sm:text-sm sm:outline-none"
+                                className="hidden sm:block sm:h-8 sm:w-[120px] sm:rounded-lg sm:border sm:px-2 sm:text-sm sm:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                             />
                             <input
                                 placeholder="hrs"
                                 inputMode="decimal"
-                                className="h-8 w-14 rounded-lg border px-2 text-xs outline-none sm:w-20 sm:text-sm"
+                                className="h-8 w-14 rounded-lg border px-2 text-xs outline-none sm:w-20 sm:text-sm dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                 value={newHours}
                                 onChange={(e) => setNewHours(e.target.value)}
                             />
                             <button
-                                className="h-8 w-8 rounded-lg bg-purple-600 text-white hover:bg-purple-700 sm:w-20 sm:px-3"
+                                className="h-8 w-8 rounded-lg bg-purple-600 text-white hover:bg-purple-700 sm:w-20 sm:px-3 dark:bg-purple-500"
                                 onClick={async () => {
                                     const h = parseFloat(newHours);
                                     if (!isFinite(h) || h <= 0) return;
@@ -298,9 +320,9 @@ function SleepLine({
                                 <span className="hidden text-sm sm:inline">Add</span>
                             </button>
                         </div>
-                        <button
-                            aria-label="Add sleep"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                <button
+                    aria-label="Add sleep"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white hover:bg-purple-700 dark:bg-purple-500"
                             onClick={() => setOpenAdd((v) => !v)}
                         >
                             {openAdd ? <X size={16} /> : <Plus size={16} />}
@@ -312,14 +334,14 @@ function SleepLine({
             {/* header - desktop */}
             <div className="hidden items-center justify-between gap-4 lg:flex">
                 <div className="min-w-0">
-                    <h3 className="text-[15px] font-semibold">Sleep trend</h3>
-                    <div className="text-[11px] text-green-600">avg last 7 days: {avg7.toFixed(1)} hrs</div>
+                    <h3 className="text-[15px] font-semibold text-black dark:text-white">Sleep trend</h3>
+                    <div className="text-[11px] text-green-600 dark:text-green-300">avg last 7 days: {avg7.toFixed(1)} hrs</div>
                     <div className="mt-1 flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1 text-xs text-neutral-700">
+                        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-200">
                             <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
                             Sleep (hrs)
                         </span>
-                        <span className="text-xs text-neutral-400">· {range}</span>
+                        <span className="text-xs text-neutral-400 dark:text-neutral-500">· {range}</span>
                     </div>
                 </div>
 
@@ -333,17 +355,17 @@ function SleepLine({
                             type="date"
                             value={newDate}
                             onChange={(e) => setNewDate(e.target.value)}
-                            className="h-8 rounded-lg border px-2 text-sm outline-none"
+                            className="h-8 rounded-lg border px-2 text-sm outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                         />
                         <input
                             placeholder="hrs"
                             inputMode="decimal"
-                            className="h-8 w-20 rounded-lg border px-2 text-sm outline-none"
+                            className="h-8 w-20 rounded-lg border px-2 text-sm outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                             value={newHours}
                             onChange={(e) => setNewHours(e.target.value)}
                         />
                         <button
-                            className="h-8 rounded-lg bg-purple-600 px-3 text-sm text-white hover:bg-purple-700"
+                            className="h-8 rounded-lg bg-purple-600 px-3 text-sm text-white hover:bg-purple-700 dark:bg-purple-500"
                             onClick={async () => {
                                 const h = parseFloat(newHours);
                                 if (!isFinite(h) || h <= 0) return;
@@ -388,10 +410,10 @@ function SleepLine({
                                 x2={W - pad.right}
                                 y1={y(h)}
                                 y2={y(h)}
-                                stroke="#eee"
+                                stroke={gridColor}
                                 strokeWidth={1}
                             />
-                            <text x={pad.left - 8} y={y(h) + 3} textAnchor="end" fontSize="10" fill="#9ca3af">
+                            <text x={pad.left - 8} y={y(h) + 3} textAnchor="end" fontSize="10" fill={axisColor}>
                                 {h.toFixed(1)}
                             </text>
                         </g>
@@ -414,7 +436,7 @@ function SleepLine({
                                 y={y(goal) - 4}
                                 textAnchor="end"
                                 fontSize="10"
-                                fill="#7c3aed"
+                                fill={isDark ? '#e9d5ff' : '#7c3aed'}
                             >
                                 goal {goal.toFixed(1)}h
                             </text>
@@ -432,11 +454,15 @@ function SleepLine({
                         const lastX = x(last.i);
                         const baseY = pad.top + innerH;
                         const areaPath = `${pathD} L ${lastX} ${baseY} L ${firstX} ${baseY} Z`;
-                        return <path d={areaPath} fill="#a855f71a" />;
+                        return <path d={areaPath} fill={isDark ? '#a855f74d' : '#a855f71a'} />;
                     })()}
 
                     {/* dots only on recorded days */}
-                    {xs.map((p, i) => (p.hours != null ? <Dot key={i} cx={x(i)} cy={y(p.hours)} /> : null))}
+                    {xs.map((p, i) =>
+                        p.hours != null ? (
+                            <Dot key={i} cx={x(i)} cy={y(p.hours)} strokeColor={isDark ? '#0f172a' : '#ffffff'} />
+                        ) : null
+                    )}
 
                     {/* hover guide */}
                     {hover && hoveredPoint && (
@@ -446,24 +472,30 @@ function SleepLine({
                                 x2={hover.cx}
                                 y1={pad.top}
                                 y2={pad.top + innerH}
-                                stroke="#d1d5db"
+                                stroke={hoverLine}
                                 strokeDasharray="4 4"
                             />
                             {hoveredPoint.hours != null && (
-                                <Dot cx={hover.cx} cy={y(hoveredPoint.hours)} r={4} color="#7c3aed" />
+                                <Dot
+                                    cx={hover.cx}
+                                    cy={y(hoveredPoint.hours)}
+                                    r={4}
+                                    color="#7c3aed"
+                                    strokeColor={isDark ? '#0f172a' : '#ffffff'}
+                                />
                             )}
                         </>
                     )}
 
                     {/* x labels inside */}
-                    <text x={pad.left + 2} y={pad.top + innerH + 18} fontSize="10" fill="#9ca3af" textAnchor="start">
+                    <text x={pad.left + 2} y={pad.top + innerH + 18} fontSize="10" fill={axisColor} textAnchor="start">
                         {xs[0]?.date ?? ''}
                     </text>
                     <text
                         x={pad.left + innerW - 2}
                         y={pad.top + innerH + 18}
                         fontSize="10"
-                        fill="#9ca3af"
+                        fill={axisColor}
                         textAnchor="end"
                     >
                         {xs.at(-1)?.date ?? ''}
@@ -534,7 +566,7 @@ function TooltipFlip({
 
     return (
         <div
-            className="pointer-events-none absolute max-w-[180px] rounded-md border bg-white px-3 py-2 text-xs shadow-sm"
+            className="pointer-events-none absolute max-w-[180px] rounded-md border bg-white px-3 py-2 text-xs shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
             style={{ left, top }}
         >
             {content}
@@ -579,10 +611,10 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
     };
 
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
             <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[15px] font-semibold">Water consumption</h3>
-                <span className="text-xs text-neutral-500">last 7 days</span>
+                <h3 className="text-[15px] font-semibold text-black dark:text-white">Water consumption</h3>
+                <span className="text-xs text-neutral-500 dark:text-neutral-300">last 7 days</span>
             </div>
 
             <div className="flex flex-1 items-center justify-center">
@@ -590,21 +622,21 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
                     ref={wrapRef}
                     onMouseMove={onMove}
                     onMouseLeave={() => setHover(null)}
-                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-2 rounded-md bg-white p-3"
+                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-2 rounded-md bg-white p-3 dark:bg-white/5"
                 >
                     {xs.map((d) => (
                         <div key={d.date} className="flex h-full flex-col items-center justify-end">
                             <div
-                                className="w-7 rounded-t bg-blue-400/40"
+                                className="w-7 rounded-t bg-blue-400/40 dark:bg-blue-400/60"
                                 style={{ height: `${(d.liters / max) * 100}%` }}
                             />
-                            <div className="mt-1 text-[10px] text-neutral-500">{d.date.slice(5)}</div>
+                            <div className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-300">{d.date.slice(5)}</div>
                         </div>
                     ))}
 
                     {hover && hoveredBar && (
                         <div
-                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] shadow-sm"
+                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                             style={{ left: hover.left, top: hover.top }}
                         >
                             <div>{hoveredBar.liters.toFixed(1)} L</div>
@@ -634,21 +666,21 @@ function KPI({
 }) {
     const colorClasses =
         color === 'purple'
-            ? 'bg-purple-100 text-purple-900'
+            ? 'bg-purple-100 text-purple-900 dark:bg-neutral-900 dark:text-purple-300 dark:border dark:border-purple-500/40'
             : color === 'blue'
-                ? 'bg-blue-100 text-blue-900'
-                : 'bg-amber-100 text-amber-900';
+                ? 'bg-blue-100 text-blue-900 dark:bg-neutral-900 dark:text-blue-300 dark:border dark:border-blue-500/40'
+                : 'bg-amber-100 text-amber-900 dark:bg-neutral-900 dark:text-amber-300 dark:border dark:border-amber-500/40';
     return (
         <div className={`rounded-xl p-5 ${colorClasses}`}>
             <div className="mb-2 flex items-center justify-between">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/60">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/60 dark:bg-white/10">
                     {icon}
                 </div>
                 {rightElement && <div className="ml-2">{rightElement}</div>}
             </div>
             <div className="text-3xl font-semibold leading-none">{value}</div>
             <div className="mt-2 text-sm font-medium">{title}</div>
-            {subtitle && <div className="text-xs text-black/60">{subtitle}</div>}
+            {subtitle && <div className="text-xs text-black/60 dark:text-white/70">{subtitle}</div>}
         </div>
     );
 }
@@ -691,11 +723,11 @@ function WaterToday({
     };
 
     return (
-        <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-xl border bg-white p-4 shadow-sm">
+        <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
             <div className="flex items-center justify-between">
-                <div className="text-lg font-semibold">Goal: {goal.toFixed(1)} L</div>
+                <div className="text-lg font-semibold text-black dark:text-white">Goal: {goal.toFixed(1)} L</div>
                 <button
-                    className="rounded-full border px-3 py-1 text-sm"
+                    className="rounded-full border px-3 py-1 text-sm dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                     onClick={async () => {
                         const s = prompt('Set daily water goal (L):', goal.toString());
                         if (!s) return;
@@ -709,12 +741,12 @@ function WaterToday({
             </div>
 
             {/* Middle area — centers the gauge; +20px height */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white/70 p-4">
-                <div className="text-sm text-blue-900/80">
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white/70 p-4 dark:bg-white/5">
+                <div className="text-sm text-blue-900/80 dark:text-blue-200">
                     Remaining: {remaining.toFixed(1)} L
                 </div>
                 <div className="flex flex-1 items-center justify-center">
-                    <div className="relative mx-auto mt-4 flex h-60 w-20 items-end rounded-full bg-blue-50 sm:h-[21rem]">
+                    <div className="relative mx-auto mt-4 flex h-60 w-20 items-end rounded-full bg-blue-50 dark:bg-white/10 sm:h-[21rem]">
                         {(() => {
                             const isFull = pct >= 0.999;
                             const radiusClass = isFull
@@ -729,7 +761,7 @@ function WaterToday({
                                     }}
                                 >
                                     {consumed > 0 && (
-                                        <div className="text-xs font-medium text-neutral-800 text-center">
+                                        <div className="text-xs font-medium text-neutral-800 text-center dark:text-white">
                                             {consumed.toFixed(1)} L
                                         </div>
                                     )}
@@ -746,16 +778,16 @@ function WaterToday({
                     onChange={(e) => setVal(e.target.value)}
                     placeholder="e.g. 0.6"
                     inputMode="decimal"
-                    className="w-full rounded-md border px-3 py-2 outline-none"
+                    className="w-full rounded-md border px-3 py-2 outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                 />
                 <button
-                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50"
+                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
                     onClick={handleAdd}
                 >
                     +
                 </button>
                 <button
-                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50"
+                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
                     onClick={handleRemove}
                 >
                     -
@@ -769,7 +801,7 @@ function WaterToday({
                     onChange={(e) => {
                         if (e.target.value) setSelectedDate(e.target.value);
                     }}
-                    className="rounded border px-2 py-1 text-xs text-neutral-600 outline-none"
+                    className="rounded border px-2 py-1 text-xs text-neutral-600 outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                 />
             </div>
         </div>
@@ -778,6 +810,8 @@ function WaterToday({
 
 /* ----------------------------------- Page --------------------------------- */
 function WellnessPage() {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     // Server-backed state
     const [sleep, setSleep] = useState<SleepPoint[]>([]);
     const [water, setWater] = useState<WaterPoint[]>([]);
@@ -903,19 +937,19 @@ function WellnessPage() {
             <div className="flex gap-2 text-sm">
                 <Link
                     href="/dashboard"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
                 >
                     workouts
                 </Link>
                 <Link
                     href="/dashboard/wellness"
-                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white"
+                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
                 >
                     wellness
                 </Link>
                 <Link
                     href="/dashboard/nutrition"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
                 >
                     nutrition
                 </Link>
@@ -924,26 +958,26 @@ function WellnessPage() {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#f8f8f8] xl:h-screen xl:overflow-hidden">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white xl:h-screen xl:overflow-hidden">
             <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
 
-            <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none">
-                <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight">
+            <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none dark:bg-neutral-900 dark:border-b dark:border-white/10">
+                <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight dark:text-green-400">
                     wellness log
                 </h1>
                 <nav className="flex gap-2 text-sm">
                     <Link
                         href="/dashboard"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
                     >
                         workouts
                     </Link>
-                    <Link href="/dashboard/wellness" className="rounded-full bg-black px-6 py-2 font-medium text-white">
+                    <Link href="/dashboard/wellness" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
                         wellness
                     </Link>
                     <Link
                         href="/dashboard/nutrition"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
                     >
                         nutrition
                     </Link>
@@ -951,7 +985,7 @@ function WellnessPage() {
             </header>
 
             {/* Full-height dashboard area fills viewport minus header */}
-            <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 xl:grid xl:grid-cols-12 xl:h-[calc(100vh-128px)] xl:overflow-y-auto">
+            <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 xl:grid xl:grid-cols-12 xl:h-[calc(100vh-128px)] xl:overflow-y-auto scrollbar-slim">
                 {/* Left column — Sleep bigger, Water smaller */}
                 <section className="col-span-12 grid gap-6 xl:col-span-7 xl:grid-rows-[2fr_1fr] overflow-visible">
                     <SleepLine
@@ -960,6 +994,7 @@ function WellnessPage() {
                         onAdd={addSleep}
                         onRange={setRange}
                         goal={sleepGoal}
+                        isDark={isDark}
                     />
                     <WaterBars data={water} />
                 </section>
@@ -970,10 +1005,10 @@ function WellnessPage() {
                         title="Hours of sleep (avg last 7d)"
                         value={avgSleep7.toFixed(1)}
                         color="purple"
-                        icon={<Moon size={18} className="text-purple-700" />}
+                        icon={<Moon size={18} className="text-purple-700 dark:text-purple-200" />}
                         rightElement={
                             <button
-                                className="h-7 rounded-full px-3 text-[11px] text-purple-700 bg-white/60 hover:bg-white/80 border border-transparent"
+                                className="h-7 rounded-full px-3 text-[11px] text-purple-700 bg-white/60 hover:bg-white/80 border border-transparent dark:text-purple-100 dark:bg-white/10 dark:hover:bg-white/20"
                                 onClick={() => {
                                     const s = prompt('Set sleep goal (hours):', sleepGoal.toString());
                                     if (!s) return;
@@ -994,13 +1029,13 @@ function WellnessPage() {
                         title="Liters of water (avg last 7d)"
                         value={avgWater7.toFixed(1)}
                         color="blue"
-                        icon={<Droplet size={18} className="text-blue-700" />}
+                        icon={<Droplet size={18} className="text-blue-700 dark:text-blue-200" />}
                     />
                     <KPI
                         title="Days in a row goals met"
                         value={streakDays}
                         color="orange"
-                        icon={<Flame size={18} className="text-amber-700" />}
+                        icon={<Flame size={18} className="text-amber-700 dark:text-amber-200" />}
                     />
                 </section>
 

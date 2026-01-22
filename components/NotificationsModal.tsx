@@ -85,11 +85,11 @@ export default function NotificationsModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-4">
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center dark:bg-black/70">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-4 dark:bg-neutral-900 dark:text-gray-100 dark:border dark:border-white/10">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold">Notifications</h3>
-                    <button className="p-1 rounded hover:bg-gray-100" onClick={onClose} aria-label="Close">
+                    <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close">
                         <X size={18} />
                     </button>
                 </div>
@@ -97,20 +97,20 @@ export default function NotificationsModal({
                 <div className="flex items-center justify-between mb-3">
                     <button
                         onClick={load}
-                        className="px-3 py-1.5 rounded border bg-white hover:bg-gray-50 text-sm"
+                        className="px-3 py-1.5 rounded border bg-white hover:bg-gray-50 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                         disabled={loading}
                     >
                         Refresh
                     </button>
-                    {loading && <span className="text-xs text-gray-500">Loading…</span>}
+                    {loading && <span className="text-xs text-gray-500 dark:text-gray-400">Loading…</span>}
                 </div>
 
                 {error && <div className="text-sm text-red-500 mb-3">{error}</div>}
 
                 {items.length === 0 ? (
-                    <div className="text-sm text-gray-500">No notifications.</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">No notifications.</div>
                 ) : (
-                    <ul className="divide-y">
+                    <ul className="divide-y dark:divide-white/10">
                         {items.map((n) => {
                             const actorName = n.actor?.username || n.actor?.name || "User";
                             const isFollowRequest = n.type === "FOLLOW_REQUEST";
@@ -125,7 +125,7 @@ export default function NotificationsModal({
                                             className="w-9 h-9 rounded-full object-cover"
                                         />
                                     ) : (
-                                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs">
+                                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs dark:bg-white/10">
                                             {actorName.slice(0, 2)}
                                         </div>
                                     )}
@@ -146,7 +146,7 @@ export default function NotificationsModal({
                                             </div>
                                         )}
                                         <div
-                                            className="text-xs text-gray-500"
+                                            className="text-xs text-gray-500 dark:text-gray-400"
                                             title={new Date(n.createdAt).toLocaleString()}
                                         >
                                             {formatRelativeTime(n.createdAt)}

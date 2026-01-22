@@ -183,13 +183,13 @@ export default function SearchPage() {
     }, [lightboxUrl]);
 
     const mobileFilters = (
-        <div className="px-4 py-4 space-y-2">
-            <div className="flex items-center gap-2 rounded-full border px-3 py-2">
-                <SearchIcon size={18} className="text-gray-500" />
+        <div className="px-4 py-4 space-y-2 bg-white dark:bg-neutral-900">
+            <div className="flex items-center gap-2 rounded-full border px-3 py-2 dark:border-white/15">
+                <SearchIcon size={18} className="text-gray-500 dark:text-gray-400" />
                 <input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    className="flex-1 outline-none text-sm"
+                    className="flex-1 outline-none text-sm bg-transparent dark:text-white"
                     placeholder="Search by name or @username…"
                 />
             </div>
@@ -209,8 +209,8 @@ export default function SearchPage() {
                                             className={clsx(
                                                 'rounded-2xl border px-3 py-2 text-sm text-left transition',
                                                 activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                             )}
                                         >
                                             {d ? `${d} km` : 'Any distance'}
@@ -242,8 +242,8 @@ export default function SearchPage() {
                                             className={clsx(
                                                 'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
                                                 activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                             )}
                                         >
                                             {r === 'ALL' ? 'any role' : r.toLowerCase()}
@@ -266,35 +266,35 @@ export default function SearchPage() {
                         value={`${minBudget || 0}–${maxBudget || '∞'}`}
                         menu={
                             <div className="space-y-3 p-4 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-gray-400">
+                                <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                     trainers hourly · gyms monthly
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                         placeholder="Min"
                                         value={minBudget}
                                         onChange={(e) => setMinBudget(e.target.value)}
                                     />
-                                    <span className="text-gray-400">—</span>
+                                    <span className="text-gray-400 dark:text-gray-500">—</span>
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                         placeholder="Max"
                                         value={maxBudget}
                                         onChange={(e) => setMaxBudget(e.target.value)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                     <button
                                         onClick={() => {
                                             setMinBudget('');
                                             setMaxBudget('');
                                         }}
-                                        className="rounded-full px-2 py-1 transition hover:text-gray-800"
+                                        className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
                                     >
                                         Clear
                                     </button>
@@ -326,26 +326,26 @@ export default function SearchPage() {
                                             className={clsx(
                                                 'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
                                                 checked
-                                                    ? 'border-gray-900 bg-gray-900 text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                             )}
                                         >
                                             <input
                                                 type="checkbox"
                                                 checked={checked}
                                                 onChange={() => toggleGoal(g)}
-                                                className="accent-gray-900"
+                                                className="accent-gray-900 dark:accent-green-400"
                                             />
                                             <span>{g}</span>
                                         </label>
                                     );
                                 })}
-                                <button
-                                    onClick={() => setGoals([])}
-                                    className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800"
-                                >
-                                    Clear goals
-                                </button>
+                                    <button
+                                        onClick={() => setGoals([])}
+                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                    >
+                                        Clear goals
+                                    </button>
                             </div>
                         }
                         size="compact"
@@ -371,17 +371,17 @@ export default function SearchPage() {
             <button
                 key={`mobile-${u.id}`}
                 className={clsx(
-                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none shadow-sm",
-                    isSelected && "border-2 border-gray-900"
+                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100",
+                    isSelected && "border-2 border-gray-900 dark:border-green-400"
                 )}
                 onClick={() => handleMobileSelect(u.id)}
             >
                 <div className="flex items-start gap-3">
                     {u.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={u.image} alt="" className="h-12 w-12 rounded-full object-cover border" />
+                        <img src={u.image} alt="" className="h-12 w-12 rounded-full object-cover border dark:border-white/20" />
                     ) : (
-                        <div className="h-12 w-12 rounded-full bg-gray-100 border flex items-center justify-center text-sm font-semibold">
+                        <div className="h-12 w-12 rounded-full bg-gray-100 border flex items-center justify-center text-sm font-semibold dark:bg-white/10 dark:border-white/20">
                             {(u.username || u.name || 'U').slice(0, 2).toUpperCase()}
                         </div>
                     )}
@@ -393,23 +393,23 @@ export default function SearchPage() {
                                     <div className="text-sm font-semibold leading-tight">
                                         {u.name || u.username || 'User'}
                                     </div>
-                                    <div className="text-xs text-gray-400">
+                                    <div className="text-xs text-gray-400 dark:text-gray-400">
                                         @{u.username || u.id.slice(0, 8)}
                                     </div>
                                 </div>
 
-                                <div className="text-right text-xs text-gray-500 space-y-0.5">
-                                    {u.role && <div className="uppercase tracking-wide">{u.role.toLowerCase()}</div>}
+                                <div className="text-right text-xs text-gray-500 space-y-0.5 dark:text-gray-400">
+                                    {u.role && <div className="uppercase tracking-wide dark:text-gray-300">{u.role.toLowerCase()}</div>}
                                     {u.clients != null && (
                                         <div className="flex items-center justify-end gap-1">
                                             <span>{u.clients}</span>
-                                            <span className="text-gray-400">clients</span>
+                                            <span className="text-gray-400 dark:text-gray-400">clients</span>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-1 text-[11px] text-gray-500">
+                            <div className="flex flex-wrap items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                                 {(u.city || u.state) && (
                                     <span>
                                         {u.city}
@@ -431,7 +431,7 @@ export default function SearchPage() {
                                 )}
                             </div>
 
-                            <div className="text-xs text-gray-600 line-clamp-2">
+                            <div className="text-xs text-gray-600 line-clamp-2 dark:text-gray-300">
                                 {u.about?.trim()
                                     ? u.about
                                     : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
@@ -449,23 +449,23 @@ export default function SearchPage() {
     const paginatedResults = allResults.slice(startIdx, startIdx + pageSize);
 
     return (
-        <div className="min-h-screen bg-[#f8f8f8] flex flex-col overflow-x-hidden">
+        <div className="min-h-screen bg-[#f8f8f8] flex flex-col overflow-x-hidden dark:bg-[#050505] dark:text-white">
             <MobileHeader title="search" href="/search" subContent={mobileFilters} />
 
             {/* Desktop header */}
-            <header className="hidden lg:block sticky top-0 z-20 w-full bg-white">
+            <header className="hidden lg:block sticky top-0 z-20 w-full bg-white dark:bg-neutral-900 dark:border-b dark:border-white/10">
                 <div className="mx-auto max-w-[1400px] w-full flex items-center gap-4 py-6 pl-[40px] pr-4">
-                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+                    <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none dark:text-green-400">
                         <span>search</span>
                     </h1>
 
                     <div className="flex items-center gap-3 flex-1 justify-end">
-                        <div className="flex items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2">
-                            <SearchIcon size={18} className="text-gray-500" />
+                        <div className="flex items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2 dark:border-white/15">
+                            <SearchIcon size={18} className="text-gray-500 dark:text-gray-400" />
                             <input
                                 value={q}
                                 onChange={(e) => setQ(e.target.value)}
-                                className="flex-1 outline-none text-sm"
+                                className="flex-1 outline-none text-sm bg-transparent dark:text-white"
                                 placeholder="Search by name or @username…"
                             />
                         </div>
@@ -485,8 +485,8 @@ export default function SearchPage() {
                                                 className={clsx(
                                                     'rounded-2xl border px-3 py-2 text-sm text-left transition',
                                                     activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                                 )}
                                             >
                                                 {d ? `${d} km` : 'Any distance'}
@@ -512,8 +512,8 @@ export default function SearchPage() {
                                                 className={clsx(
                                                     'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
                                                     activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                                 )}
                                             >
                                                 {r === 'ALL' ? 'any role' : r.toLowerCase()}
@@ -531,35 +531,35 @@ export default function SearchPage() {
                             active={Boolean(minBudget || maxBudget)}
                             menu={
                                 <div className="space-y-3 p-4 w-[22rem] max-w-[calc(100vw-80px)] text-sm">
-                                    <div className="text-xs uppercase tracking-wide text-gray-400">
+                                    <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                         trainers hourly · gyms monthly
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                             placeholder="Min"
                                             value={minBudget}
                                             onChange={(e) => setMinBudget(e.target.value)}
                                         />
-                                        <span className="text-gray-400">—</span>
+                                        <span className="text-gray-400 dark:text-gray-500">—</span>
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                             placeholder="Max"
                                             value={maxBudget}
                                             onChange={(e) => setMaxBudget(e.target.value)}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                         <button
                                             onClick={() => {
                                                 setMinBudget('');
                                                 setMaxBudget('');
                                             }}
-                                            className="rounded-full px-2 py-1 transition hover:text-gray-800"
+                                            className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
                                         >
                                             Clear
                                         </button>
@@ -585,15 +585,15 @@ export default function SearchPage() {
                                                 className={clsx(
                                                     'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
                                                     checked
-                                                        ? 'border-gray-900 bg-gray-900 text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50'
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                                 )}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={checked}
                                                     onChange={() => toggleGoal(g)}
-                                                    className="accent-gray-900"
+                                                    className="accent-gray-900 dark:accent-green-400"
                                                 />
                                                 <span>{g}</span>
                                             </label>
@@ -601,7 +601,7 @@ export default function SearchPage() {
                                     })}
                                     <button
                                         onClick={() => setGoals([])}
-                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800"
+                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                                     >
                                         Clear goals
                                     </button>
@@ -611,7 +611,7 @@ export default function SearchPage() {
 
                         <button
                             onClick={resetFilters}
-                            className="flex items-center rounded-xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm text-gray-700 uppercase tracking-wide transition hover:border-gray-400 hover:bg-white"
+                className="flex items-center rounded-xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm text-gray-700 uppercase tracking-wide transition hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10"
                             title="Reset filters"
                         >
                             Reset
@@ -625,20 +625,20 @@ export default function SearchPage() {
                     {mobileView === 'list' && (
                         <div className="px-4 py-4 space-y-4">
                             {loading ? (
-                                <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border">Loading…</div>
+                                <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border dark:bg-neutral-900 dark:border-white/10 dark:text-gray-400">Loading…</div>
                             ) : error ? (
-                                <div className="p-4 text-sm text-red-500 bg-white rounded-xl border">{error}</div>
+                                <div className="p-4 text-sm text-red-500 bg-white rounded-xl border dark:bg-neutral-900 dark:border-white/10">{error}</div>
                             ) : allResults.length ? (
                                 <>
                                     <div
-                                        className="space-y-3 max-h-[70vh] overflow-y-auto"
+                                        className="space-y-3 max-h-[70vh] overflow-y-auto scrollbar-slim"
                                         ref={mobileListRef}
                                     >
                                         {paginatedResults.map((u) => renderMobileCard(u))}
                                     </div>
-                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                                         <button
-                                            className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40"
+                                            className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
                                             disabled={page === 1}
                                             onClick={() => setPage((p) => Math.max(1, p - 1))}
                                         >
@@ -648,7 +648,7 @@ export default function SearchPage() {
                                             Page {page} of {totalPages}
                                         </span>
                                         <button
-                                            className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40"
+                                            className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
                                             disabled={page === totalPages}
                                             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                                         >
@@ -657,7 +657,7 @@ export default function SearchPage() {
                                     </div>
                                 </>
                             ) : (
-                                <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border">No results.</div>
+                                <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border dark:bg-neutral-900 dark:border-white/10 dark:text-gray-400">No results.</div>
                             )}
                         </div>
                     )}
@@ -666,13 +666,13 @@ export default function SearchPage() {
                         <div className="px-4 py-4">
                             <button
                                 onClick={() => setMobileView('list')}
-                                className="mb-3 inline-flex items-center gap-2 text-sm text-green-700"
+                                className="mb-3 inline-flex items-center gap-2 text-sm text-green-700 dark:text-green-400"
                             >
                                 <span className="text-lg">&larr;</span> Back
                             </button>
-                            <div className="bg-white border rounded-xl p-4 overflow-hidden">
+                            <div className="bg-white border rounded-xl p-4 overflow-hidden dark:bg-neutral-900 dark:border-white/10">
                                 {!selected ? (
-                                    <div className="text-gray-500 text-sm">Select a result to see details.</div>
+                                    <div className="text-gray-500 text-sm dark:text-gray-400">Select a result to see details.</div>
                                 ) : (
                                     <UserDetails
                                         u={selected}
@@ -691,17 +691,17 @@ export default function SearchPage() {
                     <div className="mx-auto max-w-[1400px] px-4 py-4">
                         <div className="flex gap-6">
                             <aside className="w-[380px] shrink-0">
-                                <div className="bg-white border rounded-xl overflow-hidden lg:h-[calc(100vh-190px)] lg:flex lg:flex-col">
+                                <div className="bg-white border rounded-xl overflow-hidden lg:h-[calc(100vh-190px)] lg:flex lg:flex-col dark:bg-neutral-900 dark:border-white/10">
                                     <div
                                         ref={listRef}
-                                        className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0"
+                                        className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0 dark:divide-white/10 scrollbar-slim"
                                     >
                                         {loading ? (
-                                            <div className="p-4 text-sm text-gray-500">Loading…</div>
+                                            <div className="p-4 text-sm text-gray-500 dark:text-gray-400">Loading…</div>
                                         ) : error ? (
                                             <div className="p-4 text-sm text-red-500">{error}</div>
                                         ) : allResults.length === 0 ? (
-                                            <div className="p-4 text-sm text-gray-500">No results.</div>
+                                            <div className="p-4 text-sm text-gray-500 dark:text-gray-400">No results.</div>
                                         ) : (
                                             paginatedResults.map((u) => {
                                                 const slug = u.username || u.id;
@@ -712,8 +712,8 @@ export default function SearchPage() {
                                                         key={u.id}
                                                         onClick={() => setSelectedId(u.id)}
                                                         className={clsx(
-                                                            'w-full text-left p-3 hover:bg-gray-50 flex items-start gap-3',
-                                                            selectedId === u.id && 'bg-gray-50'
+                                                            'w-full text-left p-3 hover:bg-gray-50 flex items-start gap-3 dark:hover:bg-white/5',
+                                                            selectedId === u.id && 'bg-gray-50 dark:bg-white/10'
                                                         )}
                                                         title={display}
                                                     >
@@ -722,10 +722,10 @@ export default function SearchPage() {
                                                             <img
                                                                 src={u.image}
                                                                 alt={display}
-                                                                className="w-10 h-10 rounded-full object-cover border"
+                                                                className="w-10 h-10 rounded-full object-cover border dark:border-white/20"
                                                             />
                                                         ) : (
-                                                            <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-semibold">
+                                                            <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-semibold dark:bg-white/10 dark:border-white/20 dark:text-white">
                                                                 {(u.name || u.username || 'U').slice(0, 2)}
                                                             </div>
                                                         )}
@@ -741,25 +741,25 @@ export default function SearchPage() {
                                                                     >
                                                                         {display}
                                                                     </Link>
-                                                                    <span className="text-xs text-gray-500">
+                                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
                                                                         {u.role?.toLowerCase()}
                                                                     </span>
                                                                 </div>
 
                                                                 {u.isPrivate && (
-                                                                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border whitespace-nowrap">
+                                                                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border whitespace-nowrap dark:bg-white/5 dark:text-gray-300 dark:border-white/10">
                                                                         private
                                                                     </span>
                                                                 )}
                                                             </div>
 
-                                                            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                                            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2 dark:text-gray-300">
                                                                 {u.about?.trim()
                                                                     ? u.about
                                                                     : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
                                                             </div>
 
-                                                            <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2">
+                                                            <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2 dark:text-gray-400">
                                                                 {(u.city || u.state) && (
                                                                     <span>
                                                                         {u.city}
@@ -784,9 +784,9 @@ export default function SearchPage() {
                                         )}
                                     </div>
                                     {allResults.length > 0 && (
-                                        <div className="px-4 py-3 border-t flex items-center justify-between text-xs text-gray-600">
+                                        <div className="px-4 py-3 border-t flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                                             <button
-                                                className="px-2 py-1 rounded border disabled:opacity-40"
+                                                className="px-2 py-1 rounded border disabled:opacity-40 dark:border-white/20 dark:text-gray-100"
                                                 disabled={page === 1}
                                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                             >
@@ -796,7 +796,7 @@ export default function SearchPage() {
                                                 Page {page} of {totalPages}
                                             </span>
                                             <button
-                                                className="px-2 py-1 rounded border disabled:opacity-40"
+                                                className="px-2 py-1 rounded border disabled:opacity-40 dark:border-white/20 dark:text-gray-100"
                                                 disabled={page === totalPages}
                                                 onClick={() =>
                                                     setPage((p) => Math.min(totalPages, p + 1))
@@ -810,9 +810,9 @@ export default function SearchPage() {
                             </aside>
 
                             <section className="flex-1 min-w-0">
-                                <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)]">
+                                <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)] dark:bg-neutral-900 dark:border-white/10">
                                     {!selected ? (
-                                        <div className="text-gray-500">Select a result to see details.</div>
+                                        <div className="text-gray-500 dark:text-gray-400">Select a result to see details.</div>
                                     ) : (
                                         <UserDetails
                                             u={selected}
@@ -836,12 +836,12 @@ export default function SearchPage() {
                     role="dialog"
                 >
                     <div
-                        className="bg-white p-6 rounded-xl shadow-lg relative max-w-[90vw] max-h-[90vh]"
+                        className="bg-white p-6 rounded-xl shadow-lg relative max-w-[90vw] max-h-[90vh] dark:bg-neutral-900 dark:border dark:border-white/10"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button
                             onClick={() => setLightboxUrl(null)}
-                            className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition"
+                            className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition dark:hover:bg-white/10"
                             aria-label="Close"
                             type="button"
                             title="Close"
@@ -888,9 +888,9 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
             >
                 {u.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={u.image} alt="" className="w-16 h-16 rounded-full object-cover border shrink-0" />
+                    <img src={u.image} alt="" className="w-16 h-16 rounded-full object-cover border shrink-0 dark:border-white/20" />
                 ) : (
-                    <div className="w-16 h-16 rounded-full bg-gray-200 border flex items-center justify-center text-sm font-semibold">
+                    <div className="w-16 h-16 rounded-full bg-gray-200 border flex items-center justify-center text-sm font-semibold dark:bg-white/10 dark:border-white/20 dark:text-white">
                         {(u.name || u.username || 'U').slice(0, 2)}
                     </div>
                 )}
@@ -915,7 +915,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                             </Link>
                             <span
                                 className={clsx(
-                                    "text-base text-gray-500",
+                                    "text-base text-gray-500 dark:text-gray-400",
                                     variant === 'mobile' ? "block mt-1" : "ml-3 align-middle"
                                 )}
                             >
@@ -930,7 +930,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                             )}
                         >
                             <button
-                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
                                 title="Message"
                                 onClick={() => onMessage(u)}
                             >
@@ -940,7 +940,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                                 </span>
                             </button>
                             <button
-                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
                                 title="Share profile"
                                 onClick={() => onShare(u)}
                             >
@@ -953,7 +953,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                             {(u.role === 'TRAINER' || u.role === 'GYM') && (
                                 <Link
                                     href={`/u/${encodeURIComponent(slug)}?rate=1`}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
                                     title={`Rate this ${u.role.toLowerCase()}`}
                                 >
                                     <span className="inline-flex items-center gap-1">
@@ -965,7 +965,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                         </div>
                     </div>
 
-                    <div className={clsx("text-sm text-gray-600 mt-1", variant === 'mobile' && "break-words")}>
+                    <div className={clsx("text-sm text-gray-600 mt-1 dark:text-gray-300", variant === 'mobile' && "break-words")}>
                         {u.city}
                         {u.state ? `, ${u.state}` : ''}
                         {u.price != null && (
@@ -987,7 +987,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
             {/* About */}
             <div>
                 <h3 className="font-semibold mb-2">About</h3>
-                <p className="text-gray-800 whitespace-pre-wrap break-words">
+                <p className="text-gray-800 whitespace-pre-wrap break-words dark:text-gray-200">
                     {u.about?.trim() || 'No description provided.'}
                 </p>
             </div>
@@ -1014,11 +1014,11 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                     </div>
                     <div className="min-w-0">
                         <div className="font-semibold mb-1">Clients</div>
-                        <div className="text-gray-700">{u.clients ?? 0}</div>
+                        <div className="text-gray-700 dark:text-gray-200">{u.clients ?? 0}</div>
                     </div>
                     <div className="min-w-0">
                         <div className="font-semibold mb-1">Rating</div>
-                        <div className="text-gray-700">{u.rating?.toFixed(1) ?? 'N/A'}</div>
+                        <div className="text-gray-700 dark:text-gray-200">{u.rating?.toFixed(1) ?? 'N/A'}</div>
                     </div>
                 </section>
             )}
@@ -1028,11 +1028,11 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                 <section className={clsx("mt-6", variant === 'mobile' && "mt-4")}>
                     <h3 className="font-semibold mb-2">Amenities</h3>
                     {u.amenitiesText?.trim() ? (
-                        <p className="text-gray-800 whitespace-pre-wrap">{u.amenitiesText}</p>
+                        <p className="text-gray-800 whitespace-pre-wrap dark:text-gray-200">{u.amenitiesText}</p>
                     ) : u.amenities?.length ? (
                         <TagList items={u.amenities} />
                     ) : (
-                        <div className="text-gray-600">—</div>
+                        <div className="text-gray-600 dark:text-gray-400">—</div>
                     )}
                 </section>
             )}
@@ -1046,7 +1046,7 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                             <button
                                 key={url}
                                 type="button"
-                                className="group relative aspect-square overflow-hidden rounded-lg border bg-black"
+                                className="group relative aspect-square overflow-hidden rounded-lg border bg-black dark:border-white/10"
                                 onClick={() => onOpenImage(url)}
                                 title="View photo"
                             >
@@ -1067,11 +1067,11 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
 }
 
 function TagList({ items }: { items: string[] }) {
-    if (!items.length) return <div className="text-gray-600">—</div>;
+    if (!items.length) return <div className="text-gray-600 dark:text-gray-400">—</div>;
     return (
         <div className="flex flex-wrap gap-1">
             {items.map((x) => (
-                <span key={x} className="px-2 py-0.5 rounded-full border text-xs bg-gray-50">
+                <span key={x} className="px-2 py-0.5 rounded-full border text-xs bg-gray-50 dark:border-white/15 dark:bg-white/5">
                     {x}
                 </span>
             ))}
@@ -1142,15 +1142,15 @@ function Chip({
                     spacingClass,
                     justifyClass,
                     active
-                        ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100'
-                        : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white'
+                        ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-400 dark:bg-green-500/10 dark:text-green-200'
+                        : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10'
                 )}
             >
                 <span
                     className={clsx(
                         'whitespace-nowrap uppercase tracking-wide',
                         compact ? 'text-[10px]' : 'text-xs',
-                        active ? 'text-green-700' : 'text-gray-500',
+                        active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400',
                         !showValue && 'flex-1 text-left'
                 )}
             >
@@ -1160,7 +1160,7 @@ function Chip({
                     <>
                         <span
                             className={clsx(
-                                active ? 'bg-green-200' : 'bg-gray-200',
+                                active ? 'bg-green-200 dark:bg-green-500/40' : 'bg-gray-200 dark:bg-white/20',
                                 compact ? 'h-3 w-px' : 'h-4 w-px'
                             )}
                             aria-hidden="true"
@@ -1172,7 +1172,7 @@ function Chip({
                 )}
                 <ChevronDown
                     size={compact ? 14 : 16}
-                    className={clsx('shrink-0', active ? 'text-green-700' : 'text-gray-500')}
+                    className={clsx('shrink-0', active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400')}
                 />
             </button>
             {open && (
@@ -1189,8 +1189,8 @@ function Chip({
                     <div
                         className={clsx(
                             menuFixed
-                                ? 'fixed left-1/2 z-40 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur w-[calc(100vw-32px)] max-w-sm'
-                                : 'absolute z-20 mt-2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur',
+                                ? 'fixed left-1/2 z-40 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur w-[calc(100vw-32px)] max-w-sm dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100'
+                                : 'absolute z-20 mt-2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100',
                             menuFixed ? '' : menuPosition ?? 'right-0',
                             menuClassName ?? (menuFixed ? '' : 'min-w-[240px]')
                         )}
@@ -1206,7 +1206,7 @@ function Chip({
                                     setOpen(false);
                                     setMenuTop(null);
                                 }}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10"
                                 title="Close"
                             >
                                 <X size={16} />

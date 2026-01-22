@@ -183,7 +183,7 @@ export default function SearchProfileEditor({
     return (
         <section className="mt-6">
             <h2 className="text-xl font-semibold mb-2">Search Profile</h2>
-            <p className="text-sm text-gray-600 mb-5">
+            <p className="text-sm text-gray-600 mb-5 dark:text-gray-400">
                 Customize what appears on <span className="font-medium">Search</span> for your {roleLabel}.
                 Your profile picture, name, and city/country come from your main profile.
             </p>
@@ -198,12 +198,12 @@ export default function SearchProfileEditor({
                     <div className="mb-6">
                         <label className="block text-sm font-medium mb-1">About</label>
                         <textarea
-                            className="w-full min-h-[100px] border rounded-md px-3 py-2 text-sm"
+                            className="w-full min-h-[100px] border rounded-md px-3 py-2 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                             placeholder="Tell people about yourself…"
                             value={about}
                             onChange={(e) => setAbout(e.target.value)}
                         />
-                        <div className="text-xs text-gray-500 mt-1">Shown on your Search details card.</div>
+                        <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">Shown on your Search details card.</div>
                     </div>
 
                     {/* Role-specific fields */}
@@ -219,8 +219,10 @@ export default function SearchProfileEditor({
                                         type="button"
                                         onClick={() => toggle(g, goals, setGoals)}
                                         className={clsx(
-                                            "px-3 py-1 rounded-full border text-sm",
-                                            goals.includes(g) ? "bg-gray-900 text-white" : "bg-white hover:bg-gray-50"
+                                            "px-3 py-1 rounded-full border text-sm transition",
+                                            goals.includes(g)
+                                                ? "bg-green-600 text-white border-green-600 shadow-sm dark:bg-green-500 dark:text-black dark:border-green-500"
+                                                : "bg-white hover:bg-gray-50 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                         )}
                                     >
                                         {g}
@@ -232,11 +234,11 @@ export default function SearchProfileEditor({
                             {goals.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     {goals.map((g) => (
-                                        <span key={g} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs bg-gray-50">
+                                        <span key={g} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs bg-gray-50 dark:bg-white/10 dark:border-white/20 dark:text-gray-100">
                                             {g}
                                             <button
                                                 type="button"
-                                                className="text-gray-500 hover:text-black"
+                                                className="text-gray-500 hover:text-black dark:text-gray-300 dark:hover:text-white"
                                                 onClick={() => setGoals(goals.filter((x) => x !== g))}
                                                 title="Remove"
                                             >
@@ -250,7 +252,7 @@ export default function SearchProfileEditor({
                             {/* Add custom goal */}
                             <div className="flex items-center gap-2 max-w-md">
                                 <input
-                                    className="flex-1 border rounded px-3 py-2 text-sm"
+                                    className="flex-1 border rounded px-3 py-2 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                                     placeholder="Add a custom goal and press Enter…"
                                     value={newGoal}
                                     onChange={(e) => setNewGoal(e.target.value)}
@@ -264,7 +266,7 @@ export default function SearchProfileEditor({
                                 <button
                                     type="button"
                                     onClick={() => addCustom(newGoal, goals, setGoals, () => setNewGoal(""))}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                 >
                                     Add
                                 </button>
@@ -285,8 +287,10 @@ export default function SearchProfileEditor({
                                             type="button"
                                             onClick={() => toggle(s, services, setServices)}
                                             className={clsx(
-                                                "px-3 py-1 rounded-full border text-sm",
-                                                services.includes(s) ? "bg-gray-900 text-white" : "bg-white hover:bg-gray-50"
+                                                "px-3 py-1 rounded-full border text-sm transition",
+                                                services.includes(s)
+                                                    ? "bg-green-600 text-white border-green-600 shadow-sm dark:bg-green-500 dark:text-black dark:border-green-500"
+                                                    : "bg-white hover:bg-gray-50 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                             )}
                                         >
                                             {s}
@@ -315,8 +319,8 @@ export default function SearchProfileEditor({
 
                                 {/* Add custom service */}
                                 <div className="flex items-center gap-2 max-w-md">
-                                    <input
-                                        className="flex-1 border rounded px-3 py-2 text-sm"
+                                <input
+                                    className="flex-1 border rounded px-3 py-2 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                                         placeholder="Add a custom service and press Enter…"
                                         value={newService}
                                         onChange={(e) => setNewService(e.target.value)}
@@ -327,11 +331,11 @@ export default function SearchProfileEditor({
                                             }
                                         }}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => addCustom(newService, services, setServices, () => setNewService(""))}
-                                        className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
-                                    >
+                                <button
+                                    type="button"
+                                    onClick={() => addCustom(newService, services, setServices, () => setNewService(""))}
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                >
                                         Add
                                     </button>
                                 </div>
@@ -405,7 +409,7 @@ export default function SearchProfileEditor({
                                 <button
                                     type="button"
                                     onClick={() => fileRef.current?.click()}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50"
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                 >
                                     Upload
                                 </button>
@@ -413,7 +417,7 @@ export default function SearchProfileEditor({
                         </div>
 
                         {gallery.length === 0 ? (
-                            <div className="text-sm text-gray-500">No images uploaded.</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">No images uploaded.</div>
                         ) : (
                             <div className="grid grid-cols-3 gap-2">
                                 {gallery.map((u) => (

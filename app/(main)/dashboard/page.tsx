@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
 import { Trash2 } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
+import { HEATMAP_COLORS_DARK, HEATMAP_COLORS_LIGHT } from '@/lib/heatmapColors';
 import {
     fetchAllDashboardData,
     addExerciseServer,
@@ -77,6 +79,7 @@ function LineChartDual({
     reps,
     labels,
     dayEntries,
+    isDark = false,
 }: {
     width: number;
     height: number;
@@ -84,6 +87,7 @@ function LineChartDual({
     reps: number[];
     labels: string[];
     dayEntries: SetEntry[][];
+    isDark?: boolean;
 }) {
     const left = 40;
     const right = 40;
@@ -245,6 +249,15 @@ function LineChartDual({
         tooltipLeft = Math.max(min, Math.min(max, cssCX - tipW / 2));
     }
 
+    const weightColor = '#16a34a';
+    const repsColor = isDark ? '#93c5fd' : '#111827';
+    const gridStroke = isDark ? '#1f2937' : '#e5e7eb';
+    const tickStroke = isDark ? '#111827' : '#f1f5f9';
+    const tickLabel = isDark ? '#d1d5db' : '#6b7280';
+    const axisLabel = isDark ? '#e5e7eb' : '#111827';
+    const hoverLine = isDark ? '#374151' : '#e5e7eb';
+    const dotFill = isDark ? '#0f172a' : '#ffffff';
+
     return (
         <div className="relative h-full w-full">
             <svg
@@ -261,60 +274,60 @@ function LineChartDual({
                 style={isCoarsePointer ? { touchAction: 'none' } : undefined}
             >
                 {/* grid & axes */}
-                <line x1={left} y1={top + h} x2={left + w} y2={top + h} stroke="#e5e7eb" />
-                <line x1={left} y1={top} x2={left} y2={top + h} stroke="#e5e7eb" />
-                <line x1={left + w} y1={top} x2={left + w} y2={top + h} stroke="#e5e7eb" />
+                <line x1={left} y1={top + h} x2={left + w} y2={top + h} stroke={gridStroke} />
+                <line x1={left} y1={top} x2={left} y2={top + h} stroke={gridStroke} />
+                <line x1={left + w} y1={top} x2={left + w} y2={top + h} stroke={gridStroke} />
                 {leftTicks.map((_, i) => {
                     const yy = top + h - (i / ticks) * h;
-                    return <line key={i} x1={left} y1={yy} x2={left + w} y2={yy} stroke="#f1f5f9" />;
+                    return <line key={i} x1={left} y1={yy} x2={left + w} y2={yy} stroke={tickStroke} />;
                 })}
 
                 {/* y ticks */}
                 {leftTicks.map((t, i) => (
-                    <text key={`lw${i}`} x={left - 6} y={yW(t) + 3} fontSize="10" textAnchor="end" fill="#6b7280">
+                    <text key={`lw${i}`} x={left - 6} y={yW(t) + 3} fontSize="10" textAnchor="end" fill={tickLabel}>
                         {Math.round(t)}
                     </text>
                 ))}
                 {rightTicks.map((t, i) => (
-                    <text key={`rr${i}`} x={left + w + 6} y={yR(t) + 3} fontSize="10" textAnchor="start" fill="#6b7280">
+                    <text key={`rr${i}`} x={left + w + 6} y={yR(t) + 3} fontSize="10" textAnchor="start" fill={tickLabel}>
                         {Math.round(t)}
                     </text>
                 ))}
 
                 {/* axis titles — moved ~5px UP (from top-6 to top-11) */}
-                <text x={left - 30} y={top - 11} fontSize="10" fill="#111827">
+                <text x={left - 30} y={top - 11} fontSize="10" fill={axisLabel}>
                     weight (lbs)
                 </text>
-                <text x={left + w + 30} y={top - 11} fontSize="10" textAnchor="end" fill="#111827">
+                <text x={left + w + 30} y={top - 11} fontSize="10" textAnchor="end" fill={axisLabel}>
                     reps (avg)
                 </text>
 
                 {/* x labels: endpoints only */}
                 {labels.length > 0 && (
                     <>
-                        <text x={x(0)} y={top + h + 14} fontSize="9" textAnchor="start" fill="#6b7280">
+                        <text x={x(0)} y={top + h + 14} fontSize="9" textAnchor="start" fill={tickLabel}>
                             {labels[0].slice(5).replace('-', '/')}
                         </text>
-                        <text x={x(labels.length - 1)} y={top + h + 14} fontSize="9" textAnchor="end" fill="#6b7280">
+                        <text x={x(labels.length - 1)} y={top + h + 14} fontSize="9" textAnchor="end" fill={tickLabel}>
                             {labels[labels.length - 1].slice(5).replace('-', '/')}
                         </text>
                     </>
                 )}
 
                 {/* series */}
-                {weightPath && <path d={weightPath} fill="none" stroke="#16a34a" strokeWidth={2} />}
-                {repsPath && <path d={repsPath} fill="none" stroke="#111827" strokeWidth={2} />}
+                {weightPath && <path d={weightPath} fill="none" stroke={weightColor} strokeWidth={2} />}
+                {repsPath && <path d={repsPath} fill="none" stroke={repsColor} strokeWidth={2} />}
 
                 {/* points */}
-                {weight.map((v, i) => (v > 0 ? <circle key={`pw${i}`} cx={x(i)} cy={yW(v)} r={2.4} fill="#16a34a" /> : null))}
-                {reps.map((v, i) => (v > 0 ? <circle key={`pr${i}`} cx={x(i)} cy={yR(v)} r={2.4} fill="#111827" /> : null))}
+                {weight.map((v, i) => (v > 0 ? <circle key={`pw${i}`} cx={x(i)} cy={yW(v)} r={2.4} fill={weightColor} /> : null))}
+                {reps.map((v, i) => (v > 0 ? <circle key={`pr${i}`} cx={x(i)} cy={yR(v)} r={2.4} fill={repsColor} /> : null))}
 
                 {/* hover */}
                 {hover && (
                     <>
-                        <line x1={hover.cx} y1={top} x2={hover.cx} y2={top + h} stroke="#e5e7eb" />
-                        {hover.cyW != null && <circle cx={hover.cx} cy={hover.cyW} r={3.8} fill="white" stroke="#16a34a" strokeWidth={2} />}
-                        {hover.cyR != null && <circle cx={hover.cx} cy={hover.cyR} r={3.8} fill="white" stroke="#111827" strokeWidth={2} />}
+                        <line x1={hover.cx} y1={top} x2={hover.cx} y2={top + h} stroke={hoverLine} />
+                        {hover.cyW != null && <circle cx={hover.cx} cy={hover.cyW} r={3.8} fill={dotFill} stroke={weightColor} strokeWidth={2} />}
+                        {hover.cyR != null && <circle cx={hover.cx} cy={hover.cyR} r={3.8} fill={dotFill} stroke={repsColor} strokeWidth={2} />}
                     </>
                 )}
                 <rect x={left} y={top} width={w} height={h} fill="transparent" />
@@ -322,11 +335,11 @@ function LineChartDual({
 
             {/* legend */}
             <div className="hidden">
-                <span className="inline-flex items-center gap-1 text-zinc-700">
+                <span className="inline-flex items-center gap-1 text-zinc-700 dark:text-gray-100">
                     <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
                     <span className="font-medium">Weight (avg)</span>
                 </span>
-                <span className="inline-flex items-center gap-1 text-zinc-700">
+                <span className="inline-flex items-center gap-1 text-zinc-700 dark:text-gray-100">
                     <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#111827' }} />
                     <span className="font-medium">Reps (avg)</span>
                 </span>
@@ -336,24 +349,27 @@ function LineChartDual({
             {hover && (
                 <div
                     ref={tipRef}
-                    className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow"
+                    className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                     style={{
                         left: tooltipLeft,
                         top: 120,
                     }}
                 >
-                    <div className="text-[11px] text-zinc-500">{hoverDate}</div>
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-300">{hoverDate}</div>
                     <div className="mt-1 flex items-center gap-3">
                         <span className="inline-flex items-center gap-1">
                             <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
                             <span className="font-medium">{hoverAvgW ? `${hoverAvgW.toFixed(1)} lbs` : '—'}</span>
                         </span>
                         <span className="inline-flex items-center gap-1">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#111827' }} />
-                            <span className="font-medium">{hoverAvgR ? `${hoverAvgR.toFixed(1)} reps` : '—'}</span>
+                            <span className="h-2.5 w-2.5 rounded-full bg-[#111827] dark:bg-[#93c5fd]" />
+                            <span className="font-medium">
+                                {hoverAvgR ? `${hoverAvgR.toFixed(1)} reps` : '—'}
+                            </span>
                         </span>
+
                     </div>
-                    <div className="mt-1 text-zinc-700">
+                    <div className="mt-1 text-zinc-700 dark:text-gray-100">
                         sets: <span className="font-medium">{hoverTotalSets}</span>
                     </div>
                 </div>
@@ -367,11 +383,13 @@ function YearHeatmap({
     height,
     valuesByDate,
     sparseDayLabels = false,
+    isDark = false,
 }: {
     width: number;
     height: number;
     valuesByDate: Record<string, number>;
     sparseDayLabels?: boolean;
+    isDark?: boolean;
 }) {
     const cols = 53;
     const rows = 7;
@@ -412,7 +430,9 @@ function YearHeatmap({
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     // Buckets: <=0, 1–3, 4–6, 7–9, 10+
     const levels = [0, 3, 6, 9, Infinity];
-    const colors = ['#e5e7eb', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399'];
+    const colors = isDark ? HEATMAP_COLORS_DARK : HEATMAP_COLORS_LIGHT;
+    const labelColor = isDark ? '#d1d5db' : '#6b7280';
+    const cellBorder = isDark ? '#4b5563' : 'none';
 
     return (
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
@@ -423,12 +443,12 @@ function YearHeatmap({
                 const y = 8 + labelTop + r * (cell + gap);
                 const li = levels.findIndex((t) => item.val <= t);
                 const fill = colors[Math.max(0, li)];
-                return <rect key={idx} x={x} y={y} width={cell} height={cell} rx="2" ry="2" fill={fill} />;
+                return <rect key={idx} x={x} y={y} width={cell} height={cell} rx="2" ry="2" fill={fill} stroke={cellBorder} strokeWidth={cellBorder === 'none' ? 0 : 0.7} />;
             })}
             {monthTicks.map((t, i) => {
                 const x = 8 + t.col * (cell + gap) + cell / 2;
                 return (
-                    <text key={i} x={x} y={8 + 10} fontSize="10" textAnchor="middle" fill="#6b7280">
+                    <text key={i} x={x} y={8 + 10} fontSize="10" textAnchor="middle" fill={labelColor}>
                         {t.label}
                     </text>
                 );
@@ -438,7 +458,7 @@ function YearHeatmap({
                 const y = 8 + labelTop + r * (cell + gap) + cell * 0.7;
                 const x = width - 26;
                 return (
-                    <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill="#6b7280">
+                    <text key={lb} x={x} y={y} fontSize="10" textAnchor="start" fill={labelColor}>
                         {lb}
                     </text>
                 );
@@ -455,11 +475,13 @@ const RANGE_TITLES: Record<RangeKey, string> = {
     '1M': "This month's lifts",
     '3M': "Past three months' lifts",
     '1Y': "This year's lifts",
-    'ALL': 'Your lifts',
+    'ALL': 'My lifts',
 };
 const SPLIT_ANCHOR_KEY = 'gf_split_anchor_v1';
 
 export default function Dashboard() {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const [sets, setSets] = useState<SetEntry[]>([]);
     const [exercises, setExercises] = useState<string[]>([]);
     const [exercise, setExercise] = useState<string>('');
@@ -481,6 +503,8 @@ export default function Dashboard() {
     const [heatmapWidth, setHeatmapWidth] = useState(820);
 
     const todayDay = daysSinceEpochUTC();
+    const repsLineColor = isDark ? '#93c5fd' : '#111827';
+    const heatmapPalette = isDark ? HEATMAP_COLORS_DARK : HEATMAP_COLORS_LIGHT;
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -804,26 +828,28 @@ export default function Dashboard() {
     const onRange = (r: RangeKey) => setRange(r);
 
     const reqClass = (empty: boolean) =>
-        `w-full border rounded px-2 py-1 text-sm mt-1 ${showRequired && empty ? 'text-red-600 placeholder-red-400' : ''}`;
+        `w-full border rounded px-2 py-1 text-sm mt-1 dark:border-white/20 dark:bg-transparent dark:text-gray-100 ${
+            showRequired && empty ? 'text-red-600 placeholder-red-400' : ''
+        }`;
 
     const mobileTabs = (
         <div className="px-4 pb-4">
             <div className="flex gap-2 text-sm">
                 <Link
                     href="/dashboard"
-                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white"
+                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
                 >
                     workouts
                 </Link>
                 <Link
                     href="/dashboard/wellness"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
                 >
                     wellness
                 </Link>
                 <Link
                     href="/dashboard/nutrition"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400"
+                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
                 >
                     nutrition
                 </Link>
@@ -832,25 +858,26 @@ export default function Dashboard() {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#f8f8f8] lg:h-screen lg:overflow-hidden">
+        <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white lg:h-screen lg:overflow-hidden">
             <MobileHeader title="workouts log" href="/dashboard" subContent={mobileTabs} />
 
             {/* Header (fixed height) */}
-            <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5">
-                <h1 className="select-none font-roboto text-3xl tracking-tight text-green-700">workouts log</h1>
+            <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5 dark:bg-neutral-900 dark:border-b dark:border-white/10">
+                <h1 className="select-none font-roboto text-3xl tracking-tight text-green-700 dark:text-green-400">workouts log</h1>
                 <nav className="flex gap-2 text-sm">
-                    <Link href="/dashboard" className="rounded-full bg-black px-6 py-2 font-medium text-white">
+                    <Link href="/dashboard" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
                         workouts
                     </Link>
+                    {/* {flex - 1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10} */}
                     <Link
                         href="/dashboard/wellness"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
                     >
                         wellness
                     </Link>
                     <Link
                         href="/dashboard/nutrition"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
                     >
                         nutrition
                     </Link>
@@ -858,12 +885,12 @@ export default function Dashboard() {
             </header>
 
             {/* Content (fills remaining viewport, no body scroll) */}
-            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3 lg:h-full lg:px-4 lg:pb-4 lg:pt-3 lg:overflow-y-auto">
+            <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3 scrollbar-slim lg:h-full lg:px-4 lg:pb-4 lg:pt-3 lg:overflow-y-auto">
                 <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:grid lg:min-h-[940px] lg:h-full lg:min-w-0 lg:grid-cols-12">
                     {/* Left Column */}
                     <div className="contents lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
                         {/* Record Set */}
-                        <section className="order-1 flex flex-col rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:min-h-0 lg:flex-[55]">
+                        <section className="order-1 flex flex-col rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none lg:order-none lg:min-h-0 lg:flex-[55]">
                                 <div className="mb-2">
                                     <h3 className="font-semibold">Record set</h3>
                                 </div>
@@ -872,12 +899,12 @@ export default function Dashboard() {
                                 <div className="flex-1">
                                     <div className="mx-auto flex h-full max-w-[420px] flex-col justify-center gap-6 lg:-translate-y-3">
                                         <div>
-                                            <label className="text-[11px] text-zinc-500">exercise</label>
+                                            <label className="text-[11px] text-zinc-500 dark:text-zinc-300">exercise</label>
                                             <div className="mt-1 flex gap-2">
                                                 <select
                                                     value={exercise}
                                                     onChange={(e) => setExercise(e.target.value)}
-                                                    className="w-full rounded border px-2 py-1 text-sm"
+                                                    className="w-full rounded border px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                                 >
                                                     {exercises.map((ex) => (
                                                         <option key={ex} value={ex}>
@@ -885,10 +912,10 @@ export default function Dashboard() {
                                                         </option>
                                                     ))}
                                                 </select>
-                                                <button onClick={addExercise} className="rounded border px-2 py-1 text-xs">
+                                                <button onClick={addExercise} className="rounded border px-2 py-1 text-xs dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10">
                                                     Add
                                                 </button>
-                                                <button onClick={removeExercise} className="rounded border px-2 py-1 text-xs">
+                                                <button onClick={removeExercise} className="rounded border px-2 py-1 text-xs dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10">
                                                     Remove
                                                 </button>
                                             </div>
@@ -896,7 +923,7 @@ export default function Dashboard() {
 
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
-                                                <label className="text-[11px] text-zinc-500">weight (lbs)</label>
+                                                <label className="text-[11px] text-zinc-500 dark:text-zinc-300">weight (lbs)</label>
                                                 <input
                                                     value={weight}
                                                     onChange={(e) => setWeight(e.target.value)}
@@ -906,7 +933,7 @@ export default function Dashboard() {
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
-                                                    <label className="text-[11px] text-zinc-500">sets</label>
+                                                    <label className="text-[11px] text-zinc-500 dark:text-zinc-300">sets</label>
                                                     <input
                                                         value={setsNum}
                                                         onChange={(e) => setSetsNum(e.target.value)}
@@ -915,7 +942,7 @@ export default function Dashboard() {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[11px] text-zinc-500">reps</label>
+                                                    <label className="text-[11px] text-zinc-500 dark:text-zinc-300">reps</label>
                                                     <input
                                                         value={reps}
                                                         onChange={(e) => setReps(e.target.value)}
@@ -927,12 +954,12 @@ export default function Dashboard() {
                                         </div>
 
                                         <div>
-                                            <label className="text-[11px] text-zinc-500">date</label>
+                                            <label className="text-[11px] text-zinc-500 dark:text-zinc-300 block lg:inline-block">date</label>
                                             <input
                                                 type="date"
                                                 value={date}
                                                 onChange={(e) => setDate(e.target.value)}
-                                                className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                                                className="mt-1 w-full max-w-[322px] rounded border px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent dark:text-gray-100 lg:max-w-none"
                                             />
                                         </div>
 
@@ -949,7 +976,7 @@ export default function Dashboard() {
                             </section>
 
                         {/* Timer */}
-                        <section className="order-4 flex flex-col items-stretch rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:min-h-0 lg:flex-[38]">
+                        <section className="order-4 flex flex-col items-stretch rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none lg:order-none lg:min-h-0 lg:flex-[38]">
                                 <h3 className="mb-2 font-semibold">Timer</h3>
                                 <div className="flex items-center gap-2">
                                     <input
@@ -957,19 +984,19 @@ export default function Dashboard() {
                                         min={0}
                                         value={mm}
                                         onChange={(e) => setMm(Math.max(0, Number(e.target.value)))}
-                                        className="w-14 rounded border px-2 py-1 text-sm"
+                                        className="w-14 rounded border px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                     />
-                                    <span className="text-xs text-zinc-500">min</span>
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-300">min</span>
                                     <input
                                         type="number"
                                         min={0}
                                         max={59}
                                         value={ss}
                                         onChange={(e) => setSs(Math.min(59, Math.max(0, Number(e.target.value))))}
-                                        className="w-14 rounded border px-2 py-1 text-sm"
+                                        className="w-14 rounded border px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                     />
-                                    <span className="text-xs text-zinc-500">sec</span>
-                                    <button onClick={applyTimer} className="ml-auto rounded border px-2 py-1 text-xs">
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-300">sec</span>
+                                    <button onClick={applyTimer} className="ml-auto rounded border px-2 py-1 text-xs dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10">
                                         Set
                                     </button>
                                 </div>
@@ -980,15 +1007,15 @@ export default function Dashboard() {
 
                                 <div className="mt-2 flex justify-center gap-2">
                                     {!running ? (
-                                        <button onClick={startTimer} className="rounded bg-black px-3 py-1.5 text-white">
+                                        <button onClick={startTimer} className="rounded bg-black px-3 py-1.5 text-white dark:bg-white dark:text-black">
                                             start
                                         </button>
                                     ) : (
-                                        <button onClick={pauseTimer} className="rounded border px-3 py-1.5">
+                                        <button onClick={pauseTimer} className="rounded border px-3 py-1.5 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10">
                                             pause
                                         </button>
                                     )}
-                                    <button onClick={resetTimer} className="rounded border px-3 py-1.5">
+                                    <button onClick={resetTimer} className="rounded border px-3 py-1.5 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10">
                                         reset
                                     </button>
                                 </div>
@@ -998,33 +1025,33 @@ export default function Dashboard() {
                     {/* Center Column */}
                     <div className="contents lg:col-span-6 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
                         {/* Lifts (title depends on selected range) */}
-                        <section className="order-2 relative min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex lg:flex-col lg:flex-[60] lg:min-h-0">
+                        <section className="order-2 relative min-h-0 rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none lg:order-none lg:flex lg:flex-col lg:flex-[60] lg:min-h-0">
                             {/* Header */}
                             <div className="mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="flex items-center justify-between text-xs text-zinc-600 lg:block">
-                                    <h3 className="font-semibold text-base text-black">{RANGE_TITLES[range]}</h3>
-                                    <div className="lg:hidden text-[11px] text-zinc-600">{exercise || '—'}</div>
+                                <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-gray-300 lg:block">
+                                    <h3 className="font-semibold text-base text-black dark:text-white">{RANGE_TITLES[range]}</h3>
+                                    <div className="lg:hidden text-[11px] text-zinc-600 dark:text-gray-300">{exercise || '—'}</div>
                                     <div className="hidden lg:block">{exercise || '—'}</div>
                                 </div>
                             </div>
 
-                            <div className="mb-1 flex items-center gap-3 text-[10px] text-zinc-500 lg:hidden">
+                            <div className="mb-1 flex items-center gap-3 text-[10px] text-zinc-500 dark:text-zinc-300 lg:hidden">
                                 <span className="inline-flex items-center gap-1">
                                     <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#16a34a' }} />
                                     <span>Weight</span>
                                 </span>
                                 <span className="inline-flex items-center gap-1">
-                                    <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#111827' }} />
+                                    <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: repsLineColor }} />
                                     <span>Reps</span>
                                 </span>
                             </div>
-                            <div className="hidden items-center gap-4 text-[11px] text-zinc-600 lg:flex">
+                            <div className="hidden items-center gap-4 text-[11px] text-zinc-600 dark:text-gray-300 lg:flex">
                                 <span className="inline-flex items-center gap-1">
                                     <span className="inline-block h-2 w-2 rounded-full" style={{ background: '#16a34a' }} />
                                     <span>Weight</span>
                                 </span>
                                 <span className="inline-flex items-center gap-1">
-                                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: '#111827' }} />
+                                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: repsLineColor }} />
                                     <span>Reps</span>
                                 </span>
                             </div>
@@ -1039,6 +1066,7 @@ export default function Dashboard() {
                                         weight={weightSeries.map((x) => Number(x.toFixed(1)))}
                                         reps={repsSeries.map((x) => Number(x.toFixed(1)))}
                                         dayEntries={perDay}
+                                        isDark={isDark}
                                     />
                                 </div>
 
@@ -1046,7 +1074,11 @@ export default function Dashboard() {
                                     {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                                         <button
                                             key={r}
-                                            className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                            className={`h-8 rounded-full px-3 text-sm ${
+                                                r === range
+                                                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                                                    : 'text-neutral-700 hover:bg-neutral-100 dark:text-gray-200 dark:hover:bg-white/10'
+                                            }`}
                                             onClick={() => onRange(r)}
                                         >
                                             {r}
@@ -1060,7 +1092,11 @@ export default function Dashboard() {
                                 {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                                     <button
                                         key={r}
-                                        className={`h-8 rounded-full px-3 text-sm ${r === range ? 'bg-black text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                                        className={`h-8 rounded-full px-3 text-sm ${
+                                            r === range
+                                                ? 'bg-black text-white dark:bg-white dark:text-black'
+                                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-gray-200 dark:hover:bg-white/10'
+                                        }`}
                                         onClick={() => onRange(r)}
                                     >
                                         {r}
@@ -1070,10 +1106,10 @@ export default function Dashboard() {
                         </section>
 
                         {/* 2025 volume (slightly taller than default earlier) */}
-                        <section className="order-5 min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:h-[calc(36%+15px)]">
+                        <section className="order-5 min-h-0 rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none lg:order-none lg:h-[calc(36%+15px)]">
                             <div className="mb-1 flex items-center justify-between">
-                                <h3 className="font-semibold">2025 volume</h3>
-                                <div className="text-[11px] text-zinc-500">total sets per day</div>
+                                <h3 className="font-semibold">{new Date().getFullYear()} volume</h3>
+                                <div className="text-[11px] text-zinc-500 dark:text-zinc-300">total sets per day</div>
                             </div>
                             <div className="flex h-[220px] items-center justify-center lg:h-[calc(100%-52px)]" ref={heatmapContainerRef}>
                                 <YearHeatmap
@@ -1081,14 +1117,15 @@ export default function Dashboard() {
                                     height={heatmapHeight}
                                     valuesByDate={heatmapValues}
                                     sparseDayLabels={heatmapWidth < 640}
+                                    isDark={isDark}
                                 />
                             </div>
-                            <div className="mt-1 flex items-center gap-5 text-[11px] text-zinc-600">
-                                <LegendItem label="≤0" color="#e5e7eb" />
-                                <LegendItem label="1–3" color="#d1fae5" />
-                                <LegendItem label="4–6" color="#a7f3d0" />
-                                <LegendItem label="7–9" color="#6ee7b7" />
-                                <LegendItem label="10+" color="#34d399" />
+                            <div className="mt-1 flex items-center gap-5 text-[11px] text-zinc-600 dark:text-gray-300">
+                                <LegendItem label="≤0" color={heatmapPalette[0]} borderColor={isDark ? '#4b5563' : undefined} />
+                                <LegendItem label="1–3" color={heatmapPalette[1]} />
+                                <LegendItem label="4–6" color={heatmapPalette[2]} />
+                                <LegendItem label="7–9" color={heatmapPalette[3]} />
+                                <LegendItem label="10+" color={heatmapPalette[4]} />
                             </div>
                         </section>
                     </div>
@@ -1096,18 +1133,18 @@ export default function Dashboard() {
                     {/* Right Column */}
                     <div className="contents lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col lg:gap-3 lg:h-full">
                         {/* Recent entries */}
-                        <section className="order-3 min-h-0 rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex-[55]">
+                        <section className="order-3 min-h-0 rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none lg:order-none lg:flex-[55]">
                                 <h3 className="mb-2 font-semibold">Recent entries</h3>
-                                <div className="max-h-80 overflow-auto pr-1 lg:h-[calc(100%-28px)] lg:max-h-none">
+                                <div className="max-h-80 overflow-auto pr-1 scrollbar-slim lg:h-[calc(100%-28px)] lg:max-h-none">
                                     {sets.length === 0 ? (
-                                        <div className="text-sm text-zinc-500">No sets yet.</div>
+                                        <div className="text-sm text-zinc-500 dark:text-zinc-300">No sets yet.</div>
                                     ) : (
                                         <ul className="space-y-1.5 text-sm">
                                             {sets.slice(0, 100).map((r) => (
-                                                <li key={r.id} className="flex items-center justify-between rounded-lg border px-2 py-1">
+                                                <li key={r.id} className="flex items-center justify-between rounded-lg border px-2 py-1 dark:border-white/20 dark:bg-white/5">
                                                     <div className="min-w-0">
                                                         <div className="truncate font-medium">{r.exercise}</div>
-                                                        <div className="text-[11px] text-zinc-500">{r.date}</div>
+                                                        <div className="text-[11px] text-zinc-500 dark:text-zinc-300">{r.date}</div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <div className="text-right text-[11px]">
@@ -1118,7 +1155,7 @@ export default function Dashboard() {
                                                         </div>
                                                         <button
                                                             aria-label="Delete"
-                                                            className="p-1 text-zinc-500 hover:text-red-600"
+                                                            className="p-1 text-zinc-500 dark:text-zinc-300 hover:text-red-600"
                                                             onClick={() => deleteSet(r.id)}
                                                             title="Delete entry"
                                                         >
@@ -1133,10 +1170,10 @@ export default function Dashboard() {
                         </section>
 
                         {/* Split with arrows */}
-                        <section className="order-6 flex min-h-0 flex-col rounded-xl border bg-white p-3 shadow-sm lg:order-none lg:flex-[38]">
+                        <section className="order-6 flex min-h-0 flex-col rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none lg:order-none lg:flex-[38]">
                                 <div className="mb-1 flex items-center justify-between">
                                     <h3 className="font-semibold">Split</h3>
-                                    <button onClick={customizeSplit} className="rounded border px-2 py-1 text-xs">
+                                    <button onClick={customizeSplit} className="rounded border px-2 py-1 text-xs dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10">
                                         Customize
                                     </button>
                                 </div>
@@ -1144,9 +1181,9 @@ export default function Dashboard() {
                                 <div className="mt-2 flex flex-1 items-center justify-center">
                                     <div className="flex items-center justify-center gap-3">
                                         <button
-                                            className="rounded-full border px-2 py-1 text-sm"
+                                            className="rounded-full border px-2 py-1 text-sm dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                                             title="Previous day"
-                                        onClick={() => moveSplitDay(-1)}
+                                            onClick={() => moveSplitDay(-1)}
                                         >
                                             ←
                                         </button>
@@ -1154,9 +1191,9 @@ export default function Dashboard() {
                                         <SplitRing items={split} activeIndex={effectiveSplitIndex} progress={splitProgress} />
 
                                         <button
-                                            className="rounded-full border px-2 py-1 text-sm"
+                                            className="rounded-full border px-2 py-1 text-sm dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                                             title="Next day"
-                                        onClick={() => moveSplitDay(1)}
+                                            onClick={() => moveSplitDay(1)}
                                         >
                                             →
                                         </button>
@@ -1168,19 +1205,23 @@ export default function Dashboard() {
                                         split.map((name, idx) => (
                                             <div
                                                 key={idx}
-                                                className={`rounded border px-2 py-1 ${idx === effectiveSplitIndex ? 'border-green-600 bg-green-600 text-white' : 'bg-white'}`}
+                                                className={`rounded border px-2 py-1 dark:border-white/20 ${
+                                                    idx === effectiveSplitIndex
+                                                        ? 'border-green-600 bg-green-600 text-white dark:border-green-400 dark:bg-green-500/20 dark:text-white'
+                                                        : 'bg-white dark:bg-white/5 dark:text-gray-100'
+                                                }`}
                                                 title={idx === effectiveSplitIndex ? 'selected' : undefined}
                                             >
                                                 {name}
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="col-span-4 text-zinc-500">No split set</div>
+                                        <div className="col-span-4 text-zinc-500 dark:text-zinc-300">No split set</div>
                                     )}
                                 </div>
 
                                 {!split.length && (
-                                    <div className="mt-4 text-center text-sm text-zinc-500">
+                                    <div className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-300">
                                         Customize your split
                                     </div>
                                 )}
@@ -1194,10 +1235,14 @@ export default function Dashboard() {
 }
 
 /** ------------------------ Small UI helpers ------------------------- */
-function LegendItem({ label, color }: { label: string; color: string }) {
+function LegendItem({ label, color, borderColor }: { label: string; color: string; borderColor?: string }) {
+    const style: React.CSSProperties = { background: color };
+    if (borderColor) {
+        style.border = `1px solid ${borderColor}`;
+    }
     return (
         <div className="flex items-center gap-2">
-            <span className="inline-block h-3 w-3 rounded" style={{ background: color }} />
+            <span className="inline-block h-3 w-3 rounded" style={style} />
             <span>{label}</span>
         </div>
     );

@@ -67,6 +67,7 @@ export default function PostDetail({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showComments, setShowComments] = useState(() => !flat);
+    const [copied, setCopied] = useState(false);
 
     // Share modal
     const [shareOpen, setShareOpen] = useState(false);
@@ -278,9 +279,9 @@ export default function PostDetail({
 
     const authorBits = (
         <>
-            <span className="text-xs text-gray-500">by {authorLink}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-300">by {authorLink}</span>
             <span
-                className="text-xs text-gray-400"
+                className="text-xs text-gray-400 dark:text-gray-300"
                 title={new Date(post.createdAt).toLocaleString()}
             >
                 {formatRelativeTime(post.createdAt)}
@@ -296,7 +297,7 @@ export default function PostDetail({
                     "flex items-center gap-1 text-xs transition",
                     post.didLike
                         ? "text-red-500 font-bold"
-                        : "text-gray-400 hover:text-red-400"
+                        : "text-gray-400 hover:text-red-500 dark:text-gray-300 dark:hover:text-red-500"
                 )}
                 onClick={handleLike}
                 disabled={!session}
@@ -321,8 +322,8 @@ export default function PostDetail({
                 className={clsx(
                     "flex items-center gap-1 text-xs transition",
                     showComments
-                        ? "text-green-600 font-semibold"
-                        : "text-gray-400 hover:text-green-600"
+                        ? "text-green-700 font-semibold"
+                        : "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
                 )}
                 onClick={toggleComments}
                 title={showComments ? "Hide comments" : "Show comments"}
@@ -335,29 +336,57 @@ export default function PostDetail({
                 type="button"
                 className={clsx(
                     "flex items-center gap-1 text-xs transition",
-                    canShare
-                        ? "text-gray-500 hover:text-green-700"
-                        : "text-gray-300 cursor-not-allowed"
+                    isFlat
+                        ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
+                        : canShare
+                            ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
+                            : "text-gray-300 cursor-not-allowed dark:text-gray-600"
                 )}
-                onClick={() => canShare && openShare()}
-                disabled={!canShare}
-                title={canShare ? "Share via Messenger" : "Sign in to share"}
+                onClick={async () => {
+                    if (isFlat) {
+                        const origin = typeof window !== "undefined" ? window.location.origin : "";
+                        const url = `${origin}/post/${encodeURIComponent(post.id)}`;
+                        try {
+                            await navigator.clipboard.writeText(url);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 1500);
+                        } catch {
+                            setCopied(false);
+                        }
+                        return;
+                    }
+                    if (!canShare) return;
+                    await openShare();
+                }}
+                disabled={!isFlat && !canShare}
+                title={
+                    isFlat
+                        ? "Copy share link"
+                        : canShare
+                            ? "Share via Messenger"
+                            : "Sign in to share"
+                }
             >
                 <Share2 size={16} />
-                Share
+                {copied && isFlat ? "Copied" : "Share"}
             </button>
         </>
     );
 
-    const outerCls = isFlat ? "w-full max-w-xl mx-auto" : "w-full max-w-2xl mx-auto px-4";
-    const articleCls = "bg-white rounded-2xl shadow-lg px-6 py-5";
+    const outerCls = isFlat
+        ? "w-full max-w-xl mx-auto text-gray-900 dark:text-gray-100"
+        : "w-full max-w-2xl mx-auto px-1 sm:px-3 text-gray-900 dark:text-gray-100";
+    const articleCls = clsx(
+        "bg-white rounded-2xl shadow-lg py-5 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none",
+        isFlat ? "px-6" : "px-3 sm:px-5"
+    );
     const titleCls = isFlat
-        ? "font-bold text-lg text-gray-800"
-        : "font-bold text-2xl text-gray-900";
-    const textCls = "text-gray-700 mt-2 whitespace-pre-wrap";
+        ? "font-bold text-lg text-gray-800 dark:text-white"
+        : "font-bold text-2xl text-gray-900 dark:text-white";
+    const textCls = "text-gray-700 mt-2 whitespace-pre-wrap dark:text-gray-200";
     const imageCls = isFlat
-        ? "w-full max-h-[540px] object-contain rounded-xl border"
-        : "w-full max-h-[640px] object-contain rounded-xl border";
+        ? "w-full max-h-[540px] object-contain rounded-xl border dark:border-white/10"
+        : "w-full max-h-[640px] object-contain rounded-xl border dark:border-white/10";
     const commentsWrapperCls = isFlat ? "mt-3" : "mt-6";
 
     return (
@@ -366,32 +395,22 @@ export default function PostDetail({
                 <article className={articleCls}>
                     <div className="flex flex-col gap-1 mb-2">
                         {isFlat ? (
-                            <>
-                                <span className={titleCls}>{post.title}</span>
-                                <div className="flex flex-wrap items-center gap-2 md:hidden">
-                                    {authorBits}
-                                </div>
-                                <div className="hidden md:flex flex-wrap items-center gap-3">
-                                    {authorBits}
-                                    <div className="flex flex-wrap items-center gap-4">
-                                        {actionButtons}
-                                    </div>
-                                </div>
-                                <div className="mt-2 flex md:hidden flex-wrap items-center gap-4">
-                                    {actionButtons}
-                                </div>
-                            </>
+                            <span className={titleCls}>{post.title}</span>
                         ) : (
-                            <>
-                                <h2 className={titleCls}>{post.title}</h2>
-                                <div className="flex flex-wrap items-center gap-3">
-                                    {authorBits}
-                                    <div className="flex flex-wrap items-center gap-4 ml-auto">
-                                        {actionButtons}
-                                    </div>
-                                </div>
-                            </>
+                            <h2 className={titleCls}>{post.title}</h2>
                         )}
+                        <div className="flex flex-wrap items-center gap-2 md:hidden">
+                            {authorBits}
+                        </div>
+                        <div className="hidden md:flex flex-wrap items-center gap-3">
+                            {authorBits}
+                            <div className="flex flex-wrap items-center gap-4">
+                                {actionButtons}
+                            </div>
+                        </div>
+                        <div className="mt-2 flex md:hidden flex-wrap items-center gap-4">
+                            {actionButtons}
+                        </div>
                     </div>
 
                     {post.content && <div className={textCls}>{post.content}</div>}

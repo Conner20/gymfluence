@@ -34,6 +34,12 @@ const roleOptions = [
     { label: "Gym" },
 ];
 
+const LOCKED_PAGE_CLASS = "bg-neutral-50 text-zinc-900 dark:bg-neutral-50 dark:text-zinc-900";
+const LOCKED_CARD_CLASS = "w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/95 p-6 shadow-xl shadow-zinc-100 dark:border-zinc-200 dark:bg-white/95 dark:shadow-zinc-100";
+const LOCKED_INPUT_CLASS = "bg-white text-zinc-900 border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-emerald-600 focus-visible:ring-emerald-600/20 dark:bg-white dark:text-zinc-900 dark:border-zinc-200 dark:placeholder:text-zinc-500 dark:focus-visible:border-emerald-600 dark:focus-visible:ring-emerald-600/20";
+const LOCKED_PRIMARY_BUTTON = "rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 transition dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700";
+const LOCKED_TEXT_BUTTON = "text-sm text-zinc-500 transition hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-800";
+
 
 
 
@@ -132,8 +138,8 @@ function UserOnboardingContent() {
 
     if (step === 2 && role === 'Gym') {
         return (
-            <div className="flex h-screen w-full items-center justify-center px-4">
-                <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/95 p-6 shadow-xl shadow-zinc-100">
+            <div className={`flex h-screen w-full items-center justify-center px-4 ${LOCKED_PAGE_CLASS}`}>
+                <div className={LOCKED_CARD_CLASS}>
                     <div className="space-y-1 text-center">
                         <h2 className="text-2xl font-semibold text-zinc-900">Create your gym profile</h2>
                         <p className="text-sm text-zinc-500">Share the essentials so members can find you faster.</p>
@@ -151,7 +157,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="Gym or facility name"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -170,7 +176,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="Street, city, state"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -189,7 +195,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="(555) 123-4567"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -208,7 +214,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="https://..."
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -228,7 +234,7 @@ function UserOnboardingContent() {
                                             <Input
                                                 type="number"
                                                 placeholder="e.g., 99"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 value={
                                                     field.value === undefined || Number.isNaN(field.value)
                                                         ? ''
@@ -248,14 +254,14 @@ function UserOnboardingContent() {
                                 )}
                             />
                             <div className="space-y-3">
-                                <Button className='w-full' type="submit">Publish profile</Button>
+                                <Button className={`w-full ${LOCKED_PRIMARY_BUTTON}`} type="submit">Publish profile</Button>
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setRole(null);
                                         setStep(1);
                                     }}
-                                    className="w-full text-sm text-zinc-500 transition hover:text-zinc-800"
+                                    className={`w-full ${LOCKED_TEXT_BUTTON}`}
                                 >
                                     ← Back
                                 </button>
@@ -268,7 +274,7 @@ function UserOnboardingContent() {
     }
 
     return (
-        <div className={`w-full min-h-screen flex flex-col items-center justify-center px-4 py-6 sm:py-10`}>
+        <div className={`w-full min-h-screen flex flex-col items-center justify-center px-4 py-6 sm:py-10 ${LOCKED_PAGE_CLASS}`}>
             {step === 1 && (
                 <div className="flex w-full max-w-5xl flex-col items-center">
                     <div className="mb-8 text-center space-y-2">
@@ -380,8 +386,8 @@ function UserOnboardingContent() {
             )}
 
             {step === 2 && role === 'Gym' && (
-                <div className="flex h-screen w-full items-center justify-center px-4">
-                    <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/95 p-6 shadow-xl shadow-zinc-100">
+                <div className={`flex h-screen w-full items-center justify-center px-4 ${LOCKED_PAGE_CLASS}`}>
+                    <div className={LOCKED_CARD_CLASS}>
                         <div className="flex items-center justify-between text-sm">
                             <button
                                 type="button"
@@ -389,7 +395,7 @@ function UserOnboardingContent() {
                                     setRole(null);
                                     setStep(1);
                                 }}
-                                className="text-zinc-500 transition hover:text-zinc-800"
+                                className={LOCKED_TEXT_BUTTON}
                             >
                                 ← Back
                             </button>
@@ -411,7 +417,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="Gym or facility name"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -430,7 +436,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="Street, city, state"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -449,7 +455,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="(555) 123-4567"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -468,7 +474,7 @@ function UserOnboardingContent() {
                                         <FormControl>
                                             <Input
                                                 placeholder="https://..."
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
                                             />
                                         </FormControl>
@@ -488,7 +494,7 @@ function UserOnboardingContent() {
                                             <Input
                                                 type="number"
                                                 placeholder="e.g., 99"
-                                                className="rounded-2xl border-zinc-200 px-4 py-2 text-sm focus:border-emerald-600 focus:ring-0"
+                                                className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 value={
                                                     field.value === undefined || Number.isNaN(field.value)
                                                         ? ''
@@ -507,7 +513,7 @@ function UserOnboardingContent() {
                                     </FormItem>
                                 )}
                             />
-                            <Button className='w-full mt-6' type="submit">Publish profile</Button>
+                            <Button className={`w-full mt-6 ${LOCKED_PRIMARY_BUTTON}`} type="submit">Publish profile</Button>
                         </form>
                     </Form>
                     </div>
@@ -519,7 +525,7 @@ function UserOnboardingContent() {
 
 export default function UserOnboarding() {
     return (
-        <Suspense fallback={<div className="w-full min-h-screen flex items-center justify-center">Loading...</div>}>
+        <Suspense fallback={<div className={`w-full min-h-screen flex items-center justify-center ${LOCKED_PAGE_CLASS}`}>Loading...</div>}>
             <UserOnboardingContent />
         </Suspense>
     );

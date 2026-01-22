@@ -236,42 +236,42 @@ export default function SettingsPage() {
         }
     };
 
-    if (status === "loading" || loading) return <div className="p-8 text-gray-500">Loading…</div>;
+    if (status === "loading" || loading) return <div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>;
     if (!session) return <div className="p-8 text-red-500">Please sign in.</div>;
 
     const displayImage = previewUrl || imageUrl;
 
     return (
-        <div className="min-h-screen bg-[#f8f8f8] flex flex-col">
+        <div className="min-h-screen bg-[#f8f8f8] flex flex-col dark:bg-[#050505] dark:text-gray-100">
             <MobileHeader title="settings" href="/settings" />
 
-            <header className="hidden lg:flex w-full bg-white py-6 justify-start pl-[40px] z-20">
-                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none">
+            <header className="hidden lg:flex w-full bg-white py-6 justify-start pl-[40px] z-20 dark:bg-neutral-900">
+                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none dark:text-green-400">
                     <span>settings</span>
                 </h1>
             </header>
 
             <main className="w-full max-w-3xl mx-auto px-4 py-6 space-y-6 sm:px-6">
                 {/* Profile + Privacy card */}
-                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6">
+                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
                     <section>
                         <h2 className="font-semibold mb-4">Profile</h2>
 
                         <div className="flex flex-col gap-6 items-start lg:flex-row">
                             {/* Avatar + upload */}
                             <div className="flex flex-col items-center gap-3 w-full lg:w-auto">
-                                <div className="w-32 h-32 rounded-full bg-gray-100 border flex items-center justify-center overflow-hidden">
+                                <div className="w-32 h-32 rounded-full bg-gray-100 border flex items-center justify-center overflow-hidden dark:bg-neutral-800 dark:border-white/10">
                                     {displayImage ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={displayImage} alt="avatar preview" className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-gray-400 text-sm">No image</span>
+                                        <span className="text-gray-400 text-sm dark:text-gray-500">No image</span>
                                     )}
                                 </div>
 
                                 <label
                                     htmlFor="avatar-file"
-                                    className="inline-flex items-center px-3 py-1.5 rounded-full bg-gray-900 text-white text-sm cursor-pointer hover:bg-black"
+                                    className="inline-flex items-center px-3 py-1.5 rounded-full border border-gray-900 text-gray-900 text-sm cursor-pointer bg-transparent hover:bg-gray-900 hover:text-white transition dark:border-white dark:text-white dark:hover:bg-white/10"
                                 >
                                     Choose image
                                 </label>
@@ -283,12 +283,12 @@ export default function SettingsPage() {
                                     onChange={(e) => handleFilePick(e.target.files?.[0] ?? null)}
                                 />
 
-                                <div className="text-xs text-gray-500 min-h-[1rem]">
+                                <div className="text-xs text-gray-500 min-h-[1rem] dark:text-gray-400">
                                     {file ? file.name : previewUrl ? "Previewing selected image" : ""}
                                 </div>
 
                                 {previewUrl && (
-                                    <div className="text-[11px] text-gray-500 text-center max-w-[10rem]">
+                                    <div className="text-[11px] text-gray-500 text-center max-w-[10rem] dark:text-gray-400">
                                         This is a preview. Click <span className="font-medium">Save changes</span> to apply.
                                     </div>
                                 )}
@@ -297,16 +297,16 @@ export default function SettingsPage() {
                             {/* Fields */}
                             <div className="w-full space-y-4">
                                 <div>
-                                    <label className="block text-sm text-gray-600 mb-1">Name</label>
+                                    <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Name</label>
                                     <input
-                                        className="w-full border rounded px-3 py-2"
+                                        className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm text-gray-600 mb-1">Location</label>
+                                    <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Location</label>
                                     <LocationAutocomplete
                                         label={location}
                                         onChangeLabel={setLocation}
@@ -319,15 +319,15 @@ export default function SettingsPage() {
                                             setLng(loc.lng);
                                         }}
                                     />
-                                    <p className="mt-1 text-xs text-gray-500">
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         Start typing a city (e.g. “Cincinnati, OH”) and choose a suggestion.
                                     </p>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm text-gray-600 mb-1">Bio</label>
+                                    <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Bio</label>
                                     <textarea
-                                        className="w-full border rounded px-3 py-2"
+                                        className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                         rows={4}
                                         value={bio}
                                         onChange={(e) => setBio(e.target.value)}
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Search Profile card */}
-                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6">
+                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
                     <SearchProfileEditor
                         onSaveAll={saveBoth}
                         externalSaveTrigger={searchSaveTrigger}
@@ -360,19 +360,19 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Password management */}
-                <div className="bg-white rounded-xl shadow p-4 space-y-4 sm:p-6">
+                <div className="bg-white rounded-xl shadow p-4 space-y-4 sm:p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
                     <h2 className="font-semibold">Password</h2>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                         {hasPassword
                             ? "Update your password below."
                             : "Create a password so you can log in without Google."}
                     </p>
                     {hasPassword && (
                         <div>
-                            <label className="block text-sm text-gray-600 mb-1">Current password</label>
+                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Current password</label>
                             <input
                                 type="password"
-                                className="w-full border rounded px-3 py-2"
+                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
                                 disabled={passwordLoading}
@@ -381,10 +381,10 @@ export default function SettingsPage() {
                         </div>
                     )}
                     <div>
-                        <label className="block text-sm text-gray-600 mb-1">New password</label>
+                        <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">New password</label>
                         <input
                             type="password"
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             disabled={passwordLoading}
@@ -392,10 +392,10 @@ export default function SettingsPage() {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-gray-600 mb-1">Confirm new password</label>
+                        <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Confirm new password</label>
                         <input
                             type="password"
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                             value={confirmNewPassword}
                             onChange={(e) => setConfirmNewPassword(e.target.value)}
                             disabled={passwordLoading}
@@ -412,16 +412,16 @@ export default function SettingsPage() {
                             confirmNewPassword.length === 0 ||
                             (hasPassword && currentPassword.length === 0)
                         }
-                        className="px-4 py-2 rounded bg-gray-900 text-white hover:bg-black disabled:opacity-50"
+                        className="px-4 py-2 rounded bg-gray-900 text-white hover:bg-black disabled:opacity-50 dark:bg-green-600 dark:text-white dark:hover:bg-green-500"
                     >
                         {passwordLoading ? "Saving…" : hasPassword ? "Update Password" : "Create Password"}
                     </button>
                 </div>
 
                 {/* Log Out */}
-                <div className="bg-white rounded-xl shadow p-6">
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
                     <h2 className="font-semibold mb-3">Log Out</h2>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-600 mb-4 dark:text-gray-300">
                         You are currently signed in as{" "}
                         <span className="font-medium">
                             {session?.user?.email || session?.user?.name || "your account"}
@@ -435,20 +435,20 @@ export default function SettingsPage() {
                         Log Out
                     </button>
 
-                    <div className="mt-6 border-t border-gray-200 pt-6">
+                    <div className="mt-6 border-t border-gray-200 pt-6 dark:border-white/10">
                         <h3 className="font-semibold mb-3">Delete Account</h3>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <p className="text-sm text-gray-600 mb-4 dark:text-gray-300">
                             Permanently remove your account and data. This action cannot be undone.
                         </p>
                         {showDeleteConfirm ? (
                             <div className="space-y-3">
-                                <label htmlFor="delete-password" className="block text-sm text-gray-700">
+                                <label htmlFor="delete-password" className="block text-sm text-gray-700 dark:text-gray-300">
                                     Confirm password
                                 </label>
                                 <input
                                     id="delete-password"
                                     type="password"
-                                    className="w-full border rounded px-3 py-2"
+                                    className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                     value={deletePassword}
                                     onChange={(e) => setDeletePassword(e.target.value)}
                                     disabled={deleteLoading}
@@ -469,7 +469,7 @@ export default function SettingsPage() {
                                             setDeletePassword("");
                                             setDeleteError(null);
                                         }}
-                                        className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50"
+                                        className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:border-white/10 dark:hover:bg-white/10"
                                         disabled={deleteLoading}
                                     >
                                         Cancel
@@ -569,7 +569,7 @@ function LocationAutocomplete({
     return (
         <div className="relative">
             <input
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                 value={input}
                 onChange={(e) => {
                     setInput(e.target.value);
@@ -581,22 +581,22 @@ function LocationAutocomplete({
                 placeholder="Start typing a city…"
             />
             {loading && (
-                <div className="absolute right-3 top-2.5 text-xs text-gray-400">
+                <div className="absolute right-3 top-2.5 text-xs text-gray-400 dark:text-gray-500">
                     …
                 </div>
             )}
 
             {open && suggestions.length > 0 && (
-                <div className="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-y-auto">
+                <div className="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow max-h-60 overflow-y-auto dark:bg-neutral-900 dark:border-white/10 dark:text-gray-100">
                     {suggestions.map((s) => (
                         <button
                             key={s.id}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/10"
                             onClick={() => handleSelect(s)}
                         >
                             <div className="font-medium">{s.label}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {[s.city, s.state, s.country].filter(Boolean).join(", ")}
                             </div>
                         </button>
