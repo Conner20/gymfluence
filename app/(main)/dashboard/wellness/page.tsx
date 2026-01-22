@@ -611,9 +611,12 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
     };
 
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
-            <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[15px] font-semibold text-black dark:text-white">Water consumption</h3>
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
+            <div className="mb-3 flex items-center justify-between">
+                <div>
+                    <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-200">Hydration trend</div>
+                    <h3 className="text-[15px] font-semibold text-black dark:text-white">Water consumption</h3>
+                </div>
                 <span className="text-xs text-neutral-500 dark:text-neutral-300">last 7 days</span>
             </div>
 
@@ -622,24 +625,28 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
                     ref={wrapRef}
                     onMouseMove={onMove}
                     onMouseLeave={() => setHover(null)}
-                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-2 rounded-md bg-white p-3 dark:bg-white/5"
+                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-white/10 dark:bg-white/5 sm:h-[170px]"
                 >
                     {xs.map((d) => (
-                        <div key={d.date} className="flex h-full flex-col items-center justify-end">
+                        <div key={d.date} className="flex h-full flex-col items-center justify-end gap-2">
                             <div
-                                className="w-7 rounded-t bg-blue-400/40 dark:bg-blue-400/60"
+                                className="w-5 rounded-full bg-blue-500/60 transition-[height] dark:bg-blue-500/80 sm:w-6"
                                 style={{ height: `${(d.liters / max) * 100}%` }}
                             />
-                            <div className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-300">{d.date.slice(5)}</div>
+                            <div className="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-300">
+                                {d.date.slice(5)}
+                            </div>
                         </div>
                     ))}
 
                     {hover && hoveredBar && (
                         <div
-                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
+                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border border-blue-100 bg-white px-2 py-1 text-[11px] shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                             style={{ left: hover.left, top: hover.top }}
                         >
-                            <div>{hoveredBar.liters.toFixed(1)} L</div>
+                            <div className="font-semibold text-blue-700 dark:text-blue-200">
+                                {hoveredBar.liters.toFixed(1)} L
+                            </div>
                         </div>
                     )}
                 </div>
@@ -723,11 +730,18 @@ function WaterToday({
     };
 
     return (
-        <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
-            <div className="flex items-center justify-between">
-                <div className="text-lg font-semibold text-black dark:text-white">Goal: {goal.toFixed(1)} L</div>
+        <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-200">
+                        Daily goal
+                    </div>
+                    <div className="text-lg font-semibold text-black dark:text-white">
+                        {goal.toFixed(1)} L
+                    </div>
+                </div>
                 <button
-                    className="rounded-full border px-3 py-1 text-sm dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
+                    className="rounded-full border border-blue-200 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
                     onClick={async () => {
                         const s = prompt('Set daily water goal (L):', goal.toString());
                         if (!s) return;
@@ -736,17 +750,18 @@ function WaterToday({
                         await setGoal(clamp(n, 0.1, 10));
                     }}
                 >
-                    Set
+                    Adjust
                 </button>
             </div>
 
             {/* Middle area — centers the gauge; +20px height */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white/70 p-4 dark:bg-white/5">
-                <div className="text-sm text-blue-900/80 dark:text-blue-200">
-                    Remaining: {remaining.toFixed(1)} L
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-blue-100 bg-blue-50/60 p-4 dark:border-white/10 dark:bg-white/5">
+                <div className="flex items-center justify-between text-sm text-blue-900/80 dark:text-blue-200">
+                    <span>Remaining</span>
+                    <span className="font-semibold">{remaining.toFixed(1)} L</span>
                 </div>
                 <div className="flex flex-1 items-center justify-center">
-                    <div className="relative mx-auto mt-4 flex h-60 w-20 items-end rounded-full bg-blue-50 dark:bg-white/10 sm:h-[21rem]">
+                    <div className="relative mx-auto mt-4 flex h-60 w-[4.5rem] items-end rounded-full border border-blue-100 bg-white dark:border-white/10 dark:bg-transparent sm:h-[21rem]">
                         {(() => {
                             const isFull = pct >= 0.999;
                             const radiusClass = isFull
@@ -754,10 +769,10 @@ function WaterToday({
                                 : 'rounded-b-full rounded-t-none';
                             return (
                                 <div
-                                    className={`absolute left-2 right-2 ${radiusClass} bg-blue-400/30 flex items-center justify-center`}
+                                    className={`absolute inset-x-2 ${radiusClass} bg-blue-500/40 backdrop-blur flex items-center justify-center transition-[height]`}
                                     style={{
-                                        height: `calc((100% - 1rem) * ${pct})`,
-                                        bottom: '0.5rem',
+                                        height: `calc((100% - 1.25rem) * ${pct})`,
+                                        bottom: '0.6rem',
                                     }}
                                 >
                                     {consumed > 0 && (
@@ -772,26 +787,35 @@ function WaterToday({
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                <input
-                    value={val}
-                    onChange={(e) => setVal(e.target.value)}
-                    placeholder="e.g. 0.6"
-                    inputMode="decimal"
-                    className="w-full rounded-md border px-3 py-2 outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
-                />
-                <button
-                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
-                    onClick={handleAdd}
-                >
-                    +
-                </button>
-                <button
-                    className="shrink-0 rounded-md border px-3 py-2 text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
-                    onClick={handleRemove}
-                >
-                    -
-                </button>
+            <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3 dark:border-white/10 dark:bg-white/5">
+                <div className="flex-1">
+                    <div className="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-200 whitespace-nowrap">
+                        Add entry
+                    </div>
+                    <input
+                        value={val}
+                        onChange={(e) => setVal(e.target.value)}
+                        placeholder="e.g. 0.6"
+                        inputMode="decimal"
+                        className="mt-1 w-full rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-blue-900 outline-none focus:ring-2 focus:ring-blue-200 dark:border-white/10 dark:bg-transparent dark:text-gray-100 dark:focus:ring-white/20"
+                    />
+                </div>
+                <div className="flex w-full items-center justify-center gap-2">
+                    <button
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 text-blue-700 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
+                        onClick={handleAdd}
+                        aria-label="Add water"
+                    >
+                        <span className="text-lg font-semibold leading-none">+</span>
+                    </button>
+                    <button
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 text-blue-700 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover.bg-white/10"
+                        onClick={handleRemove}
+                        aria-label="Remove water"
+                    >
+                        <span className="text-lg font-semibold leading-none">-</span>
+                    </button>
+                </div>
             </div>
 
             <div className="flex justify-end">
