@@ -1,6 +1,7 @@
 'use client';
 
 import { Moon, Sun } from "lucide-react";
+import Link from "next/link";
 import MobileHeader from "@/components/MobileHeader";
 import HomePosts from "@/components/HomePosts";
 import { useTheme } from "@/components/ThemeProvider";
@@ -30,9 +31,9 @@ export default function HomePageShell({ posts }: HomePageShellProps) {
 
                 <header className="hidden w-full items-center justify-center bg-white px-6 py-5 lg:flex dark:bg-neutral-900">
                     <ThemeToggle className="absolute left-6 hidden lg:inline-flex" />
-                    <h1 className="font-roboto select-none text-3xl tracking-tight text-green-700 dark:text-green-400">
+                    <Link href="/" className="font-roboto select-none text-3xl tracking-tight text-green-700 dark:text-green-400">
                         gymfluence
-                    </h1>
+                    </Link>
                 </header>
 
                 <main className="flex w-full flex-1 justify-center px-4 sm:px-6">
