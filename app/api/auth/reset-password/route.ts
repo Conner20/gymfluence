@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 
-import { sha256Hex } from '@/lib/token';
 import { db as prisma } from '@/prisma/client';
 
 export async function GET(req: Request) {
@@ -13,8 +12,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Missing token' }, { status: 400 });
         }
 
-        const tokenHash = sha256Hex(token);
-        const vt = await prisma.verificationToken.findFirst({ where: { token: tokenHash } });
+        const vt = await prisma.verificationToken.findFirst({ where: { token } });
 
         if (!vt || vt.expires < new Date()) {
             return NextResponse.json({ error: 'Invalid/expired' }, { status: 400 });
@@ -37,10 +35,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
         }
 
-        const tokenHash = sha256Hex(normalizedToken);
-
         const vt = await prisma.verificationToken.findFirst({
-            where: { token: tokenHash },
+            where: { token: normalizedToken },
         });
 
         if (!vt || vt.expires < new Date()) {

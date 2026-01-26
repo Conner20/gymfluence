@@ -23,6 +23,9 @@ const schema = z
         message: 'Passwords do not match',
     });
 
+const inputClass =
+    "bg-white text-black border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-black focus-visible:ring-black/20";
+
 type FormValues = z.infer<typeof schema>;
 type PageState = 'checking' | 'invalid' | 'valid' | 'success';
 
@@ -113,89 +116,95 @@ export default function ResetPasswordPage() {
     };
 
     return (
-        <div className="bg-slate-200 p-10 rounded-md w-full max-w-md mx-auto">
-            <h1 className="text-2xl font-semibold mb-2 text-center">Reset password</h1>
-            <p className="text-center text-sm text-slate-600 mb-6">
-                Choose a new password to secure your account.
-            </p>
-
-            {pageState === 'checking' && (
-                <div className="flex flex-col items-center gap-2 text-slate-600">
-                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                    <p>Verifying your reset link…</p>
+        <div className="min-h-screen w-full bg-neutral-50 px-4 py-10 flex items-center justify-center">
+            <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-xl shadow-zinc-100">
+                <div className="space-y-1 text-center">
+                    <h1 className="text-3xl font-semibold text-black">Reset password</h1>
+                    <p className="text-sm text-zinc-500">Choose a new password to secure your account.</p>
                 </div>
-            )}
 
-            {pageState === 'invalid' && (
-                <div className="space-y-4 text-center">
-                    <p className="text-sm text-red-600">
-                        This reset link is invalid or has expired. Request a new link to continue.
-                    </p>
-                    <Link href="/forgot-password">
-                        <Button type="button" className="w-full">
-                            Request another reset link
-                        </Button>
-                    </Link>
-                </div>
-            )}
+                {pageState === 'checking' && (
+                    <div className="flex flex-col items-center gap-2 text-zinc-500">
+                        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                        <p>Verifying your reset link…</p>
+                    </div>
+                )}
 
-            {pageState === 'success' && (
-                <div className="space-y-4 text-center">
-                    <p className="text-sm text-slate-700">
-                        Your password has been updated. Use your new password the next time you log in.
-                    </p>
-                    <Link href="/log-in">
-                        <Button type="button" className="w-full">
-                            Go to log in
-                        </Button>
-                    </Link>
-                </div>
-            )}
+                {pageState === 'invalid' && (
+                    <div className="space-y-4 text-center">
+                        <p className="text-sm text-red-600">
+                            This reset link is invalid or has expired. Request a new link to continue.
+                        </p>
+                        <Link href="/forgot-password">
+                            <Button type="button" className="w-full bg-green-700 text-white hover:bg-black">
+                                Request another reset link
+                            </Button>
+                        </Link>
+                    </div>
+                )}
 
-            {pageState === 'valid' && (
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>New password</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="********" minLength={8} {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                {pageState === 'success' && (
+                    <div className="space-y-4 text-center">
+                        <p className="text-sm text-zinc-600">
+                            Your password has been updated. Use your new password the next time you log in.
+                        </p>
+                        <Link href="/log-in">
+                            <Button type="button" className="w-full bg-green-700 text-white hover:bg-black">
+                                Go to log in
+                            </Button>
+                        </Link>
+                    </div>
+                )}
 
-                        <FormField
-                            control={form.control}
-                            name="confirmPassword"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Confirm password</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="********" minLength={8} {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                {pageState === 'valid' && (
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="password"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-zinc-700">New password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" placeholder="********" minLength={8} className={inputClass} {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
-                        {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+                            <FormField
+                                control={form.control}
+                                name="confirmPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-zinc-700">Confirm password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" placeholder="********" minLength={8} className={inputClass} {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
-                        <Button type="submit" disabled={loading} className="w-full">
-                            {loading ? 'Updating…' : 'Update password'}
-                        </Button>
-                        <div className="text-center text-sm">
-                            <Link href="/log-in" className="text-green-600 hover:underline">
-                                Back to log in
-                            </Link>
-                        </div>
-                    </form>
-                </Form>
-            )}
+                            {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+
+                            <Button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-green-700 text-white hover:bg-black"
+                            >
+                                {loading ? 'Updating…' : 'Update password'}
+                            </Button>
+                            <div className="text-center text-sm">
+                                <Link href="/log-in" className="text-zinc-500 transition hover:text-zinc-800">
+                                    Back to log in
+                                </Link>
+                            </div>
+                        </form>
+                    </Form>
+                )}
+            </div>
         </div>
     );
 }

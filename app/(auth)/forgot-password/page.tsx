@@ -54,79 +54,64 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <>
-            <div className="bg-slate-200 p-10 rounded-md w-full max-w-md mx-auto">
-            <h1 className="text-2xl font-semibold mb-2 text-center">Forgot password</h1>
+        <div className="min-h-screen w-full bg-neutral-50 px-4 py-10 flex items-center justify-center">
+            <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-xl shadow-zinc-100">
+                <div className="space-y-1 text-center">
+                    <h1 className="text-3xl font-semibold text-black">Forgot password</h1>
+                    <p className="text-sm text-zinc-500">
+                        Enter the email linked to your account and we&apos;ll send a reset link.
+                    </p>
+                </div>
 
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                    <Input type="email" placeholder="you@example.com" className="bg-white" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-zinc-700">Email</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            className="bg-white text-black border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-black focus-visible:ring-black/20"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                    {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+                        {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
 
-                    {status === 'sent' && (
-                        <div className="flex justify-center">
-                            <div className="sent-indicator flex items-center gap-2 text-green-600 text-sm font-semibold">
-                                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                                <span>Sent</span>
+                        {status === 'sent' && (
+                            <div className="flex items-center justify-center gap-2 text-sm font-medium text-green-600">
+                                <CheckCircle2 className="h-4 w-4" aria-hidden />
+                                Reset link sent
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    <Button type="submit" disabled={status === 'loading'} className="w-full">
-                        {status === 'loading' ? 'Sending…' : 'Send reset link'}
-                    </Button>
-                </form>
-            </Form>
+                        <Button
+                            type="submit"
+                            disabled={status === 'loading'}
+                            className="w-full bg-green-700 text-white hover:bg-black"
+                        >
+                            {status === 'loading' ? 'Sending…' : 'Send reset link'}
+                        </Button>
+                    </form>
+                </Form>
 
-            <div className="mt-4">
-                <Link href="/log-in">
-                    <Button type="button" variant="outline" className="w-full">
-                        Back to log in
-                    </Button>
-                </Link>
+                <div className="text-center">
+                    <Link
+                        href="/log-in"
+                        className="text-sm text-zinc-500 transition hover:text-zinc-800"
+                    >
+                        ← Back to log in
+                    </Link>
+                </div>
             </div>
-            </div>
-            <style jsx>{`
-            @keyframes sent-pop {
-                0% {
-                    transform: scale(0.6);
-                    opacity: 0;
-                }
-                60% {
-                    transform: scale(1.05);
-                    opacity: 1;
-                }
-                100% {
-                    transform: scale(1);
-                }
-            }
-
-            @keyframes sent-glow {
-                0% {
-                    filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0.25));
-                }
-                100% {
-                    filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.55));
-                }
-            }
-
-            .sent-indicator {
-                animation: sent-pop 320ms ease-out, sent-glow 1.2s ease-in-out infinite alternate;
-            }
-            `}</style>
-        </>
+        </div>
     );
 }

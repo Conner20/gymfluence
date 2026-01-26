@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.email) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -14,6 +15,8 @@ export async function POST(req: Request) {
         const body = await req.json();
         let { role, selections = [], gymForm } = body;
 
+        const identifier = session.user.email.toLowerCase();
+
         // normalize and validate role
         if (typeof role === "string") role = role.toUpperCase();
         if (!["TRAINEE", "TRAINER", "GYM"].includes(role)) {
@@ -21,8 +24,8 @@ export async function POST(req: Request) {
         }
 
         // find current user (by email from session)
-        const current = await db.user.findUnique({
-            where: { email: session.user.email },
+        const current = await db.user.findFirst({
+            where: { email: { equals: identifier, mode: "insensitive" } },
             select: { id: true },
         });
         if (!current) {

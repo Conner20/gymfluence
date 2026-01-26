@@ -31,12 +31,10 @@ export default function ProfilePage() {
     useEffect(() => {
         if (!loading && user && !user.role) {
             const params = new URLSearchParams();
-            params.set("google", "1");
-            if (user.email) params.set("email", user.email as string);
             if (user.username || user.name) {
-                params.set("name", user.username ?? user.name ?? "");
+                params.set("username", user.username ?? user.name ?? "");
             }
-            router.push(`/sign-up?${params.toString()}`);
+            router.push(`/user-onboarding?${params.toString()}`);
         }
     }, [loading, router, user]);
 

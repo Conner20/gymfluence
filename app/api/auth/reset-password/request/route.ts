@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendPasswordResetEmail } from '@/lib/mail';
 import { db as prisma } from '@/prisma/client';
-import { generateRawToken, sha256Hex } from '@/lib/token';
+import { generateRawToken } from '@/lib/token';
 
 export async function POST(req: Request) {
     try {
@@ -22,12 +22,11 @@ export async function POST(req: Request) {
 
         // Create raw token (sent to user) and a hashed version (stored)
         const rawToken = generateRawToken(32);
-        const tokenHash = sha256Hex(rawToken);
         const expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
         // Store the HASH in the `token` column (do not store raw)
         await prisma.verificationToken.create({
-            data: { identifier: email, token: tokenHash, expires },
+            data: { identifier: email, token: rawToken, expires },
         });
 
         const baseUrl =

@@ -8,13 +8,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import GoogleSignInButton from "../GoogleSignInButton";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
 
 const LOCKED_INPUT_CLASS =
-    "bg-white text-black border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-black focus-visible:ring-black/20 dark:bg-white dark:text-black dark:border-zinc-200 dark:placeholder:text-zinc-500 dark:focus-visible:border-black dark:focus-visible:ring-black/20";
+    "bg-white text-black border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-black focus-visible:ring-black/20";
 
 const FormSchema = z.object({
     username: z.string().min(1, "Username is required").max(20),
@@ -42,10 +41,6 @@ type LocationSuggestion = {
 
 const SignUpForm = () => {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const googleMode = searchParams?.get("google") === "1";
-    const googleEmail = searchParams?.get("email") ?? "";
-    const googleName = searchParams?.get("name") ?? "";
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
@@ -106,41 +101,9 @@ const SignUpForm = () => {
         }
     };
 
-    if (googleMode) {
-        return (
-            <div className="flex flex-col gap-4 text-center">
-                <h1 className="text-3xl text-center mb-2 text-black dark:text-black">Sign Up</h1>
-                <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 dark:border-yellow-300 dark:bg-yellow-50 dark:text-yellow-900">
-                    <p className="font-semibold mb-1">Finish linking your Google account</p>
-                    <p>
-                        We found a Google sign-in for <span className="font-semibold">{googleEmail || "your email"}</span>, but it
-                        hasn&apos;t been onboarded yet. Please complete onboarding to finish setting up your profile.
-                    </p>
-                </div>
-                <Button
-                    type="button"
-                    className="w-full bg-green-700 text-white hover:bg-black dark:bg-green-700 dark:text-white dark:hover:bg-black"
-                    onClick={() =>
-                        router.push(
-                            `/user-onboarding${googleName ? `?username=${encodeURIComponent(googleName)}` : ""}`
-                        )
-                    }
-                >
-                    Continue to onboarding
-                </Button>
-                <p className="text-sm text-gray-600 dark:text-gray-600">
-                    Need to try a different account?{" "}
-                    <Link className="text-green-600 hover:underline dark:text-green-600" href="/log-in">
-                        Return to log in
-                    </Link>
-                </p>
-            </div>
-        );
-    }
-
     return (
         <Form {...form}>
-            <h1 className="text-3xl text-center mb-4 text-black dark:text-black">Sign Up</h1>
+            <h1 className="text-3xl text-center mb-4 text-black">Sign Up</h1>
             <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
                 <div className="space-y-4">
                     {/* Username */}
@@ -149,8 +112,8 @@ const SignUpForm = () => {
                         name="username"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="mb-2 text-black dark:text-black">Username</FormLabel>
-                                <FormControl className="bg-white dark:bg-white">
+                                <FormLabel className="mb-2 text-black">Username</FormLabel>
+                                <FormControl className="bg-white">
                                     <Input placeholder="john-doe" {...field} className={LOCKED_INPUT_CLASS} />
                                 </FormControl>
                                 <FormMessage />
@@ -163,8 +126,8 @@ const SignUpForm = () => {
                         name="email"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="mb-2 text-black dark:text-black">Email</FormLabel>
-                                <FormControl className="bg-white dark:bg-white">
+                                <FormLabel className="mb-2 text-black">Email</FormLabel>
+                                <FormControl className="bg-white">
                                     <Input placeholder="johndoe@email.com" {...field} className={LOCKED_INPUT_CLASS} />
                                 </FormControl>
                                 <FormMessage />
@@ -177,8 +140,8 @@ const SignUpForm = () => {
                         name="password"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="mb-2 text-black dark:text-black">Password</FormLabel>
-                                <FormControl className="bg-white dark:bg-white">
+                                <FormLabel className="mb-2 text-black">Password</FormLabel>
+                                <FormControl className="bg-white">
                                     <Input placeholder="Enter your password" type="password" {...field} className={LOCKED_INPUT_CLASS} />
                                 </FormControl>
                                 <FormMessage />
@@ -191,8 +154,8 @@ const SignUpForm = () => {
                         name="confirmPassword"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="mb-2 text-black dark:text-black">Re-Enter your password</FormLabel>
-                                <FormControl className="bg-white dark:bg-white">
+                                <FormLabel className="mb-2 text-black">Re-Enter your password</FormLabel>
+                                <FormControl className="bg-white">
                                     <Input placeholder="Re-Enter your password" type="password" {...field} className={LOCKED_INPUT_CLASS} />
                                 </FormControl>
                                 <FormMessage />
@@ -206,8 +169,8 @@ const SignUpForm = () => {
                         name="location"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="mb-2 text-black dark:text-black">City Location</FormLabel>
-                                <FormControl className="bg-white dark:bg-white">
+                                <FormLabel className="mb-2 text-black">City Location</FormLabel>
+                                <FormControl className="bg-white">
                                     <LocationAutocomplete
                                         value={field.value}
                                         onChangeLabel={field.onChange}
@@ -229,7 +192,7 @@ const SignUpForm = () => {
                     />
                 </div>
 
-                <Button className="w-full mt-6 bg-green-700 text-white hover:bg-black dark:bg-green-700 dark:text-white dark:hover:bg-black" type="submit">
+                <Button className="w-full mt-6 bg-green-700 text-white hover:bg-black" type="submit">
                     Sign Up
                 </Button>
             </form>
@@ -237,16 +200,13 @@ const SignUpForm = () => {
             <div
                 className="mx-auto my-4 flex w-full items-center justify-evenly before:mr-4 before:block
             before:h-px before:flex-grow before:bg-stone-400 after:ml-4 after:block after:h-px after:flex-grow
-            after:bg-stone-400 dark:before:bg-stone-400 dark:after:bg-stone-400"
+        after:bg-stone-400"
             >
                 or
             </div>
-            <GoogleSignInButton callbackUrl="/user-onboarding" className="w-full bg-white text-black border border-zinc-200 hover:bg-zinc-50 dark:bg-white dark:text-black dark:hover:bg-zinc-50">
-                Sign Up with Google
-            </GoogleSignInButton>
-            <p className="text-center text-sm text-gray-600 mt-2 dark:text-gray-600">
+            <p className="text-center text-sm text-gray-600 mt-2">
                 If you already have an account, please&nbsp;
-                <Link className="text-green-500 hover:underline dark:text-green-500" href="/log-in">
+                <Link className="text-green-500 hover:underline" href="/log-in">
                     Log In
                 </Link>
             </p>
@@ -333,12 +293,12 @@ function LocationAutocomplete({
             )}
 
             {open && suggestions.length > 0 && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-zinc-200 rounded-lg shadow max-h-60 overflow-y-auto dark:bg-white dark:border-zinc-200">
+                <div className="absolute z-20 mt-1 w-full bg-white border border-zinc-200 rounded-lg shadow max-h-60 overflow-y-auto">
                     {suggestions.map((s) => (
                         <button
                             key={s.id}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm text-black hover:bg-gray-50 dark:text-black"
+                            className="w-full text-left px-3 py-2 text-sm text-black hover:bg-gray-50"
                             onClick={() => handleSelect(s)}
                         >
                             <div className="font-medium">{s.label}</div>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { sendPasswordResetEmail } from '@/lib/mail';
 import { getBaseUrl } from '@/lib/base-url';
-import { generateRawToken, sha256Hex } from '@/lib/token';
+import { generateRawToken } from '@/lib/token';
 import { db as prisma } from '@/prisma/client';
 
 export async function POST(req: Request) {
@@ -24,13 +24,12 @@ export async function POST(req: Request) {
         await prisma.verificationToken.deleteMany({ where: { identifier: normalizedEmail } });
 
         const rawToken = generateRawToken(32);
-        const tokenHash = sha256Hex(rawToken);
         const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
         await prisma.verificationToken.create({
             data: {
                 identifier: normalizedEmail,
-                token: tokenHash,
+                token: rawToken,
                 expires,
             },
         });

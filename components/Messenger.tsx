@@ -957,7 +957,7 @@ export default function Messenger() {
             const u = m.sharedUser;
 
             // Infer slug from URL if needed
-            let linkFromContent =
+            const linkFromContent =
                 (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.exec(m.content)?.[0]) || '';
             let inferredSlug: string | undefined = u?.username || u?.name || u?.id || undefined;
             if (!inferredSlug && linkFromContent) {

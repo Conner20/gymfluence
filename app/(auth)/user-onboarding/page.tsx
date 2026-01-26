@@ -85,6 +85,7 @@ function UserOnboardingContent() {
             const res = await fetch("/api/user/update-role", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({
                     role: "GYM",
                     gymForm: values,   // fee is already a number
