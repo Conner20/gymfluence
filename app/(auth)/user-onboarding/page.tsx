@@ -131,7 +131,7 @@ function UserOnboardingContent() {
 
             const data = await res.json();
             console.log("User updated:", data);
-            router.push("/profile");
+            router.push("/log-in?onboarded=1");
         } catch (err) {
             console.error("Update failed:", err);
         }

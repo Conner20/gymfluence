@@ -9,8 +9,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { signIn } from "next-auth/react";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 const LOCKED_INPUT_CLASS =
     "bg-white text-black border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-black focus-visible:ring-black/20";
@@ -41,6 +40,11 @@ type LocationSuggestion = {
 
 const SignUpForm = () => {
     const router = useRouter();
+    const [status, setStatus] = useState<"form" | "pending">("form");
+    const [pendingEmail, setPendingEmail] = useState("");
+    const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
+    const [formError, setFormError] = useState<string | null>(null);
+
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
@@ -60,6 +64,7 @@ const SignUpForm = () => {
     const [lng, setLng] = useState<number | null>(null);
 
     const onSubmit = async (values: z.infer<typeof FormSchema>) => {
+        setFormError(null);
         // Step 1: Sign up
         const response = await fetch("/api/user", {
             method: "POST",
@@ -79,31 +84,70 @@ const SignUpForm = () => {
         });
 
         if (response.ok) {
-            // Step 2: Immediately sign the user in (so onboarding has a session)
-            const signInRes = await signIn("credentials", {
-                redirect: false,
-                email: values.email,
-                password: values.password,
-            });
-
-            if (signInRes && !signInRes.error) {
-                // Step 3: Redirect to onboarding page (with username in query param)
-                router.push(`/user-onboarding?username=${encodeURIComponent(values.username)}`);
-            } else {
-                toast("Error", {
-                    description: "Sign in failed after registration.",
-                });
-            }
+            setPendingEmail(values.email);
+            setStatus("pending");
         } else {
-            toast("Error", {
-                description: "Oops! Something went wrong.",
-            });
+            const data = await response.json().catch(() => null);
+            setFormError(data?.message || "Oops! Something went wrong.");
         }
     };
+
+    const handleResendVerification = async () => {
+        if (!pendingEmail) return;
+        setResendStatus("sending");
+        try {
+            await fetch("/api/auth/verify-email/request", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: pendingEmail }),
+            });
+            setResendStatus("sent");
+        } catch {
+            setResendStatus("idle");
+            setFormError("Unable to resend verification email right now.");
+        }
+    };
+
+    if (status === "pending") {
+        return (
+            <div className="space-y-4 text-center">
+                <h1 className="text-3xl font-semibold text-black">Verify your email</h1>
+                <p className="text-sm text-gray-600">
+                    We sent a verification link to <span className="font-medium">{pendingEmail}</span>. Click the link in that email to
+                    continue to onboarding.
+                </p>
+                <div className="space-y-2">
+                    <Button
+                        type="button"
+                        className="w-full bg-green-700 text-white hover:bg-black"
+                        onClick={handleResendVerification}
+                        disabled={resendStatus === "sending"}
+                    >
+                        {resendStatus === "sending" ? "Sending…" : "Resend email"}
+                    </Button>
+                    {resendStatus === "sent" && (
+                        <p className="text-xs text-green-600">Another verification email has been sent.</p>
+                    )}
+                </div>
+                <p className="text-sm text-gray-600">
+                    Already verified?{" "}
+                    <Link className="text-green-600 hover:underline" href="/log-in">
+                        Return to log in
+                    </Link>
+                </p>
+            </div>
+        );
+    }
 
     return (
         <Form {...form}>
             <h1 className="text-3xl text-center mb-4 text-black">Sign Up</h1>
+            {status === "form" && formError && (
+                <Alert className="mb-4 border border-red-200 bg-red-50 text-red-900 shadow-none">
+                    <AlertTitle className="text-red-900">Unable to sign up</AlertTitle>
+                    <AlertDescription className="text-red-800">{formError}</AlertDescription>
+                </Alert>
+            )}
             <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
                 <div className="space-y-4">
                     {/* Username */}
@@ -198,7 +242,7 @@ const SignUpForm = () => {
             </form>
 
             <div
-                className="mx-auto my-4 flex w-full items-center justify-evenly before:mr-4 before:block
+                className="mx-auto my-4 flex w-full items-center justify-evenly text-black dark:text-black before:mr-4 before:block
             before:h-px before:flex-grow before:bg-stone-400 after:ml-4 after:block after:h-px after:flex-grow
         after:bg-stone-400"
             >

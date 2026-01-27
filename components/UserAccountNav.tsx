@@ -7,7 +7,7 @@ const UserAccountNav = () => {
     return (
         <Button onClick={() => signOut({
             redirect: true,
-            callbackUrl: `${window.location.origin}/log-in`
+            callbackUrl: `${window.location.origin}/`
         })} variant="destructive">
             Log Out
         </Button>

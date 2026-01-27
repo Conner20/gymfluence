@@ -23,35 +23,80 @@ const inputClass =
 const LogInForm = () => {
     const router = useRouter();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [showResendPrompt, setShowResendPrompt] = useState(false);
+    const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
     });
 
     const onSubmit = async (values: z.infer<typeof FormSchema>) => {
+        setShowResendPrompt(false);
+        setResendStatus("idle");
+
         const logInData = await signIn('credentials', {
             email: values.email,
             password: values.password,
             redirect: false,
         });
         if (logInData?.error) {
-            setErrorMessage("Oops! Something went wrong. Please check your credentials and try again.")
+            if (logInData.error === "EMAIL_NOT_VERIFIED") {
+                setErrorMessage("Please verify your email before logging in.");
+                setShowResendPrompt(true);
+            } else {
+                setErrorMessage("Oops! Something went wrong. Please check your credentials and try again.");
+            }
         } else {
             setErrorMessage(null);
+            setShowResendPrompt(false);
             router.refresh();
             router.push('/home')
         }
     }
+
+    const handleResendVerification = async () => {
+        const email = form.getValues("email");
+        if (!email) return;
+        setResendStatus("sending");
+        try {
+            await fetch("/api/auth/verify-email/request", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
+            setResendStatus("sent");
+        } catch {
+            setResendStatus("idle");
+        }
+    };
 
     return (
         <Form {...form}>
             <h1 className="text-3xl text-center mb-4 text-black">Log In</h1>
             <form onSubmit={form.handleSubmit(onSubmit)} className='w-full'>
                 {errorMessage && (
-                    <Alert variant="destructive" className="mb-4">
-                        <AlertTitle>Unable to log in</AlertTitle>
-                        <AlertDescription className="text-black">
+                    <Alert className="mb-4 border border-red-200 bg-red-50 text-red-900 shadow-none">
+                        <AlertTitle className="text-red-900">Unable to log in</AlertTitle>
+                        <AlertDescription className="text-red-800">
                             {errorMessage}
                         </AlertDescription>
+                        {showResendPrompt && (
+                            <div className="mt-3 space-y-2 text-left">
+                                <p className="text-sm text-zinc-600">
+                                    Didn&apos;t get the email?
+                                </p>
+                                <Button
+                                    type="button"
+                                    className="w-full bg-red-600 text-white hover:bg-red-700"
+                                    onClick={handleResendVerification}
+                                    disabled={resendStatus === "sending"}
+                                >
+                                    {resendStatus === "sending" ? "Sending…" : "Resend verification email"}
+                                </Button>
+                                {resendStatus === "sent" && (
+                                    <p className="text-xs text-green-600">Verification email sent.</p>
+                                )}
+                            </div>
+                        )}
                     </Alert>
                 )}
                 <div className="space-y-4">

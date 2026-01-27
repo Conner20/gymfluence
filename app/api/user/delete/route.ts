@@ -37,7 +37,22 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ message: "Incorrect password." }, { status: 401 });
     }
 
-    await db.user.delete({ where: { id: me.id } });
+    await db.$transaction([
+        db.like.deleteMany({ where: { userId: me.id } }),
+        db.comment.deleteMany({ where: { authorId: me.id } }),
+        db.follow.deleteMany({
+            where: {
+                OR: [{ followerId: me.id }, { followingId: me.id }],
+            },
+        }),
+        db.message.deleteMany({
+            where: {
+                OR: [{ senderId: me.id }, { sharedUserId: me.id }],
+            },
+        }),
+        db.post.deleteMany({ where: { authorId: me.id } }),
+        db.user.delete({ where: { id: me.id } }),
+    ]);
 
     return NextResponse.json({ message: "Account deleted." }, { status: 200 });
 }

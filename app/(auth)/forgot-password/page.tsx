@@ -5,12 +5,10 @@ import Link from 'next/link';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
-import { CheckCircle2 } from 'lucide-react';
-
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const schema = z.object({
     email: z.string().email('Enter a valid email address'),
@@ -40,16 +38,12 @@ export default function ForgotPasswordPage() {
 
             if (!res.ok) throw new Error('Failed');
 
-            toast('Check your email', {
-                description: 'If an account exists, a reset link has been sent.',
-            });
             setStatus('sent');
             form.reset();
         } catch (error) {
             console.error(error);
             setStatus('idle');
             setErrorMessage('Unable to send a reset link right now. Please try again in a moment.');
-            toast('Done', { description: 'If an account exists, a reset link has been sent.' });
         }
     };
 
@@ -84,13 +78,22 @@ export default function ForgotPasswordPage() {
                             )}
                         />
 
-                        {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+                        {errorMessage && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Unable to send email</AlertTitle>
+                                <AlertDescription className="text-black">
+                                    {errorMessage}
+                                </AlertDescription>
+                            </Alert>
+                        )}
 
                         {status === 'sent' && (
-                            <div className="flex items-center justify-center gap-2 text-sm font-medium text-green-600">
-                                <CheckCircle2 className="h-4 w-4" aria-hidden />
-                                Reset link sent
-                            </div>
+                            <Alert className="border-green-200 bg-green-50 text-green-800">
+                                <AlertTitle>Check your inbox</AlertTitle>
+                                <AlertDescription className="text-green-700">
+                                    If an account exists for that email, we just sent a reset link.
+                                </AlertDescription>
+                            </Alert>
                         )}
 
                         <Button

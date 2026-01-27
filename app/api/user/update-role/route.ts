@@ -1,13 +1,38 @@
 // app/api/user/update-role/route.ts
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { jwtVerify } from "jose";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { env } from "@/lib/env";
+
+async function getIdentifierFromOnboardingCookie() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("onboarding_token")?.value;
+    if (!token) return null;
+    try {
+        const secret = new TextEncoder().encode(env.NEXTAUTH_SECRET);
+        const { payload } = await jwtVerify(token, secret);
+        if (typeof payload?.email === "string" && payload.email.length > 0) {
+            return payload.email;
+        }
+        return null;
+    } catch (err) {
+        console.error("onboarding token verification failed:", err);
+        return null;
+    }
+}
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
+    let identifier = session?.user?.email ?? null;
 
-    if (!session?.user?.email) {
+    if (!identifier) {
+        identifier = await getIdentifierFromOnboardingCookie();
+    }
+
+    if (!identifier) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -15,7 +40,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         let { role, selections = [], gymForm } = body;
 
-        const identifier = session.user.email.toLowerCase();
+        identifier = identifier.toLowerCase();
 
         // normalize and validate role
         if (typeof role === "string") role = role.toUpperCase();
@@ -97,7 +122,9 @@ export async function POST(req: Request) {
             },
         });
 
-        return NextResponse.json({ user, message: "User updated" });
+        const res = NextResponse.json({ user, message: "User updated" });
+        res.cookies.delete("onboarding_token");
+        return res;
     } catch (err: any) {
         console.error("update-role error:", err);
         // surface a useful message if possible

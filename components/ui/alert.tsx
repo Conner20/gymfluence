@@ -9,9 +9,8 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50",
-        destructive:
-          "border-red-200 bg-red-50 text-red-900 shadow-none dark:border-red-400/40 dark:bg-red-950/40 dark:text-red-200",
+        default: "border-zinc-200 bg-white text-zinc-900",
+        destructive: "border-red-200 bg-red-50 text-red-900 shadow-none",
       },
     },
     defaultVariants: {
@@ -40,7 +39,7 @@ const AlertDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("text-sm text-zinc-600 dark:text-zinc-300", className)} {...props} />
+  <div ref={ref} className={cn("text-sm text-zinc-600", className)} {...props} />
 ))
 AlertDescription.displayName = "AlertDescription"
 

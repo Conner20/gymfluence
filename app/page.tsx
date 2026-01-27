@@ -1,14 +1,25 @@
 // app/(main)/landing/page.tsx
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Instagram, Linkedin, Facebook, Moon, Sun } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
   const darkMode = theme === "dark";
+  const { status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/home");
+    }
+  }, [status, router]);
 
   return (
       <div className="min-h-screen bg-white text-black transition-colors dark:bg-[#050505] dark:text-white">
@@ -67,7 +78,7 @@ export default function LandingPage() {
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 href="/sign-up"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-700 text-white hover:bg-black transition"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-700 text-white hover:bg-black transition dark:bg-green-600"
               >
                 Get Started <ArrowRight size={18} />
               </Link>
@@ -139,7 +150,7 @@ export default function LandingPage() {
           <div className="mt-7 flex items-center justify-center gap-3">
             <Link
               href="/sign-up"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black hover:bg-green-700 hover:text-white transition"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black hover:bg-green-700 hover:text-white transition dark:hover:bg-green-600"
             >
               Get Started <ArrowRight size={18} />
             </Link>

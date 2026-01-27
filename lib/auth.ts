@@ -9,7 +9,11 @@ export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(db),
     secret: env.NEXTAUTH_SECRET,
     session: {
-        strategy: 'jwt'
+        strategy: "jwt",
+        maxAge: 60 * 60, // keep users signed in for 1 hour via cookie
+    },
+    jwt: {
+        maxAge: 60 * 60,
     },
     pages: {
         signIn: '/log-in',
@@ -36,6 +40,9 @@ export const authOptions: NextAuthOptions = {
                     if (!passwordMatch) {
                         return null;
                     }
+                }
+                if (!existingUser.emailVerified) {
+                    throw new Error("EMAIL_NOT_VERIFIED");
                 }
 
                 return {
