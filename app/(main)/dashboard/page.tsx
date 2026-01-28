@@ -1155,7 +1155,7 @@ export default function Dashboard() {
                                                         </div>
                                                         <button
                                                             aria-label="Delete"
-                                                            className="p-1 text-zinc-500 dark:text-zinc-300 hover:text-red-600"
+                                                            className="p-1 text-zinc-500 dark:text-zinc-300 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-500"
                                                             onClick={() => deleteSet(r.id)}
                                                             title="Delete entry"
                                                         >

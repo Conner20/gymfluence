@@ -720,7 +720,7 @@ function AddFoodPanel({
                     aria-expanded={showCustom}
                     aria-controls="custom-food-panel"
                     onClick={() => setShowCustom((v) => !v)}
-                    className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm hover:bg-zinc-50"
+                    className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm hover:bg-zinc-50 dark:hover:bg-white/10"
                 >
                     {showCustom ? <X size={16} /> : <Plus size={16} />}
                     {showCustom ? 'Close custom food' : 'Add custom food'}
@@ -755,13 +755,13 @@ function AddFoodPanel({
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        className="rounded-full border p-2 text-zinc-500 hover:bg-zinc-50"
+                                        className="rounded-full border p-2 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-white/10 dark:text-gray-500 dark:hover:text-red-500"
                                         onClick={() => removeFood(f.id)}
                                         title={isCustom || presetIds.has(f.id) ? 'Delete food' : 'Delete'}
                                     >
                                         <Trash2 size={16} />
                                     </button>
-                                    <button className="rounded-full border p-2 hover:bg-zinc-50" onClick={() => addFood(f)} title="Add">
+                                    <button className="rounded-full border p-2 hover:bg-zinc-50 dark:hover:bg-white/10 dark:text-gray-500 dark:hover:text-white" onClick={() => addFood(f)} title="Add">
                                         <Plus size={16} />
                                     </button>
                                 </div>

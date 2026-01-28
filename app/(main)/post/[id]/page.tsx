@@ -3,7 +3,11 @@ import PostDetail from "@/components/PostDetail";
 
 export const revalidate = 0;
 
-export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+type PostPageProps = {
+    params: Promise<{ id: string }>;
+};
+
+export default async function PostPage({ params }: PostPageProps) {
     const { id } = await params;
 
     return (
