@@ -6,20 +6,17 @@ import clsx from "clsx";
 type Role = "TRAINEE" | "TRAINER" | "GYM" | null;
 
 type SearchProfileEditorProps = {
-    // Called when the Search Profile "Save changes" button is clicked.
-    // We'll use this to trigger saving BOTH main profile and search profile.
-    onSaveAll?: () => void | Promise<void>;
     // A counter from the parent: whenever it changes, we run our own onSave().
     externalSaveTrigger?: number;
 };
 
 export default function SearchProfileEditor({
-    onSaveAll,
     externalSaveTrigger,
 }: SearchProfileEditorProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState<string | null>(null);
+    const [savedState, setSavedState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
     const [role, setRole] = useState<Role>(null);
     const [about, setAbout] = useState("");
@@ -111,34 +108,44 @@ export default function SearchProfileEditor({
     };
 
     // Make onSave stable so useEffect can depend on it
-    const onSave = useCallback(async () => {
-        try {
-            setSaving(true);
-            setErr(null);
+    const onSave = useCallback(
+        async (silent = false) => {
+            try {
+                if (!silent) {
+                    setSaving(true);
+                    setSavedState('saving');
+                }
+                setErr(null);
 
-            const payload: any = { about };
-            if (role === "TRAINEE") payload.goals = goals;
-            if (role === "TRAINER") {
-                payload.services = services;
-                payload.hourlyRate = hourlyRate === "" ? null : Number(hourlyRate);
-            }
-            if (role === "GYM") {
-                payload.gymFee = gymFee === "" ? null : Number(gymFee);
-                payload.amenitiesText = amenitiesText; // NEW
-            }
+                const payload: any = { about };
+                if (role === "TRAINEE") payload.goals = goals;
+                if (role === "TRAINER") {
+                    payload.services = services;
+                    payload.hourlyRate = hourlyRate === "" ? null : Number(hourlyRate);
+                }
+                if (role === "GYM") {
+                    payload.gymFee = gymFee === "" ? null : Number(gymFee);
+                    payload.amenitiesText = amenitiesText; // NEW
+                }
 
-            const res = await fetch("/api/user/search-profile", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            setErr("Failed to save.");
-        } finally {
-            setSaving(false);
-        }
-    }, [about, role, goals, services, hourlyRate, gymFee, amenitiesText]);
+                const res = await fetch("/api/user/search-profile", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) throw new Error();
+            } catch {
+                setErr("Failed to save.");
+            } finally {
+                if (!silent) {
+                    setSaving(false);
+                    setSavedState('saved');
+                    setTimeout(() => setSavedState('idle'), 2000);
+                }
+            }
+        },
+        [about, role, goals, services, hourlyRate, gymFee, amenitiesText],
+    );
 
     const onUpload = async (files: File[]) => {
         if (!files.length) return;
@@ -174,8 +181,8 @@ export default function SearchProfileEditor({
 
         if (externalSaveTrigger !== lastTriggerRef.current) {
             lastTriggerRef.current = externalSaveTrigger;
-            // Trigger a save of the Search Profile
-            onSave();
+            // Trigger a save of the Search Profile silently
+            onSave(true);
         }
     }, [externalSaveTrigger, onSave]);
 
@@ -397,22 +404,19 @@ export default function SearchProfileEditor({
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* This button now calls the parent saveBoth (which also triggers our onSave via externalSaveTrigger) */}
                         <button
-                            onClick={() => {
-                                if (onSaveAll) {
-                                    onSaveAll();
-                                } else {
-                                    onSave();
-                                }
-                            }}
+                            onClick={() => onSave()}
                             disabled={saving}
                             className={clsx(
                                 "px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50",
-                                saving ? "bg-gray-300 text-gray-600" : "bg-gray-900 text-white hover:bg-green-700"
+                                savedState === 'saved'
+                                    ? "bg-green-600 text-white"
+                                    : saving
+                                        ? "bg-gray-300 text-gray-600"
+                                        : "bg-gray-900 text-white hover:bg-green-700"
                             )}
                         >
-                            {saving ? "Saving…" : "Save changes"}
+                            {savedState === 'saved' ? 'Saved!' : savedState === 'saving' ? 'Saving…' : 'Save changes'}
                         </button>
                         {err && <span className="text-sm text-red-600">{err}</span>}
                     </div>

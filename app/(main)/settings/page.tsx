@@ -21,7 +21,8 @@ export default function SettingsPage() {
     const { data: session, status } = useSession();
 
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
+    const [profileError, setProfileError] = useState<string | null>(null);
 
     // Profile text fields
     const [name, setName] = useState("");
@@ -140,23 +141,24 @@ export default function SettingsPage() {
             setPreviewUrl(null);
             setFile(null);
 
-            alert("Profile updated!");
         } catch {
-            alert("Failed to save profile.");
+            setProfileError("Failed to save profile.");
             throw new Error("Profile save failed");
         }
     };
 
     // Save BOTH main profile and search profile
     const saveBoth = async () => {
-        setSaving(true);
+        if (profileSaveState === "saving") return;
+        setProfileError(null);
+        setProfileSaveState("saving");
         try {
             await saveProfile();
             setSearchSaveTrigger((t) => t + 1);
+            setProfileSaveState("saved");
+            setTimeout(() => setProfileSaveState("idle"), 2000);
         } catch {
-            // errors already alerted
-        } finally {
-            setSaving(false);
+            setProfileSaveState("idle");
         }
     };
 
@@ -334,13 +336,22 @@ export default function SettingsPage() {
                                     />
                                 </div>
 
-                                <button
-                                    onClick={saveBoth}
-                                    disabled={saving}
-                                    className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50 hover:bg-green-700"
-                                >
-                                    {saving ? "Saving…" : "Save changes"}
-                                </button>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <button
+                                        onClick={saveBoth}
+                                        disabled={profileSaveState === "saving"}
+                                        className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50 hover:bg-green-700"
+                                    >
+                                        {profileSaveState === "saved"
+                                            ? "Saved!"
+                                            : profileSaveState === "saving"
+                                                ? "Saving…"
+                                                : "Save changes"}
+                                    </button>
+                                    {profileError && (
+                                        <span className="text-sm text-red-600">{profileError}</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -353,10 +364,7 @@ export default function SettingsPage() {
 
                 {/* Search Profile card */}
                 <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
-                    <SearchProfileEditor
-                        onSaveAll={saveBoth}
-                        externalSaveTrigger={searchSaveTrigger}
-                    />
+                    <SearchProfileEditor externalSaveTrigger={searchSaveTrigger} />
                 </div>
 
                 {/* Password management */}
