@@ -4,6 +4,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/prisma/client';
 
+export type CardioMode = 'running' | 'biking' | 'walking' | 'swimming';
+export type DistanceUnit = 'mi' | 'km';
+
 /** ---------------- Auth helper ---------------- */
 async function requireMe() {
     const session = await getServerSession(authOptions);
@@ -32,9 +35,33 @@ export type SetEntry = {
     date: string; // YYYY-MM-DD
 };
 
+export type CardioSessionEntry = {
+    id: string;
+    activity: CardioMode;
+    timeMinutes: number;
+    distance: number | null;
+    distanceUnit: DistanceUnit;
+    calories: number | null;
+    date: string; // YYYY-MM-DD
+};
+
 /** --------------- Public API used by the Dashboard --------------- */
 export async function fetchAllDashboardData() {
-    const userId = await requireMe();
+    let userId: string | null = null;
+    try {
+        userId = await requireMe();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === 'Unauthorized' || message === 'User not found') {
+            return {
+                requiresAuth: true,
+                exercises: [],
+                sets: [],
+                cardioSessions: [],
+            };
+        }
+        throw err;
+    }
 
     // Exercises list (names only)
     const exercises = await db.workoutExercise.findMany({
@@ -66,16 +93,35 @@ export async function fetchAllDashboardData() {
         exercise: s.exercise.name,
     }));
 
-    // Split (single row with items: string[])
-    const splitRow = await db.workoutSplit.findFirst({
+    const cardioRows = await db.cardioSession.findMany({
         where: { userId },
-        select: { items: true },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        select: {
+            id: true,
+            activity: true,
+            date: true,
+            timeMinutes: true,
+            distance: true,
+            distanceUnit: true,
+            calories: true,
+        },
     });
 
+    const cardioSessions: CardioSessionEntry[] = cardioRows.map((row) => ({
+        id: row.id,
+        activity: row.activity as CardioMode,
+        date: row.date.toISOString().slice(0, 10),
+        timeMinutes: row.timeMinutes,
+        distance: row.distance ?? null,
+        distanceUnit: (row.distanceUnit as DistanceUnit) ?? 'mi',
+        calories: row.calories ?? null,
+    }));
+
     return {
+        requiresAuth: false,
         exercises: exercises.map((e: typeof exercises[number]) => e.name),
         sets: setEntries,
-        split: splitRow?.items ?? ['rest', 'legs', 'push', 'pull'],
+        cardioSessions,
     };
 }
 
@@ -164,31 +210,73 @@ export async function deleteSetServer(id: string) {
     return { deleted: true };
 }
 
-export async function saveSplitServer(items: string[]) {
+export async function addCardioSessionServer(input: {
+    activity: CardioMode;
+    timeMinutes: number;
+    distance?: number;
+    distanceUnit: DistanceUnit;
+    calories?: number;
+    date: string; // YYYY-MM-DD
+}) {
     const userId = await requireMe();
-    const cleaned = items
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-
-    if (!cleaned.length) throw new Error('Split must have at least one item');
-
-    const existing = await db.workoutSplit.findFirst({
-        where: { userId },
-        select: { id: true },
-    });
-
-    if (existing) {
-        await db.workoutSplit.update({
-            where: { id: existing.id },
-            data: { items: cleaned },
-        });
-    } else {
-        await db.workoutSplit.create({
-            data: { userId, items: cleaned },
-        });
+    const activity = input.activity;
+    const timeMinutes = Math.max(0, Math.round(input.timeMinutes));
+    if (timeMinutes <= 0) {
+        throw new Error('Time in minutes is required');
     }
 
-    return { ok: true };
+    const distanceValue =
+        typeof input.distance === 'number' && Number.isFinite(input.distance) ? input.distance : null;
+    const caloriesValue =
+        typeof input.calories === 'number' && Number.isFinite(input.calories)
+            ? Math.max(0, Math.round(input.calories))
+            : null;
+
+    const created = await db.cardioSession.create({
+        data: {
+            userId,
+            activity,
+            timeMinutes,
+            distance: distanceValue,
+            distanceUnit: input.distanceUnit,
+            calories: caloriesValue,
+            date: new Date(input.date),
+        },
+        select: {
+            id: true,
+            activity: true,
+            date: true,
+            timeMinutes: true,
+            distance: true,
+            distanceUnit: true,
+            calories: true,
+        },
+    });
+
+    const result: CardioSessionEntry = {
+        id: created.id,
+        activity: created.activity as CardioMode,
+        date: created.date.toISOString().slice(0, 10),
+        timeMinutes: created.timeMinutes,
+        distance: created.distance ?? null,
+        distanceUnit: (created.distanceUnit as DistanceUnit) ?? 'mi',
+        calories: created.calories ?? null,
+    };
+
+    return result;
+}
+
+export async function deleteCardioSessionServer(id: string) {
+    const userId = await requireMe();
+    const found = await db.cardioSession.findFirst({
+        where: { id, userId },
+        select: { id: true },
+    });
+    if (!found) {
+        return { deleted: false };
+    }
+    await db.cardioSession.delete({ where: { id } });
+    return { deleted: true };
 }
 
 /** Persistently delete an exercise (and its sets) for the current user */

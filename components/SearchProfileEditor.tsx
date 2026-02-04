@@ -34,7 +34,6 @@ export default function SearchProfileEditor({
     const fileRef = useRef<HTMLInputElement>(null);
 
     // NEW: custom add fields
-    const [newGoal, setNewGoal] = useState("");
     const [newService, setNewService] = useState("");
 
     const coreGoals = [
@@ -181,8 +180,8 @@ export default function SearchProfileEditor({
     }, [externalSaveTrigger, onSave]);
 
     return (
-        <section className="mt-6">
-            <h2 className="text-xl font-semibold mb-2">Search Profile</h2>
+        <section>
+            <h2 className="font-semibold mb-2">Search Profile</h2>
             <p className="text-sm text-gray-600 mb-5 dark:text-gray-400">
                 Customize what appears on <span className="font-medium">Search</span> for your {roleLabel}.
                 Your profile picture, name, and city/country come from your main profile.
@@ -221,8 +220,8 @@ export default function SearchProfileEditor({
                                         className={clsx(
                                             "px-3 py-1 rounded-full border text-sm transition",
                                             goals.includes(g)
-                                                ? "bg-green-600 text-white border-green-600 shadow-sm dark:bg-green-500 dark:text-black dark:border-green-500"
-                                                : "bg-white hover:bg-gray-50 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                                ? "bg-green-600 text-white border-green-600 hover:bg-green-700 shadow-sm dark:bg-green-500 dark:hover:bg-green-700 dark:hover:border-green-700 dark:text-black dark:border-green-500"
+                                                : "bg-white hover:bg-gray-100 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                         )}
                                     >
                                         {g}
@@ -230,47 +229,6 @@ export default function SearchProfileEditor({
                                 ))}
                             </div>
 
-                            {/* Current selected chips with remove */}
-                            {goals.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    {goals.map((g) => (
-                                        <span key={g} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs bg-gray-50 dark:bg-white/10 dark:border-white/20 dark:text-gray-100">
-                                            {g}
-                                            <button
-                                                type="button"
-                                                className="text-gray-500 hover:text-black dark:text-gray-300 dark:hover:text-white"
-                                                onClick={() => setGoals(goals.filter((x) => x !== g))}
-                                                title="Remove"
-                                            >
-                                                ×
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Add custom goal */}
-                            <div className="flex items-center gap-2 max-w-md">
-                                <input
-                                    className="flex-1 border rounded px-3 py-2 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
-                                    placeholder="Add a custom goal and press Enter…"
-                                    value={newGoal}
-                                    onChange={(e) => setNewGoal(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            e.preventDefault();
-                                            addCustom(newGoal, goals, setGoals, () => setNewGoal(""));
-                                        }
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => addCustom(newGoal, goals, setGoals, () => setNewGoal(""))}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                >
-                                    Add
-                                </button>
-                            </div>
                         </div>
                     )}
 
@@ -290,7 +248,7 @@ export default function SearchProfileEditor({
                                                 "px-3 py-1 rounded-full border text-sm transition",
                                                 services.includes(s)
                                                     ? "bg-green-600 text-white border-green-600 shadow-sm dark:bg-green-500 dark:text-black dark:border-green-500"
-                                                    : "bg-white hover:bg-gray-50 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                                    : "bg-white hover:bg-gray-100 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                             )}
                                         >
                                             {s}
@@ -334,7 +292,7 @@ export default function SearchProfileEditor({
                                 <button
                                     type="button"
                                     onClick={() => addCustom(newService, services, setServices, () => setNewService(""))}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-100 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                 >
                                         Add
                                     </button>
@@ -409,7 +367,7 @@ export default function SearchProfileEditor({
                                 <button
                                     type="button"
                                     onClick={() => fileRef.current?.click()}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-100 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                 >
                                     Upload
                                 </button>
@@ -451,7 +409,7 @@ export default function SearchProfileEditor({
                             disabled={saving}
                             className={clsx(
                                 "px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50",
-                                saving ? "bg-gray-300 text-gray-600" : "bg-gray-900 text-white hover:bg-black"
+                                saving ? "bg-gray-300 text-gray-600" : "bg-gray-900 text-white hover:bg-green-700"
                             )}
                         >
                             {saving ? "Saving…" : "Save changes"}

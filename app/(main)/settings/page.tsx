@@ -271,7 +271,7 @@ export default function SettingsPage() {
 
                                 <label
                                     htmlFor="avatar-file"
-                                    className="inline-flex items-center px-3 py-1.5 rounded-full border border-gray-900 text-gray-900 text-sm cursor-pointer bg-transparent hover:bg-gray-900 hover:text-white transition dark:border-white dark:text-white dark:hover:bg-white/10"
+                                    className="inline-flex items-center px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-100 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                 >
                                     Choose image
                                 </label>
@@ -337,7 +337,7 @@ export default function SettingsPage() {
                                 <button
                                     onClick={saveBoth}
                                     disabled={saving}
-                                    className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
+                                    className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50 hover:bg-green-700"
                                 >
                                     {saving ? "Saving…" : "Save changes"}
                                 </button>

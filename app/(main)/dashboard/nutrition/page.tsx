@@ -400,7 +400,7 @@ export default function Nutrition() {
                             <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="font-semibold">
-                                        {dateISO === fmtDate(new Date()) ? "Today’s meals" : `${dateISO} meals`}
+                                        Meals
                                     </h3>
                                     <input
                                         type="date"
@@ -501,7 +501,7 @@ function MacrosFlipCard({
     const [flipped, setFlipped] = useState(false);
 
     return (
-        <div className="rounded-xl border bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none [perspective:1200px] xl:h-full">
+        <div className="rounded-xl border bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none [perspective:1200px] overflow-hidden xl:h-full">
             {/* toolbar */}
             <div className="flex flex-nowrap items-center gap-3 px-4 pt-4 text-sm overflow-x-auto">
                 <h3 className="whitespace-nowrap font-semibold">Macros</h3>
@@ -552,7 +552,7 @@ function MacrosFlipCard({
                 </div>
 
                 {/* BACK — Add food */}
-                <div className="absolute inset-0 overflow-hidden p-4 [transform:rotateY(180deg)] backface-hidden dark:bg-neutral-900">
+                <div className="absolute inset-0 overflow-hidden rounded-3xl p-4 [transform:rotateY(180deg)] backface-hidden dark:bg-neutral-900">
                     <AddFoodPanel meals={meals} {...addUI} />
                 </div>
             </div>
@@ -737,7 +737,7 @@ function AddFoodPanel({
                     <input className={`${fieldCls} col-span-4 md:col-span-3`} placeholder="Carbs" inputMode="numeric" value={cf.c} onChange={(e) => setCf((s) => ({ ...s, c: e.target.value }))} />
                     <input className={`${fieldCls} col-span-4 md:col-span-3`} placeholder="Fat" inputMode="numeric" value={cf.f} onChange={(e) => setCf((s) => ({ ...s, f: e.target.value }))} />
                     <div className="col-span-4 md:col-span-3 flex items-center">
-                        <button className="h-10 w-full rounded-md bg-black px-4 text-sm text-white hover:opacity-90" onClick={addCustomFood}>Save</button>
+                        <button className="h-10 w-full border rounded-md bg-black px-4 text-sm text-white dark:border-white/20 dark:bg-neutral-900 dark:hover:bg-white/10" onClick={addCustomFood}>Save</button>
                     </div>
                 </div>
             </div>
@@ -826,10 +826,10 @@ function BWChartLiftsStyle({
     const LBS_PER_KG = 2.20462262185;
     const toDisplay = (vLbs: number) => unit === 'kg' ? vLbs / LBS_PER_KG : vLbs;
     const fmtUnit = unit;
-    const gridColor = isDark ? '#1f2937' : '#e5e7eb';
-    const innerGrid = isDark ? '#111827' : '#f1f5f9';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const innerGrid = isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9';
     const labelColor = isDark ? '#d1d5db' : '#6b7280';
-    const hoverLineColor = isDark ? '#4b5563' : '#e5e7eb';
+    const hoverLineColor = isDark ? 'rgba(255,255,255,0.15)' : '#e5e7eb';
     const hoverDotFill = isDark ? '#0f172a' : '#ffffff';
     const lineColor = '#16a34a';
 
@@ -1008,7 +1008,7 @@ function BWChartLiftsStyle({
     const [newW, setNewW] = useState<string>('');
     const dateInputRef = useRef<HTMLInputElement | null>(null);
     const expanderCls =
-        'transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-2';
+        'overflow-hidden transition-all duration-200 ease-out whitespace-nowrap flex items-center gap-2';
 
     const title =
         range === '1W' ? 'Past week' :
@@ -1178,14 +1178,13 @@ function BWChartLiftsStyle({
                     >
                     <line x1={40} y1={28 + (svgH - 28 - 22)} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke={gridColor} />
                     <line x1={40} y1={28} x2={40} y2={28 + (svgH - 28 - 22)} stroke={gridColor} />
-                    <line x1={40 + (svgW - 40 - 40)} y1={28} x2={40 + (svgW - 40 - 40)} y2={28 + (svgH - 28 - 22)} stroke={gridColor} />
                     {yTicks.map((t, i) => {
                         const yy = 28 + (svgH - 28 - 22) - ((t - minY) / (maxY - minY || 1)) * (svgH - 28 - 22);
                         return (
                             <g key={i}>
-                                <line x1={40} y1={yy} x2={40 + (svgW - 40 - 40)} y2={yy} stroke={innerGrid} />
+                                <line x1={40} y1={yy} x2={40 + (svgW - 40 - 40)} y2={yy} stroke={innerGrid} strokeDasharray={i === 0 ? undefined : '3 6'} />
                                 <text x={34} y={yy + 3} fontSize="10" textAnchor="end" fill={labelColor}>
-                                    {Math.round(t)}
+                                    {t.toFixed(1)}
                                 </text>
                             </g>
                         );
@@ -1200,21 +1199,24 @@ function BWChartLiftsStyle({
                             </text>
                         </>
                     )}
-                    {series.some((v) => v > 0) && path && <path d={path} fill="none" stroke={lineColor} strokeWidth={2} />}
+                    {series.some((v) => v > 0) && path && (
+                        <path d={path} fill="none" stroke={lineColor} strokeWidth={2.5} strokeLinecap="round" opacity={0.95} />
+                    )}
                     {series.map((v, i) =>
                         v > 0 ? (
                             <circle
                                 key={i}
                                 cx={40 + (i / Math.max(1, Math.max(1, labels.length - 1))) * (svgW - 40 - 40)}
                                 cy={28 + (svgH - 28 - 22) - ((v - minY) / (maxY - minY || 1)) * (svgH - 28 - 22)}
-                                r={2.4}
+                                r={3}
                                 fill={lineColor}
+                                opacity={0.8}
                             />
                         ) : null
                     )}
                     {hover && labels.length > 0 && (
                         <>
-                            <line x1={hover.cx} y1={28} x2={hover.cx} y2={28 + (svgH - 28 - 22)} stroke={hoverLineColor} />
+                            <line x1={hover.cx} y1={28} x2={hover.cx} y2={28 + (svgH - 28 - 22)} stroke={hoverLineColor} strokeDasharray="4 6" />
                             {hover.cy != null && <circle cx={hover.cx} cy={hover.cy} r={3.8} fill={hoverDotFill} stroke={lineColor} strokeWidth={2} />}
                         </>
                     )}
@@ -1244,7 +1246,7 @@ function BWChartLiftsStyle({
             {/* Bottom controls: centered range buttons + bottom-right unit toggle */}
             <div className="relative mt-2 h-10">
                 {/* Centered range buttons */}
-                <div className="pointer-events-auto absolute inset-0 flex items-center justify-center gap-2 pr-[110px] xl:pr-0">
+                <div className="pointer-events-auto absolute inset-0 flex items-center justify-center gap-2 pr-[30px] sm:pr-[110px] xl:pr-0">
                     {(['1W', '1M', '3M', '1Y', 'ALL'] as const).map((r) => (
                         <button
                             key={r}
@@ -1261,20 +1263,41 @@ function BWChartLiftsStyle({
                 </div>
 
                 {/* lbs/kg toggle pinned bottom-right */}
-                <button
-                    role="switch"
-                    aria-checked={unit === 'kg'}
-                    onClick={() => setUnit(unit === 'lbs' ? 'kg' : 'lbs')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-8 w-[96px] items-center rounded-full border bg-white p-1 text-xs shadow-sm hover:bg-zinc-50 dark:border-white/20 dark:bg-neutral-800 dark:text-neutral-200"
-                    title="Toggle units"
-                >
-                    <span className={`z-10 flex-1 text-center ${unit === 'lbs' ? 'text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>lbs</span>
-                    <span className={`z-10 flex-1 text-center ${unit === 'kg' ? 'text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>kg</span>
-                    <span
-                        className={`absolute left-1 top-1 h-6 w-10 rounded-full bg-zinc-200 transition-transform ${unit === 'kg' ? 'translate-x-[46px]' : 'translate-x-0'
-                            } dark:bg-white/20`}
-                    />
-                </button>
+                <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center">
+                    <button
+                        role="switch"
+                        aria-checked={unit === 'kg'}
+                        onClick={() => setUnit(unit === 'lbs' ? 'kg' : 'lbs')}
+                        className="hidden sm:inline-flex h-9 w-[108px] items-center justify-between rounded-full px-2 text-xs font-semibold uppercase tracking-wide transition dark:text-neutral-200"
+                        title="Toggle units"
+                    >
+                        <span className={unit === 'lbs' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-500'}>lbs</span>
+                        <div className="relative h-7 w-14 rounded-full border border-zinc-300 bg-white/90 px-1 dark:border-white/20 dark:bg-white/5">
+                            <span
+                                className={`absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-zinc-800 transition-transform dark:bg-white ${
+                                    unit === 'kg' ? 'translate-x-[22px]' : 'translate-x-0'
+                                }`}
+                            />
+                        </div>
+                        <span className={unit === 'kg' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-500'}>kg</span>
+                    </button>
+
+                    <button
+                        role="switch"
+                        aria-checked={unit === 'kg'}
+                        onClick={() => setUnit(unit === 'lbs' ? 'kg' : 'lbs')}
+                        className="inline-flex h-9 w-[48px] items-center justify-center rounded-full px-1 transition sm:hidden"
+                        title="Toggle units"
+                    >
+                        <span
+                            className={`flex h-5 w-10 items-center rounded-full border border-neutral-300 dark:border-neutral-900 dark:bg-white/20 transition-transform ${
+                                unit === 'kg' ? 'justify-end' : 'justify-start'
+                            }`}
+                        >
+                            <span className="m-0.5 h-4 w-4 rounded-full bg-zinc-800 dark:bg-white" />
+                        </span>
+                    </button>
+                </div>
             </div>
 
         </div>

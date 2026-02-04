@@ -58,6 +58,18 @@ enum RatingStatus {
   DECLINED
 }
 
+enum CardioActivity {
+  running
+  biking
+  walking
+  swimming
+}
+
+enum DistanceUnit {
+  mi
+  km
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String?   @unique
@@ -99,7 +111,7 @@ model User {
   // --- Workouts ---
   workoutExercises WorkoutExercise[]
   workoutSets      WorkoutSet[]
-  workoutSplit     WorkoutSplit?
+  cardioSessions   CardioSession[]
 
   // --- Nutrition & Bodyweight ---
   nutritionCustomFoods NutritionCustomFood[]
@@ -363,11 +375,19 @@ model WorkoutSet {
   @@index([exerciseId, date])
 }
 
-model WorkoutSplit {
-  id     String   @id @default(cuid())
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String   @unique
-  items  String[] // e.g. ["push","pull","legs","rest"]
+model CardioSession {
+  id           String        @id @default(cuid())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  activity     CardioActivity
+  date         DateTime
+  timeMinutes  Int
+  distance     Float?
+  distanceUnit DistanceUnit   @default(mi)
+  calories     Int?
+  createdAt    DateTime       @default(now())
+
+  @@index([userId, activity, date])
 }
 
 // ------------------------ Nutrition & Bodyweight -------------------------

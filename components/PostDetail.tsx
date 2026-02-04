@@ -68,6 +68,7 @@ export default function PostDetail({
     const [error, setError] = useState<string | null>(null);
     const [showComments, setShowComments] = useState(() => !flat);
     const [copied, setCopied] = useState(false);
+    const [isEmbed, setIsEmbed] = useState(false);
 
     // Share modal
     const [shareOpen, setShareOpen] = useState(false);
@@ -113,8 +114,12 @@ export default function PostDetail({
     // Auto-size when embedded in iframe (Messenger preview)
     useEffect(() => {
         if (typeof window === "undefined") return;
-        if (window === window.parent) return;
+        if (window === window.parent) {
+            setIsEmbed(false);
+            return;
+        }
 
+        setIsEmbed(true);
         const sendSize = () => {
             const h = document.documentElement.scrollHeight;
             window.parent.postMessage(
@@ -332,44 +337,46 @@ export default function PostDetail({
                 {post.commentCount ?? 0}
             </button>
 
-            <button
-                type="button"
-                className={clsx(
-                    "flex items-center gap-1 text-xs transition",
-                    isFlat
-                        ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
-                        : canShare
+            {!isEmbed && (
+                <button
+                    type="button"
+                    className={clsx(
+                        "flex items-center gap-1 text-xs transition",
+                        isFlat
                             ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
-                            : "text-gray-300 cursor-not-allowed dark:text-gray-600"
-                )}
-                onClick={async () => {
-                    if (isFlat) {
-                        const origin = typeof window !== "undefined" ? window.location.origin : "";
-                        const url = `${origin}/post/${encodeURIComponent(post.id)}`;
-                        try {
-                            await navigator.clipboard.writeText(url);
-                            setCopied(true);
-                            setTimeout(() => setCopied(false), 1500);
-                        } catch {
-                            setCopied(false);
+                            : canShare
+                                ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
+                                : "text-gray-300 cursor-not-allowed dark:text-gray-600"
+                    )}
+                    onClick={async () => {
+                        if (isFlat) {
+                            const origin = typeof window !== "undefined" ? window.location.origin : "";
+                            const url = `${origin}/post/${encodeURIComponent(post.id)}`;
+                            try {
+                                await navigator.clipboard.writeText(url);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 1500);
+                            } catch {
+                                setCopied(false);
+                            }
+                            return;
                         }
-                        return;
+                        if (!canShare) return;
+                        await openShare();
+                    }}
+                    disabled={!isFlat && !canShare}
+                    title={
+                        isFlat
+                            ? "Copy share link"
+                            : canShare
+                                ? "Share via Messenger"
+                                : "Sign in to share"
                     }
-                    if (!canShare) return;
-                    await openShare();
-                }}
-                disabled={!isFlat && !canShare}
-                title={
-                    isFlat
-                        ? "Copy share link"
-                        : canShare
-                            ? "Share via Messenger"
-                            : "Sign in to share"
-                }
-            >
-                <Share2 size={16} />
-                {copied && isFlat ? "Copied" : "Share"}
-            </button>
+                >
+                    <Share2 size={16} />
+                    {copied && isFlat ? "Copied" : "Share"}
+                </button>
+            )}
         </>
     );
 

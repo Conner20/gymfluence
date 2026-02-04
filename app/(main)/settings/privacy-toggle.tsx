@@ -36,8 +36,8 @@ export default function PrivacyToggle() {
     };
 
     const baseBtn =
-        "px-3 py-1 rounded-full border text-sm transition shadow-sm disabled:opacity-50";
-    const publicStyles = "bg-transparent text-gray-900 border-gray-900 hover:bg-gray-900 hover:text-white dark:border-white dark:text-white dark:hover:bg-white/10";
+        "px-3 py-1 rounded-full border text-sm transition disabled:opacity-50";
+    const publicStyles = "bg-transparent hover:bg-gray-100 hover:bg-gray-100 dark:text-white dark:hover:bg-white/10";
     const privateStyles = "bg-gray-900 text-white border-gray-900 hover:bg-black dark:bg-white dark:text-black dark:border-white dark:hover:bg-gray-200";
 
     return (

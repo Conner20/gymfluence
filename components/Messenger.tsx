@@ -42,14 +42,6 @@ function SharedPostModal({
                 <div className="flex items-center justify-between px-4 py-2">
                     <div className="font-medium">Post</div>
                     <div className="flex items-center gap-4 text-sm">
-                        <a
-                            href={`/post/${encodeURIComponent(postId)}`}
-                            className="text-gray-600 hover:underline dark:text-gray-300"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            Open in new tab
-                        </a>
                         <button className="text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white" onClick={onClose}>
                             Close
                         </button>

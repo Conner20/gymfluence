@@ -6,6 +6,7 @@ import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
 import { Moon, Droplet, Flame, Plus, X, Calendar } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { useRouter } from 'next/navigation';
 
 import {
     fetchWellnessData,
@@ -253,7 +254,6 @@ function SleepLine({
             <div className="flex flex-wrap items-start justify-between gap-3 lg:hidden">
                 <div className="min-w-0 flex-1">
                     <h3 className="text-[15px] font-semibold text-black dark:text-white">Sleep trend</h3>
-                    <div className={`mt-0.5 text-[11px] ${subLabelColor}`}>avg last 7 days: {avg7.toFixed(1)} hrs</div>
                     <div className="mt-1 flex items-center gap-3">
                         <span className="inline-flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-200">
                             <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
@@ -335,7 +335,6 @@ function SleepLine({
             <div className="hidden items-center justify-between gap-4 lg:flex">
                 <div className="min-w-0">
                     <h3 className="text-[15px] font-semibold text-black dark:text-white">Sleep trend</h3>
-                    <div className="text-[11px] text-green-600 dark:text-green-300">avg last 7 days: {avg7.toFixed(1)} hrs</div>
                     <div className="mt-1 flex items-center gap-3">
                         <span className="inline-flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-200">
                             <span className="inline-block h-2 w-2 rounded-full bg-purple-500" />
@@ -601,17 +600,16 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
     const [hover, setHover] = useState<{ i: number; left: number; top: number } | null>(null);
     const hoveredBar = hover ? xs[hover.i] : null;
 
-    const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        const rect = wrapRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const x = e.clientX - rect.left;
-        const colW = rect.width / 7;
-        const i = clamp(Math.floor(x / colW), 0, 6);
-        setHover({ i, left: i * colW + colW / 2, top: 8 });
+    const setHoverForBar = (index: number, target: HTMLDivElement) => {
+        const wrapRect = wrapRef.current?.getBoundingClientRect();
+        if (!wrapRect) return;
+        const barRect = target.getBoundingClientRect();
+        const center = barRect.left - wrapRect.left + barRect.width / 2;
+        setHover({ i: index, left: center, top: 8 });
     };
 
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
             <div className="mb-3 flex items-center justify-between">
                 <div>
                     <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-200">Hydration trend</div>
@@ -623,30 +621,37 @@ function WaterBars({ data }: { data: WaterPoint[] }) {
             <div className="flex flex-1 items-center justify-center">
                 <div
                     ref={wrapRef}
-                    onMouseMove={onMove}
                     onMouseLeave={() => setHover(null)}
-                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-white/10 dark:bg-white/5 sm:h-[170px]"
+                    className="relative grid h-[150px] w-full grid-cols-7 items-end gap-3 p-4 sm:h-[170px]"
                 >
-                    {xs.map((d) => (
-                        <div key={d.date} className="flex h-full flex-col items-center justify-end gap-2">
+                    {xs.map((d, idx) => {
+                        const weekday = new Date(d.date).getDay();
+                        const letter = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][weekday];
+                        return (
                             <div
-                                className="w-5 rounded-full bg-blue-500/60 transition-[height] dark:bg-blue-500/80 sm:w-6"
-                                style={{ height: `${(d.liters / max) * 100}%` }}
-                            />
-                            <div className="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-300">
-                                {d.date.slice(5)}
+                                key={d.date}
+                                className="flex h-full flex-col items-center justify-end gap-2"
+                                onMouseEnter={(e) => setHoverForBar(idx, e.currentTarget)}
+                                onMouseMove={(e) => setHoverForBar(idx, e.currentTarget)}
+                            >
+                                <div
+                                    className="w-5 rounded-full bg-blue-500/60 transition-[height] dark:bg-blue-500/80 sm:w-6"
+                                    style={{ height: `${(d.liters / max) * 100}%` }}
+                                />
+                                <div className="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-300">
+                                    <span className="sm:hidden">{letter}</span>
+                                    <span className="hidden sm:inline">{d.date.slice(5)}</span>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {hover && hoveredBar && (
                         <div
-                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border border-blue-100 bg-white px-2 py-1 text-[11px] shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
+                            className="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-[11px] dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                             style={{ left: hover.left, top: hover.top }}
                         >
-                            <div className="font-semibold text-blue-700 dark:text-blue-200">
-                                {hoveredBar.liters.toFixed(1)} L
-                            </div>
+                            <div className="font-semibold text-blue-700 dark:text-blue-200">{hoveredBar.liters.toFixed(1)}&nbsp;L</div>
                         </div>
                     )}
                 </div>
@@ -705,6 +710,7 @@ function WaterToday({
     addWater: (liters: number, dateISO: string) => void | Promise<void>;
 }) {
     const [selectedDate, setSelectedDate] = useState(fmtISO(new Date()));
+    const [showAdd, setShowAdd] = useState(false);
 
     const consumed = entries
         .filter((e) => e.date === selectedDate)
@@ -712,6 +718,8 @@ function WaterToday({
     const remaining = Math.max(0, goal - consumed);
     const pct = clamp(consumed / Math.max(0.0001, goal), 0, 1);
     const [val, setVal] = useState('');
+    const topFlex = Math.max(remaining, 0.0001);
+    const bottomFlex = Math.max(consumed, 0.0001);
 
     const handleAdd = async () => {
         const n = parseFloat(val);
@@ -730,7 +738,7 @@ function WaterToday({
     };
 
     return (
-        <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
+        <div className="grid h-full grid-rows-[auto_1fr_auto_auto] gap-3 rounded-2xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
             <div className="flex items-center justify-between gap-3">
                 <div>
                     <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-200">
@@ -741,7 +749,7 @@ function WaterToday({
                     </div>
                 </div>
                 <button
-                    className="rounded-full border border-blue-200 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
+                    className="rounded-full border px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-50 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
                     onClick={async () => {
                         const s = prompt('Set daily water goal (L):', goal.toString());
                         if (!s) return;
@@ -755,13 +763,9 @@ function WaterToday({
             </div>
 
             {/* Middle area — centers the gauge; +20px height */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-blue-100 bg-blue-50/60 p-4 dark:border-white/10 dark:bg-white/5">
-                <div className="flex items-center justify-between text-sm text-blue-900/80 dark:text-blue-200">
-                    <span>Remaining</span>
-                    <span className="font-semibold">{remaining.toFixed(1)} L</span>
-                </div>
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl p-4 dark:bg-neutral-900">
                 <div className="flex flex-1 items-center justify-center">
-                    <div className="relative mx-auto mt-4 flex h-60 w-[4.5rem] items-end rounded-full border border-blue-100 bg-white dark:border-white/10 dark:bg-transparent sm:h-[21rem]">
+                    <div className="relative mx-auto mt-4 flex h-60 w-[4.5rem] items-end rounded-full border bg-white dark:border-white/10 dark:bg-transparent sm:h-[21rem]">
                         {(() => {
                             const isFull = pct >= 0.999;
                             const radiusClass = isFull
@@ -783,50 +787,77 @@ function WaterToday({
                                 </div>
                             );
                         })()}
+                        <div className="pointer-events-none absolute inset-x-2 top-[0.6rem] bottom-[0.6rem] flex flex-col">
+                            <div style={{ flex: topFlex }} className="flex items-center justify-center px-1 text-center">
+                                {remaining > 0 && (
+                                    <span className="text-xs font-medium text-blue-600 dark:text-blue-200">
+                                        {remaining.toFixed(1)} L
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ flex: bottomFlex }} />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3 dark:border-white/10 dark:bg-white/5">
-                <div className="flex-1">
-                    <div className="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-200 whitespace-nowrap">
+            <div className="flex flex-col gap-2 rounded-2xl p-3 overflow-hidden">
+                <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-200 whitespace-nowrap">
                         Add entry
                     </div>
-                    <input
-                        value={val}
-                        onChange={(e) => setVal(e.target.value)}
-                        placeholder="e.g. 0.6"
-                        inputMode="decimal"
-                        className="mt-1 w-full rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-blue-900 outline-none focus:ring-2 focus:ring-blue-200 dark:border-white/10 dark:bg-transparent dark:text-gray-100 dark:focus:ring-white/20"
-                    />
-                </div>
-                <div className="flex w-full items-center justify-center gap-2">
                     <button
-                        className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 text-blue-700 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
-                        onClick={handleAdd}
-                        aria-label="Add water"
+                        onClick={() => setShowAdd((prev) => !prev)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border text-blue-600 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
+                        aria-label="Toggle add water form"
                     >
-                        <span className="text-lg font-semibold leading-none">+</span>
-                    </button>
-                    <button
-                        className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 text-blue-700 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover.bg-white/10"
-                        onClick={handleRemove}
-                        aria-label="Remove water"
-                    >
-                        <span className="text-lg font-semibold leading-none">-</span>
+                        {showAdd ? <X size={16} /> : <Plus size={16} />}
                     </button>
                 </div>
-            </div>
-
-            <div className="flex justify-end">
-                <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => {
-                        if (e.target.value) setSelectedDate(e.target.value);
-                    }}
-                    className="rounded border px-2 py-1 text-xs text-neutral-600 outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
-                />
+                {showAdd && (
+                    <div className="space-y-3">
+                        <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                            <input
+                                value={val}
+                                onChange={(e) => setVal(e.target.value)}
+                                placeholder="L"
+                                inputMode="decimal"
+                                className="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200 dark:border-white/10 dark:bg-transparent dark:text-gray-100 dark:focus:ring-white/20"
+                            />
+                            <div className="flex gap-1 sm:justify-end">
+                                <button
+                                    className="flex h-10 w-10 items-center justify-center rounded-lg border text-blue-600 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
+                                    onClick={handleAdd}
+                                    aria-label="Add water"
+                                >
+                                    <span className="text-lg font-semibold leading-none">+</span>
+                                </button>
+                                <button
+                                    className="flex h-10 w-10 items-center justify-center rounded-lg border text-blue-600 transition hover:bg-blue-100 dark:border-white/20 dark:text-blue-200 dark:hover:bg-white/10"
+                                    onClick={handleRemove}
+                                    aria-label="Remove water"
+                                >
+                                    <span className="text-lg font-semibold leading-none">-</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-200">Date</div>
+                            <div className="relative flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent dark:text-gray-100">
+                                <span>{selectedDate}</span>
+                                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-200" />
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => {
+                                        if (e.target.value) setSelectedDate(e.target.value);
+                                    }}
+                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -836,6 +867,7 @@ function WaterToday({
 function WellnessPage() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
+    const router = useRouter();
     // Server-backed state
     const [sleep, setSleep] = useState<SleepPoint[]>([]);
     const [water, setWater] = useState<WaterPoint[]>([]);
@@ -861,10 +893,15 @@ function WellnessPage() {
                 setWater((data.water || []).map((w) => ({ date: w.date, liters: w.liters })));
                 if (data.settings?.waterGoal) setWaterGoal(data.settings.waterGoal);
             } catch (e) {
+                const message = e instanceof Error ? e.message : String(e);
+                if (message === 'Unauthorized') {
+                    router.push('/');
+                    return;
+                }
                 console.error(e);
             }
         })();
-    }, []);
+    }, [router]);
 
     const todayISO = fmtISO(new Date());
 
