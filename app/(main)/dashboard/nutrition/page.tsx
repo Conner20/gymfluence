@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback, Suspense } from 'react';
 import type { Dispatch, SetStateAction, CSSProperties } from 'react';
 import { Plus, X, Trash2, ArrowUpRight, ArrowDownRight, Sliders, Calendar, Share2, ChevronDown } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
@@ -483,7 +483,7 @@ export default function Nutrition() {
     );
 
     return (
-        <>
+        <Suspense fallback={null}>
         <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white xl:h-screen xl:overflow-hidden">
             <MobileHeader title="nutrition log" href="/dashboard/nutrition" subContent={mobileTabs} />
 
@@ -741,7 +741,7 @@ export default function Nutrition() {
                 </div>
             </div>
         )}
-        </>
+        </Suspense>
     );
 }
 
