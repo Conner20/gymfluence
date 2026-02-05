@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
@@ -871,7 +871,7 @@ function WaterToday({
 }
 
 /* ----------------------------------- Page --------------------------------- */
-function WellnessPage() {
+function WellnessPageContent() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const router = useRouter();
@@ -1565,4 +1565,12 @@ function ResponsiveHeatmap({
 }
 
 /* ------------------------------- Export ------------------------------- */
+function WellnessPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>}>
+            <WellnessPageContent />
+        </Suspense>
+    );
+}
+
 export default dynamic(() => Promise.resolve(WellnessPage), { ssr: false });

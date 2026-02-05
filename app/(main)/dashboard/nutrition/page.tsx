@@ -100,7 +100,7 @@ const DEFAULT_LEVELS: Record<HMMetric, number[]> = {
     p: [0, 50, 100, 150, Infinity],
 };
 /** ---------- page ---------- */
-export default function Nutrition() {
+function NutritionContent() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const heatmapColors = isDark ? HEATMAP_COLORS_DARK : HEATMAP_COLORS_LIGHT;
@@ -483,7 +483,7 @@ export default function Nutrition() {
     );
 
     return (
-        <Suspense fallback={null}>
+        <>
         <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white xl:h-screen xl:overflow-hidden">
             <MobileHeader title="nutrition log" href="/dashboard/nutrition" subContent={mobileTabs} />
 
@@ -741,6 +741,14 @@ export default function Nutrition() {
                 </div>
             </div>
         )}
+        </>
+    );
+}
+
+export default function Nutrition() {
+    return (
+        <Suspense fallback={<div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>}>
+            <NutritionContent />
         </Suspense>
     );
 }

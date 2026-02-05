@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import clsx from 'clsx';
@@ -542,7 +542,7 @@ function YearHeatmap({
 }
 
 /** ------------------------------ Page ------------------------------- */
-export default function Dashboard() {
+function DashboardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -1261,6 +1261,14 @@ export default function Dashboard() {
             </div>
         )}
         </>
+    );
+}
+
+export default function Dashboard() {
+    return (
+        <Suspense fallback={<div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>}>
+            <DashboardContent />
+        </Suspense>
     );
 }
 
