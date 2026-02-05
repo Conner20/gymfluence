@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import PrivacyToggle from "./privacy-toggle";
 import MobileHeader from "@/components/MobileHeader";
 import SearchProfileEditor from "@/components/SearchProfileEditor";
+import { useRouter } from "next/navigation";
 
 type LocationSuggestion = {
     id: string;
@@ -19,6 +20,7 @@ type LocationSuggestion = {
 
 export default function SettingsPage() {
     const { data: session, status } = useSession();
+    const router = useRouter();
 
     const [loading, setLoading] = useState(true);
     const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -238,8 +240,15 @@ export default function SettingsPage() {
         }
     };
 
+    useEffect(() => {
+        if (status === "loading") return;
+        if (!session) {
+            router.replace("/");
+        }
+    }, [router, session, status]);
+
     if (status === "loading" || loading) return <div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>;
-    if (!session) return <div className="p-8 text-red-500">Please sign in.</div>;
+    if (!session) return null;
 
     const displayImage = previewUrl || imageUrl;
 

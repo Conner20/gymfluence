@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import clsx from 'clsx';
 import MobileHeader from '@/components/MobileHeader';
-import { Trash2, CalendarDays, ChevronDown } from 'lucide-react';
+import { Trash2, CalendarDays, ChevronDown, Share2 } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import {
     fetchAllDashboardData,
@@ -30,6 +31,31 @@ const CARDIO_RANGE_DAYS: Record<RangeKey, number> = {
     '1Y': 365,
     'ALL': 120,
 };
+
+type ShareUserInfo = {
+    id: string;
+    username: string | null;
+    name: string | null;
+    image?: string | null;
+};
+
+type ShareOutgoingEntry = {
+    viewer: ShareUserInfo;
+    workouts: boolean;
+    wellness: boolean;
+    nutrition: boolean;
+};
+
+type ShareIncomingEntry = {
+    owner: ShareUserInfo;
+    workouts: boolean;
+    wellness: boolean;
+    nutrition: boolean;
+};
+
+const shareDisplayName = (user: ShareUserInfo) =>
+    (user.name && user.name.trim()) || (user.username && user.username.trim()) || 'User';
+
 
 /** ----------------------------- Helpers ----------------------------- */
 function fmtDate(d: Date) {
@@ -518,6 +544,8 @@ function YearHeatmap({
 /** ------------------------------ Page ------------------------------- */
 export default function Dashboard() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const [sets, setSets] = useState<SetEntry[]>([]);
@@ -534,6 +562,15 @@ export default function Dashboard() {
     const [cardioMode, setCardioMode] = useState<CardioMode>('running');
     const [cardioRange, setCardioRange] = useState<RangeKey>('1W');
     const [cardioDistanceUnit, setCardioDistanceUnit] = useState<DistanceUnit>('mi');
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [shareLoading, setShareLoading] = useState(false);
+    const [shareError, setShareError] = useState<string | null>(null);
+    const [shareSaving, setShareSaving] = useState<string | null>(null);
+    const [shareFollowers, setShareFollowers] = useState<ShareUserInfo[]>([]);
+    const [shareOutgoing, setShareOutgoing] = useState<ShareOutgoingEntry[]>([]);
+    const [shareIncoming, setShareIncoming] = useState<ShareIncomingEntry[]>([]);
+    const [selectedViewUser, setSelectedViewUser] = useState<string | null>(null);
+    const [viewingUser, setViewingUser] = useState<ShareUserInfo | null>(null);
 
     // record form
     const [weight, setWeight] = useState('');
@@ -551,14 +588,39 @@ export default function Dashboard() {
 
     const todayDay = daysSinceEpochUTC();
     const repsLineColor = isDark ? '#93c5fd' : '#111827';
+    const viewParam = searchParams?.get('view');
+
+    useEffect(() => {
+        setSelectedViewUser(viewParam && viewParam.length ? viewParam : null);
+    }, [viewParam]);
 
     // timer (smooth)
     // Load from server (Prisma) on mount
+    const searchParamsString = searchParams?.toString() ?? '';
+
+    const handleViewChange = useCallback(
+        (value: string | null) => {
+            const params = new URLSearchParams(searchParamsString);
+            if (value) {
+                params.set('view', value);
+            } else {
+                params.delete('view');
+            }
+            const qs = params.toString();
+            router.replace(`${pathname}${qs ? `?${qs}` : ''}`);
+        },
+        [pathname, router, searchParamsString],
+    );
+
     useEffect(() => {
         (async () => {
             try {
-                const data = await fetchAllDashboardData();
+                const data = await fetchAllDashboardData(selectedViewUser ?? undefined);
                 if (data.requiresAuth) {
+                    if (selectedViewUser) {
+                        handleViewChange(null);
+                        return;
+                    }
                     router.push('/');
                     return;
                 }
@@ -567,11 +629,81 @@ export default function Dashboard() {
                 const defaultExercise = data.exercises[0] ?? '';
                 setExercise(defaultExercise);
                 setCardioSessions(data.cardioSessions ?? []);
+                setViewingUser(data.viewingUser ?? null);
             } catch (e) {
                 console.error(e);
             }
         })();
-    }, [router]);
+    }, [router, handleViewChange, selectedViewUser]);
+
+    const refreshShareData = useCallback(async () => {
+        try {
+            setShareLoading(true);
+            setShareError(null);
+            const res = await fetch('/api/dashboard-share?followers=1', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Failed to load sharing data');
+            const data = await res.json();
+            setShareFollowers(data.followers ?? []);
+            setShareOutgoing(data.outgoing ?? []);
+            setShareIncoming(data.incoming ?? []);
+        } catch (err) {
+            setShareError('Unable to load sharing data.');
+        } finally {
+            setShareLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        refreshShareData();
+    }, [refreshShareData]);
+
+    const toggleShareForFollower = useCallback(
+        async (viewerId: string, enabled: boolean) => {
+            try {
+                setShareSaving(viewerId);
+                setShareError(null);
+                const res = await fetch('/api/dashboard-share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        viewerId,
+                        dashboard: 'workouts',
+                        enabled,
+                    }),
+                });
+                if (!res.ok) throw new Error('Failed to update sharing');
+                await refreshShareData();
+            } catch (err) {
+                setShareError('Failed to update sharing permissions.');
+            } finally {
+                setShareSaving(null);
+            }
+        },
+        [refreshShareData],
+    );
+
+    const removeIncomingShare = useCallback(
+        async (ownerId: string) => {
+            try {
+                setShareSaving(ownerId);
+                const res = await fetch('/api/dashboard-share', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ownerId }),
+                });
+                if (!res.ok) throw new Error('Failed to remove share');
+                if (selectedViewUser === ownerId) {
+                    handleViewChange(null);
+                }
+                await refreshShareData();
+            } catch (err) {
+                setShareError('Failed to remove shared dashboard.');
+            } finally {
+                setShareSaving(null);
+            }
+        },
+        [handleViewChange, refreshShareData, selectedViewUser],
+    );
 
     const daysForRange = (r: Exclude<RangeKey, 'ALL'>) => {
         switch (r) {
@@ -587,6 +719,71 @@ export default function Dashboard() {
     };
 
     const filtered = useMemo(() => sets.filter((s) => s.exercise === exercise), [sets, exercise]);
+    const outgoingMap = useMemo(() => {
+        const map = new Map<string, ShareOutgoingEntry>();
+        shareOutgoing.forEach((entry) => map.set(entry.viewer.id, entry));
+        return map;
+    }, [shareOutgoing]);
+    const availableIncoming = useMemo(
+        () => shareIncoming.filter((entry) => entry.workouts),
+        [shareIncoming],
+    );
+
+    const renderShareControls = useCallback(
+        (variant: 'mobile' | 'desktop') => (
+            <div
+                className={clsx(
+                    'flex items-center gap-3 text-sm text-zinc-700 dark:text-zinc-300',
+                    variant === 'mobile' ? 'w-full flex-wrap' : '',
+                )}
+            >
+                <button
+                    onClick={() => setShareModalOpen(true)}
+                    className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 text-zinc-700 transition hover:bg-zinc-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+                    aria-label="Share workouts dashboard"
+                >
+                    <Share2 size={18} />
+                </button>
+                <div className={clsx('flex items-center gap-2', variant === 'mobile' ? 'flex-1 min-w-[200px]' : 'w-[240px]')}>
+                    <div className="relative flex-1">
+                        <select
+                            value={selectedViewUser ?? ''}
+                            onChange={(e) => handleViewChange(e.target.value || null)}
+                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40"
+                        >
+                            <option value="">My stats</option>
+                            {availableIncoming.map((entry) => (
+                                <option key={entry.owner.id} value={entry.owner.id}>
+                                    {shareDisplayName(entry.owner)}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/80" />
+                    </div>
+                    {selectedViewUser && (
+                        <button
+                            onClick={() => removeIncomingShare(selectedViewUser)}
+                            disabled={shareSaving === selectedViewUser}
+                            className="rounded-full border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10"
+                        >
+                            Remove
+                        </button>
+                    )}
+                </div>
+                {selectedViewUser && variant === 'desktop' && viewingUser && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Viewing {shareDisplayName(viewingUser)}</p>
+                )}
+            </div>
+        ),
+        [availableIncoming, handleViewChange, removeIncomingShare, selectedViewUser, shareSaving, viewingUser],
+    );
+    useEffect(() => {
+        if (!selectedViewUser) return;
+        const exists = availableIncoming.some((entry) => entry.owner.id === selectedViewUser);
+        if (!exists && viewParam) {
+            handleViewChange(null);
+        }
+    }, [availableIncoming, selectedViewUser, handleViewChange, viewParam]);
 
     // Labels for the x-axis. For ALL: span from first logged date through today (so same-day entries appear immediately).
     const labels = useMemo(() => {
@@ -777,60 +974,73 @@ export default function Dashboard() {
 
     const mobileTabs = (
         <div className="px-4 pb-4">
-            <div className="flex gap-2 text-sm">
-                <Link
-                    href="/dashboard"
-                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
-                >
-                    workouts
-                </Link>
-                <Link
-                    href="/dashboard/wellness"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
-                >
-                    wellness
-                </Link>
-                <Link
-                    href="/dashboard/nutrition"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
-                >
-                    nutrition
-                </Link>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+                {renderShareControls('mobile')}
+                <div className="flex flex-1 gap-2 text-sm">
+                    <Link
+                        href="/dashboard"
+                        className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
+                    >
+                        workouts
+                    </Link>
+                    <Link
+                        href="/dashboard/wellness"
+                        className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
+                    >
+                        wellness
+                    </Link>
+                    <Link
+                        href="/dashboard/nutrition"
+                        className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
+                    >
+                        nutrition
+                    </Link>
+                </div>
             </div>
+            {shareError && (
+                <p className="mt-2 text-xs text-red-500">{shareError}</p>
+            )}
         </div>
     );
 
+
+
     return (
+        <>
         <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white lg:h-screen lg:overflow-hidden">
             <MobileHeader title="workouts log" href="/dashboard" subContent={mobileTabs} />
 
             {/* Header (fixed height) */}
             <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5 dark:bg-neutral-900 dark:border-b dark:border-white/10">
                 <h1 className="select-none font-roboto text-3xl tracking-tight text-green-700 dark:text-green-400">workouts log</h1>
-                <nav className="flex gap-2 text-sm">
-                    <Link href="/dashboard" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
-                        workouts
-                    </Link>
-                    {/* {flex - 1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10} */}
-                    <Link
-                        href="/dashboard/wellness"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
-                    >
-                        wellness
-                    </Link>
-                    <Link
-                        href="/dashboard/nutrition"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
-                    >
-                        nutrition
-                    </Link>
-                </nav>
+                <div className="flex flex-1 flex-wrap items-center justify-end gap-4">
+                    {renderShareControls('desktop')}
+                    <nav className="flex flex-wrap gap-2 text-sm">
+                        <Link href="/dashboard" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
+                            workouts
+                        </Link>
+                        <Link
+                            href="/dashboard/wellness"
+                            className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                        >
+                            wellness
+                        </Link>
+                        <Link
+                            href="/dashboard/nutrition"
+                            className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                        >
+                            nutrition
+                        </Link>
+                    </nav>
+                </div>
             </header>
+            {shareError && (
+                <p className="hidden px-[40px] pb-2 text-xs text-red-500 lg:block">{shareError}</p>
+            )}
 
             {/* Content (fills remaining viewport, no body scroll) */}
             <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3 scrollbar-slim lg:h-full lg:px-4 lg:pb-4 lg:pt-3 lg:overflow-y-auto">
                 <div className="mx-auto w-full max-w-[1400px] space-y-4">
-
                     <div className="grid gap-4 lg:grid-cols-12">
                         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 lg:col-span-5">
                             <header className="mb-4">
@@ -980,6 +1190,77 @@ export default function Dashboard() {
             </div>
 
         </div>
+        {shareModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
+                <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-neutral-900">
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Share workouts dashboard</h3>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                Select followers to grant or revoke access to your workouts dashboard.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShareModalOpen(false)}
+                            className="rounded-full border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    {shareLoading ? (
+                        <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-300">Loading followers…</div>
+                    ) : shareFollowers.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-300">
+                            No followers to share with yet.
+                        </div>
+                    ) : (
+                        <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                            {shareFollowers.map((follower) => {
+                                const outgoing = outgoingMap.get(follower.id);
+                                const granted = !!outgoing?.workouts;
+                                return (
+                                    <div
+                                        key={follower.id}
+                                        className="flex items-center justify-between rounded-xl border border-zinc-200 p-3 dark:border-white/15"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                                                {shareDisplayName(follower)}
+                                            </p>
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                {granted ? 'Access granted' : 'Not shared'}
+                                            </p>
+                                        </div>
+                                        <button
+                                            disabled={shareSaving === follower.id}
+                                            onClick={() => toggleShareForFollower(follower.id, !granted)}
+                                            className={clsx(
+                                                'rounded-full px-4 py-1.5 text-sm font-medium transition',
+                                                granted
+                                                    ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
+                                                    : 'border border-green-300 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
+                                                shareSaving === follower.id && 'opacity-50',
+                                            )}
+                                        >
+                                            {shareSaving === follower.id
+                                                ? 'Saving…'
+                                                : granted
+                                                    ? 'Stop sharing'
+                                                    : 'Share'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {shareError && (
+                        <p className="mt-4 text-sm text-red-500">{shareError}</p>
+                    )}
+                </div>
+            </div>
+        )}
+        </>
     );
 }
 

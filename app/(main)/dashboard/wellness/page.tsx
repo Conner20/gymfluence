@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import MobileHeader from '@/components/MobileHeader';
-import { Moon, Droplet, Flame, Plus, X, Calendar } from 'lucide-react';
+import { Moon, Droplet, Flame, Plus, X, Calendar, Share2, ChevronDown } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import clsx from 'clsx';
 
 import {
     fetchWellnessData,
@@ -41,6 +42,12 @@ function average(nums: number[]) {
 
 type SleepPoint = { date: string; hours: number | null };
 type WaterPoint = { date: string; liters: number };
+type ShareUserInfo = { id: string; username: string | null; name: string | null; image?: string | null };
+type ShareOutgoingEntry = { viewer: ShareUserInfo; workouts: boolean; wellness: boolean; nutrition: boolean };
+type ShareIncomingEntry = { owner: ShareUserInfo; workouts: boolean; wellness: boolean; nutrition: boolean };
+
+const shareDisplayName = (user: ShareUserInfo) =>
+    (user.name && user.name.trim()) || (user.username && user.username.trim()) || 'User';
 
 const AxisLabel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
     <span className={`text-[11px] text-neutral-500 dark:text-neutral-300 ${className}`}>{children}</span>
@@ -868,12 +875,25 @@ function WellnessPage() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
+    const searchParamsString = searchParams?.toString() ?? '';
+    const viewParam = searchParams?.get('view');
     // Server-backed state
     const [sleep, setSleep] = useState<SleepPoint[]>([]);
     const [water, setWater] = useState<WaterPoint[]>([]);
     const [range, setRange] = useState<'1W' | '1M' | '3M' | '1Y'>('1W');
     const [waterGoal, setWaterGoal] = useState<number>(3.2);
     const [sleepGoal, setSleepGoal] = useState<number>(8); // sleep goal
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [shareLoading, setShareLoading] = useState(false);
+    const [shareError, setShareError] = useState<string | null>(null);
+    const [shareSaving, setShareSaving] = useState<string | null>(null);
+    const [shareFollowers, setShareFollowers] = useState<ShareUserInfo[]>([]);
+    const [shareOutgoing, setShareOutgoing] = useState<ShareOutgoingEntry[]>([]);
+    const [shareIncoming, setShareIncoming] = useState<ShareIncomingEntry[]>([]);
+    const [selectedViewUser, setSelectedViewUser] = useState<string | null>(null);
+    const [viewingUser, setViewingUser] = useState<ShareUserInfo | null>(null);
 
     // Load from server (mirrors Nutrition pattern)
     useEffect(() => {
@@ -886,22 +906,184 @@ function WellnessPage() {
     }, []);
 
     useEffect(() => {
+        setSelectedViewUser(viewParam && viewParam.length ? viewParam : null);
+    }, [viewParam]);
+
+    const handleViewChange = useCallback(
+        (value: string | null) => {
+            const params = new URLSearchParams(searchParamsString);
+            if (value) {
+                params.set('view', value);
+            } else {
+                params.delete('view');
+            }
+            const qs = params.toString();
+            router.replace(`${pathname}${qs ? `?${qs}` : ''}`);
+        },
+        [pathname, router, searchParamsString],
+    );
+
+    useEffect(() => {
         (async () => {
             try {
-                const data = await fetchWellnessData();
+                const data = await fetchWellnessData(selectedViewUser ?? undefined);
+                if (data.requiresAuth) {
+                    if (selectedViewUser) {
+                        handleViewChange(null);
+                        return;
+                    }
+                    router.push('/');
+                    return;
+                }
+                setViewingUser(data.viewingUser);
                 setSleep((data.sleep || []).map((s) => ({ date: s.date, hours: s.hours })));
                 setWater((data.water || []).map((w) => ({ date: w.date, liters: w.liters })));
                 if (data.settings?.waterGoal) setWaterGoal(data.settings.waterGoal);
             } catch (e) {
-                const message = e instanceof Error ? e.message : String(e);
-                if (message === 'Unauthorized') {
-                    router.push('/');
-                    return;
-                }
                 console.error(e);
             }
         })();
-    }, [router]);
+    }, [handleViewChange, router, selectedViewUser]);
+
+    const refreshShareData = useCallback(async () => {
+        try {
+            setShareLoading(true);
+            setShareError(null);
+            const res = await fetch('/api/dashboard-share?followers=1', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Failed to load sharing data');
+            const data = await res.json();
+            setShareFollowers(data.followers ?? []);
+            setShareOutgoing(data.outgoing ?? []);
+            setShareIncoming(data.incoming ?? []);
+        } catch (err) {
+            setShareError('Unable to load sharing data.');
+        } finally {
+            setShareLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        refreshShareData();
+    }, [refreshShareData]);
+
+    const toggleShareForFollower = useCallback(
+        async (viewerId: string, enabled: boolean) => {
+            try {
+                setShareSaving(viewerId);
+                setShareError(null);
+                const res = await fetch('/api/dashboard-share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ viewerId, dashboard: 'wellness', enabled }),
+                });
+                if (!res.ok) throw new Error('Failed to update sharing');
+                await refreshShareData();
+            } catch (err) {
+                setShareError('Failed to update sharing permissions.');
+            } finally {
+                setShareSaving(null);
+            }
+        },
+        [refreshShareData],
+    );
+
+    const removeIncomingShare = useCallback(
+        async (ownerId: string) => {
+            try {
+                setShareSaving(ownerId);
+                const res = await fetch('/api/dashboard-share', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ownerId }),
+                });
+                if (!res.ok) throw new Error('Failed to remove share');
+                if (selectedViewUser === ownerId) {
+                    handleViewChange(null);
+                }
+                await refreshShareData();
+            } catch (err) {
+                setShareError('Failed to remove shared dashboard.');
+            } finally {
+                setShareSaving(null);
+            }
+        },
+        [handleViewChange, refreshShareData, selectedViewUser],
+    );
+
+    const availableIncoming = useMemo(
+        () => shareIncoming.filter((entry) => entry.wellness),
+        [shareIncoming],
+    );
+
+    useEffect(() => {
+        if (!selectedViewUser) return;
+        const exists = availableIncoming.some((entry) => entry.owner.id === selectedViewUser);
+        if (!exists && viewParam) {
+            handleViewChange(null);
+        }
+    }, [availableIncoming, handleViewChange, selectedViewUser, viewParam]);
+
+    const renderShareControls = useCallback(
+        (variant: 'mobile' | 'desktop') => (
+            <div
+                className={clsx(
+                    'flex items-center gap-3 text-sm text-zinc-700 dark:text-zinc-300',
+                    variant === 'mobile' ? 'w-full flex-wrap' : '',
+                )}
+            >
+                <button
+                    onClick={() => setShareModalOpen(true)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 text-zinc-700 transition hover:bg-zinc-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+                    aria-label="Share wellness dashboard"
+                >
+                    <Share2 size={18} />
+                </button>
+                <div
+                    className={clsx(
+                        'flex items-center gap-2',
+                        variant === 'mobile' ? 'min-w-[200px] flex-1' : 'w-[240px]',
+                    )}
+                >
+                    <div className="relative flex-1">
+                        <select
+                            value={selectedViewUser ?? ''}
+                            onChange={(e) => handleViewChange(e.target.value || null)}
+                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40"
+                        >
+                            <option value="">My stats</option>
+                            {availableIncoming.map((entry) => (
+                                <option key={entry.owner.id} value={entry.owner.id}>
+                                    {shareDisplayName(entry.owner)}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/80" />
+                    </div>
+                    {selectedViewUser && (
+                        <button
+                            onClick={() => removeIncomingShare(selectedViewUser)}
+                            disabled={shareSaving === selectedViewUser}
+                            className="rounded-full border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10"
+                        >
+                            Remove
+                        </button>
+                    )}
+                </div>
+                {selectedViewUser && variant === 'desktop' && viewingUser && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Viewing {shareDisplayName(viewingUser)}
+                    </p>
+                )}
+            </div>
+        ),
+        [availableIncoming, handleViewChange, removeIncomingShare, selectedViewUser, shareSaving, viewingUser],
+    );
+
+    const shareOutgoingMap = useMemo(() => {
+        const map = new Map<string, ShareOutgoingEntry>();
+        shareOutgoing.forEach((entry) => map.set(entry.viewer.id, entry));
+        return map;
+    }, [shareOutgoing]);
 
     const todayISO = fmtISO(new Date());
 
@@ -995,122 +1177,207 @@ function WellnessPage() {
 
     const mobileTabs = (
         <div className="px-4 pb-4">
-            <div className="flex gap-2 text-sm">
-                <Link
-                    href="/dashboard"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
-                >
-                    workouts
-                </Link>
-                <Link
-                    href="/dashboard/wellness"
-                    className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
-                >
-                    wellness
-                </Link>
-                <Link
-                    href="/dashboard/nutrition"
-                    className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
-                >
-                    nutrition
-                </Link>
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white xl:h-screen xl:overflow-hidden">
-            <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
-
-            <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none dark:bg-neutral-900 dark:border-b dark:border-white/10">
-                <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight dark:text-green-400">
-                    wellness log
-                </h1>
-                <nav className="flex gap-2 text-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+                {renderShareControls('mobile')}
+                <div className="flex flex-1 gap-2 text-sm">
                     <Link
                         href="/dashboard"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                        className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
                     >
                         workouts
                     </Link>
-                    <Link href="/dashboard/wellness" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
+                    <Link
+                        href="/dashboard/wellness"
+                        className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
+                    >
                         wellness
                     </Link>
                     <Link
                         href="/dashboard/nutrition"
-                        className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                        className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
                     >
                         nutrition
                     </Link>
-                </nav>
-            </header>
-
-            {/* Full-height dashboard area fills viewport minus header */}
-            <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 xl:grid xl:grid-cols-12 xl:h-[calc(100vh-128px)] xl:overflow-y-auto scrollbar-slim">
-                {/* Left column — Sleep bigger, Water smaller */}
-                <section className="col-span-12 grid gap-6 xl:col-span-7 xl:grid-rows-[2fr_1fr] overflow-visible">
-                    <SleepLine
-                        data={sleep}
-                        range={range}
-                        onAdd={addSleep}
-                        onRange={setRange}
-                        goal={sleepGoal}
-                        isDark={isDark}
-                    />
-                    <WaterBars data={water} />
-                </section>
-
-                {/* Middle KPIs */}
-                <section className="col-span-12 grid gap-6 xl:col-span-3 xl:grid-rows-3 overflow-visible">
-                    <KPI
-                        title="Hours of sleep (avg last 7d)"
-                        value={avgSleep7.toFixed(1)}
-                        color="purple"
-                        icon={<Moon size={18} className="text-purple-700 dark:text-purple-200" />}
-                        rightElement={
-                            <button
-                                className="h-7 rounded-full px-3 text-[11px] text-purple-700 bg-white/60 hover:bg-white/80 border border-transparent dark:text-purple-100 dark:bg-white/10 dark:hover:bg-white/20"
-                                onClick={() => {
-                                    const s = prompt('Set sleep goal (hours):', sleepGoal.toString());
-                                    if (!s) return;
-                                    const n = parseFloat(s);
-                                    if (!isFinite(n) || n <= 0 || n > 24) return;
-                                    const clamped = clamp(n, 1, 16);
-                                    setSleepGoal(clamped);
-                                    if (typeof window !== 'undefined') {
-                                        window.localStorage.setItem(SLEEP_GOAL_STORAGE_KEY, clamped.toString());
-                                    }
-                                }}
-                            >
-                                Goal {sleepGoal.toFixed(1)}h
-                            </button>
-                        }
-                    />
-                    <KPI
-                        title="Liters of water (avg last 7d)"
-                        value={avgWater7.toFixed(1)}
-                        color="blue"
-                        icon={<Droplet size={18} className="text-blue-700 dark:text-blue-200" />}
-                    />
-                    <KPI
-                        title="Days in a row goals met"
-                        value={streakDays}
-                        color="orange"
-                        icon={<Flame size={18} className="text-amber-700 dark:text-amber-200" />}
-                    />
-                </section>
-
-                {/* Right column */}
-                <section className="col-span-12 xl:col-span-2 overflow-visible">
-                    <WaterToday
-                        goal={waterGoal}
-                        setGoal={setGoal}
-                        entries={water}
-                        addWater={(l, d) => addWater(l, d)}
-                    />
-                </section>
-            </main>
+                </div>
+            </div>
+            {shareError && (
+                <p className="mt-2 text-xs text-red-500">{shareError}</p>
+            )}
         </div>
+    );
+
+    return (
+        <>
+            <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white xl:h-screen xl:overflow-hidden">
+                <MobileHeader title="wellness log" href="/dashboard/wellness" subContent={mobileTabs} />
+
+                <header className="hidden lg:flex w-full items-center justify-between bg-white px-[40px] py-5 flex-none dark:bg-neutral-900 dark:border-b dark:border-white/10">
+                    <h1 className="select-none font-roboto text-3xl text-green-700 tracking-tight dark:text-green-400">
+                        wellness log
+                    </h1>
+                    <div className="flex flex-1 flex-wrap items-center justify-end gap-4">
+                        {renderShareControls('desktop')}
+                        <nav className="flex flex-wrap gap-2 text-sm">
+                            <Link
+                                href="/dashboard"
+                                className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                            >
+                                workouts
+                            </Link>
+                            <Link href="/dashboard/wellness" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
+                                wellness
+                            </Link>
+                            <Link
+                                href="/dashboard/nutrition"
+                                className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                            >
+                                nutrition
+                            </Link>
+                        </nav>
+                    </div>
+                </header>
+                {shareError && (
+                    <p className="hidden px-[40px] pb-2 text-xs text-red-500 lg:block">{shareError}</p>
+                )}
+
+                {/* Full-height dashboard area fills viewport minus header */}
+                <main className="mx-auto w-full flex-1 max-w-[1400px] px-4 py-4 flex flex-col gap-6 xl:grid xl:grid-cols-12 xl:h-[calc(100vh-128px)] xl:overflow-y-auto scrollbar-slim">
+                    {/* Left column — Sleep bigger, Water smaller */}
+                    <section className="col-span-12 grid gap-6 xl:col-span-7 xl:grid-rows-[2fr_1fr] overflow-visible">
+                        <SleepLine
+                            data={sleep}
+                            range={range}
+                            onAdd={addSleep}
+                            onRange={setRange}
+                            goal={sleepGoal}
+                            isDark={isDark}
+                        />
+                        <WaterBars data={water} />
+                    </section>
+
+                    {/* Middle KPIs */}
+                    <section className="col-span-12 grid gap-6 xl:col-span-3 xl:grid-rows-3 overflow-visible">
+                        <KPI
+                            title="Hours of sleep (avg last 7d)"
+                            value={avgSleep7.toFixed(1)}
+                            color="purple"
+                            icon={<Moon size={18} className="text-purple-700 dark:text-purple-200" />}
+                            rightElement={
+                                <button
+                                    className="h-7 rounded-full px-3 text-[11px] text-purple-700 bg-white/60 hover:bg-white/80 border border-transparent dark:text-purple-100 dark:bg-white/10 dark:hover:bg-white/20"
+                                    onClick={() => {
+                                        const s = prompt('Set sleep goal (hours):', sleepGoal.toString());
+                                        if (!s) return;
+                                        const n = parseFloat(s);
+                                        if (!isFinite(n) || n <= 0 || n > 24) return;
+                                        const clamped = clamp(n, 1, 16);
+                                        setSleepGoal(clamped);
+                                        if (typeof window !== 'undefined') {
+                                            window.localStorage.setItem(SLEEP_GOAL_STORAGE_KEY, clamped.toString());
+                                        }
+                                    }}
+                                >
+                                    Goal {sleepGoal.toFixed(1)}h
+                                </button>
+                            }
+                        />
+                        <KPI
+                            title="Liters of water (avg last 7d)"
+                            value={avgWater7.toFixed(1)}
+                            color="blue"
+                            icon={<Droplet size={18} className="text-blue-700 dark:text-blue-200" />}
+                        />
+                        <KPI
+                            title="Days in a row goals met"
+                            value={streakDays}
+                            color="orange"
+                            icon={<Flame size={18} className="text-amber-700 dark:text-amber-200" />}
+                        />
+                    </section>
+
+                    {/* Right column */}
+                    <section className="col-span-12 xl:col-span-2 overflow-visible">
+                        <WaterToday
+                            goal={waterGoal}
+                            setGoal={setGoal}
+                            entries={water}
+                            addWater={(l, d) => addWater(l, d)}
+                        />
+                    </section>
+                </main>
+            </div>
+
+            {shareModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
+                    <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-neutral-900">
+                        <div className="mb-4 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Share wellness dashboard</h3>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                    Select followers to grant or revoke access to your wellness dashboard.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShareModalOpen(false)}
+                                className="rounded-full border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        {shareLoading ? (
+                            <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-300">Loading followers…</div>
+                        ) : shareFollowers.length === 0 ? (
+                            <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-300">
+                                No followers to share with yet.
+                            </div>
+                        ) : (
+                            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                                {shareFollowers.map((follower) => {
+                                    const outgoing = shareOutgoingMap.get(follower.id);
+                                    const granted = !!outgoing?.wellness;
+                                    return (
+                                        <div
+                                            key={follower.id}
+                                            className="flex items-center justify-between rounded-xl border border-zinc-200 p-3 dark:border-white/15"
+                                        >
+                                            <div>
+                                                <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                                                    {shareDisplayName(follower)}
+                                                </p>
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                    {granted ? 'Access granted' : 'Not shared'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                disabled={shareSaving === follower.id}
+                                                onClick={() => toggleShareForFollower(follower.id, !granted)}
+                                                className={clsx(
+                                                    'rounded-full px-4 py-1.5 text-sm font-medium transition',
+                                                    granted
+                                                        ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
+                                                        : 'border border-green-300 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
+                                                    shareSaving === follower.id && 'opacity-50',
+                                                )}
+                                            >
+                                                {shareSaving === follower.id
+                                                    ? 'Saving…'
+                                                    : granted
+                                                        ? 'Stop sharing'
+                                                        : 'Share'}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {shareError && (
+                            <p className="mt-4 text-sm text-red-500">{shareError}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 

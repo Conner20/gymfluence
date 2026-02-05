@@ -46,10 +46,10 @@ export type CardioSessionEntry = {
 };
 
 /** --------------- Public API used by the Dashboard --------------- */
-export async function fetchAllDashboardData() {
-    let userId: string | null = null;
+export async function fetchAllDashboardData(viewUserId?: string) {
+    let viewerId: string | null = null;
     try {
-        userId = await requireMe();
+        viewerId = await requireMe();
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message === 'Unauthorized' || message === 'User not found') {
@@ -63,16 +63,40 @@ export async function fetchAllDashboardData() {
         throw err;
     }
 
+    let targetUserId = viewerId;
+    let viewingUser: { id: string; name: string | null; username: string | null } | null = null;
+    const requestedView = viewUserId && viewUserId !== viewerId ? viewUserId : null;
+
+    if (requestedView) {
+        const share = await db.dashboardShare.findUnique({
+            where: { ownerId_viewerId: { ownerId: requestedView, viewerId: viewerId! } },
+            select: {
+                workouts: true,
+                owner: { select: { id: true, name: true, username: true } },
+            },
+        });
+        if (!share?.workouts) {
+            return {
+                requiresAuth: true,
+                exercises: [],
+                sets: [],
+                cardioSessions: [],
+            };
+        }
+        targetUserId = requestedView;
+        viewingUser = share.owner;
+    }
+
     // Exercises list (names only)
     const exercises = await db.workoutExercise.findMany({
-        where: { userId },
+        where: { userId: targetUserId },
         orderBy: { name: 'asc' },
         select: { name: true },
     });
 
     // All sets for this user (latest first)
     const sets = await db.workoutSet.findMany({
-        where: { userId },
+        where: { userId: targetUserId },
         orderBy: [{ date: 'desc' }, { id: 'desc' }], // tie-breaker by id
         select: {
             id: true,
@@ -94,7 +118,7 @@ export async function fetchAllDashboardData() {
     }));
 
     const cardioRows = await db.cardioSession.findMany({
-        where: { userId },
+        where: { userId: targetUserId },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         select: {
             id: true,
@@ -119,6 +143,7 @@ export async function fetchAllDashboardData() {
 
     return {
         requiresAuth: false,
+        viewingUser,
         exercises: exercises.map((e: typeof exercises[number]) => e.name),
         sets: setEntries,
         cardioSessions,

@@ -135,17 +135,63 @@ function defaultSettings(): NutritionSettingsDTO {
     };
 }
 
-export async function fetchAllNutritionData(): Promise<{
+export async function fetchAllNutritionData(
+    viewUserId?: string,
+): Promise<{
+    requiresAuth: boolean;
     entries: NutritionEntryDTO[];
     bodyweights: BodyweightDTO[];
     customFoods: CustomFoodDTO[];
     settings: NutritionSettingsDTO;
+    viewingUser: { id: string; name: string | null; username: string | null } | null;
 }> {
-    const userId = await requireMe();
+    let viewerId: string | null = null;
+    try {
+        viewerId = await requireMe();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === 'Unauthorized' || message === 'User not found') {
+            return {
+                requiresAuth: true,
+                viewingUser: null,
+                entries: [],
+                bodyweights: [],
+                customFoods: [],
+                settings: defaultSettings(),
+            };
+        }
+        throw err;
+    }
+
+    let targetUserId = viewerId!;
+    let viewingUser: { id: string; name: string | null; username: string | null } | null = null;
+    const requestedView = viewUserId && viewUserId !== viewerId ? viewUserId : null;
+
+    if (requestedView) {
+        const share = await db.dashboardShare.findUnique({
+            where: { ownerId_viewerId: { ownerId: requestedView, viewerId: viewerId! } },
+            select: {
+                nutrition: true,
+                owner: { select: { id: true, name: true, username: true } },
+            },
+        });
+        if (!share?.nutrition) {
+            return {
+                requiresAuth: true,
+                viewingUser: null,
+                entries: [],
+                bodyweights: [],
+                customFoods: [],
+                settings: defaultSettings(),
+            };
+        }
+        targetUserId = requestedView;
+        viewingUser = share.owner;
+    }
 
     const [entries, bodyweights, customFoods, settings] = await Promise.all([
         db.nutritionEntry.findMany({
-            where: { userId },
+            where: { userId: targetUserId },
             orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
             select: {
                 id: true,
@@ -162,17 +208,17 @@ export async function fetchAllNutritionData(): Promise<{
             },
         }),
         db.bodyweightEntry.findMany({
-            where: { userId },
+            where: { userId: targetUserId },
             orderBy: [{ date: 'asc' }],
             select: { date: true, weight: true },
         }),
         db.nutritionCustomFood.findMany({
-            where: { userId },
+            where: { userId: targetUserId },
             orderBy: [{ createdAt: 'desc' }],
             select: { id: true, name: true, grams: true, kcal: true, p: true, c: true, f: true },
         }),
         db.nutritionSettings.findUnique({
-            where: { userId },
+            where: { userId: targetUserId },
             select: {
                 goalKcal: true,
                 goalProtein: true,
@@ -196,6 +242,8 @@ export async function fetchAllNutritionData(): Promise<{
         : defaultSettings();
 
     return {
+        requiresAuth: false,
+        viewingUser,
         entries: entries.map((e: typeof entries[number]) => ({
             id: e.id,
             date: toISODate(e.date),

@@ -41,33 +41,79 @@ export type WellnessSettingsDTO = {
 };
 
 /** ---------------- Fetch all ---------------- */
-export async function fetchWellnessData(): Promise<{
+export async function fetchWellnessData(
+    viewUserId?: string,
+): Promise<{
+    requiresAuth: boolean;
     sleep: SleepDTO[];
     water: WaterDTO[];
     settings: WellnessSettingsDTO;
+    viewingUser: { id: string; name: string | null; username: string | null } | null;
 }> {
-    const userId = await requireMe();
+    let viewerId: string | null = null;
+    try {
+        viewerId = await requireMe();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === 'Unauthorized' || message === 'User not found') {
+            return {
+                requiresAuth: true,
+                sleep: [],
+                water: [],
+                settings: { waterGoal: 3.2 },
+                viewingUser: null,
+            };
+        }
+        throw err;
+    }
+
+    let targetUserId = viewerId!;
+    let viewingUser: { id: string; name: string | null; username: string | null } | null = null;
+    const requestedView = viewUserId && viewUserId !== viewerId ? viewUserId : null;
+
+    if (requestedView) {
+        const share = await db.dashboardShare.findUnique({
+            where: { ownerId_viewerId: { ownerId: requestedView, viewerId: viewerId! } },
+            select: {
+                wellness: true,
+                owner: { select: { id: true, name: true, username: true } },
+            },
+        });
+        if (!share?.wellness) {
+            return {
+                requiresAuth: true,
+                sleep: [],
+                water: [],
+                settings: { waterGoal: 3.2 },
+                viewingUser: null,
+            };
+        }
+        targetUserId = requestedView;
+        viewingUser = share.owner;
+    }
 
     const [sleepRows, waterRows, settings] = await Promise.all([
         db.sleepEntry.findMany({
-            where: { userId },
+            where: { userId: targetUserId },
             orderBy: { date: 'asc' },
             select: { date: true, hours: true },
         }),
         db.waterEntry.findMany({
-            where: { userId },
+            where: { userId: targetUserId },
             orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
             select: { date: true, liters: true },
         }),
         db.wellnessSettings.upsert({
-            where: { userId },
+            where: { userId: targetUserId },
             update: {},
-            create: { userId, waterGoal: 3.2 },
+            create: { userId: targetUserId, waterGoal: 3.2 },
             select: { waterGoal: true, unit: true, bwRange: true },
         }),
     ]);
 
     return {
+        requiresAuth: false,
+        viewingUser,
         sleep: sleepRows.map((r: typeof sleepRows[number]) => ({
             date: toISODate(r.date),
             hours: r.hours ?? null,

@@ -123,6 +123,23 @@ model User {
   sleepEntries     SleepEntry[]
   waterEntries     WaterEntry[]
   wellnessSettings WellnessSettings?
+
+  dashboardSharesGranted  DashboardShare[] @relation("DashboardShareOwner")
+  dashboardSharesReceived DashboardShare[] @relation("DashboardShareViewer")
+}
+
+model DashboardShare {
+  id        String   @id @default(cuid())
+  owner     User     @relation("DashboardShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String
+  viewer    User     @relation("DashboardShareViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewerId  String
+  workouts  Boolean  @default(false)
+  wellness  Boolean  @default(false)
+  nutrition Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([ownerId, viewerId])
 }
 
 model TraineeProfile {
