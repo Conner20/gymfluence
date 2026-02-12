@@ -38,9 +38,15 @@ export default function MobileHeader({ title, href = "/", subContent, leftAccess
                         {leftAccessory}
                     </div>
                 )}
-                <h1 className="font-roboto text-3xl text-green-700 tracking-tight select-none text-center dark:text-green-400">
-                    <Link href={href}>
-                        <span className="cursor-pointer">{title}</span>
+                <h1 className="font-roboto text-3xl tracking-tight select-none text-center text-green-700 dark:text-green-400">
+                    <Link href={href} className="cursor-pointer">
+                        {title.toLowerCase() === "fitting" ? (
+                            <span className="font-semibold">
+                                fitt<span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>g
+                            </span>
+                        ) : (
+                            <span>{title}</span>
+                        )}
                     </Link>
                 </h1>
                 <button

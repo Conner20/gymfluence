@@ -27,7 +27,9 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur dark:border-white/10 dark:bg-black/40">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
-            gymfluence
+            <span>fitt</span>
+            <span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>
+            <span>g</span>
           </Link>
 
           <nav className="flex items-center gap-2">
@@ -72,7 +74,7 @@ export default function LandingPage() {
             </h1>
             <p className="mt-6 text-base sm:text-lg text-neutral-700 max-w-xl mx-auto px-1 dark:text-neutral-300">
               A shared ecosystem for gyms, trainers, and fitness enthusiasts.
-              Gymfluence helps you connect, track, and train — all in one place.
+              Fitting In helps you connect, track, and train — all in one place.
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -142,7 +144,7 @@ export default function LandingPage() {
       <section className="bg-black text-white dark:bg-neutral-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 text-center">
           <h2 className="text-3xl md:text-4xl font-bold">
-            Become a Gymfluencer today.
+            Fit in today.
           </h2>
           <p className="mt-3 text-neutral-300">
             Connect • Track • Train — all in one platform.
@@ -162,7 +164,9 @@ export default function LandingPage() {
       <footer className="border-t border-black/10 dark:border-white/10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-sm text-neutral-600 dark:text-neutral-400">
-            gymfluence
+            <span>fitt</span>
+            <span className="underline decoration-2 decoration-neutral-600 underline-offset-[2px] dark:decoration-neutral-400">in</span>
+            <span>g</span>
           </span>
           {/* <div className="flex items-center gap-4 text-sm">
             <Link href="/"><Facebook /></Link>
