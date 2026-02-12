@@ -1,16 +1,13 @@
 import { Resend } from "resend";
-import nodemailer from "nodemailer";
 
 type Mailer = (to: string, url: string) => Promise<void>;
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const hasSmtp =
-    !!process.env.SMTP_HOST && !!process.env.SMTP_USER && !!process.env.SMTP_PASS;
 
 async function sendMail(to: string, subject: string, html: string, fallbackLabel: string, fallbackUrl: string) {
     if (resendClient) {
         const { error } = await resendClient.emails.send({
-            from: process.env.EMAIL_FROM || "onboarding@resend.dev",
+            from: process.env.EMAIL_FROM || "noreply@fittingin.co",
             to,
             subject,
             html,
@@ -19,26 +16,6 @@ async function sendMail(to: string, subject: string, html: string, fallbackLabel
             console.error("[mail] resend error", error);
             throw new Error(error.message || "Failed to send verification email via Resend");
         }
-        return;
-    }
-
-    if (hasSmtp) {
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT || 587),
-            secure: Number(process.env.SMTP_PORT) === 465,
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
-
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM || "onboarding@resend.dev",
-            to,
-            subject,
-            html,
-        });
         return;
     }
 
