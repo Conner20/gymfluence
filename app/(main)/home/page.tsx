@@ -1,6 +1,7 @@
 // app/(main)/home/page.tsx
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { db } from "@/prisma/client";
 import HomePageShell from "@/components/HomePageShell";
 
@@ -8,6 +9,10 @@ export const revalidate = 0; // always fresh server render
 
 export default async function Home() {
     const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+        redirect("/");
+    }
 
     // Resolve the viewer's user id (if signed in)
     const viewerId = session?.user?.email

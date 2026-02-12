@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-
+import { redirect } from "next/navigation";
 import MobileHeader from "@/components/MobileHeader";
 import AdminUserManager from "@/components/AdminUserManager";
 import { authOptions } from "@/lib/auth";
@@ -16,28 +16,8 @@ function isAdminEmail(email: string | null | undefined) {
 export default async function AdminPage() {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
-        return (
-            <main className="min-h-screen flex flex-col items-center justify-center bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white">
-                <MobileHeader title="admin" href="/admin" />
-                <h2 className="text-2xl mt-10 text-black/70 dark:text-white/80">Please log in to view the admin console.</h2>
-            </main>
-        );
-    }
-
-    if (!isAdminEmail(session.user.email)) {
-        return (
-            <main className="min-h-screen flex flex-col items-center justify-center bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white">
-                <MobileHeader title="admin" href="/admin" />
-                <div className="mt-10 text-center space-y-2 px-4">
-                    <h2 className="text-2xl font-semibold">Access restricted</h2>
-                    <p className="text-zinc-600 dark:text-white/70 text-sm max-w-sm mx-auto">
-                        This console is only available to admin accounts. Please contact support if you
-                        believe this is an error.
-                    </p>
-                </div>
-            </main>
-        );
+    if (!session?.user || !isAdminEmail(session.user.email)) {
+        redirect("/");
     }
 
     return (
