@@ -1,4 +1,4 @@
-# Gymfluence
+# Fitting In
 
 Re-engineering the fitness economy through social media.
 

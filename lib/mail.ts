@@ -47,7 +47,7 @@ async function sendMail(to: string, subject: string, html: string, fallbackLabel
 }
 
 export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
-    const subject = "Reset your Gymfluence password";
+    const subject = "Reset your Fitting In password";
     const html = `
     <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
       <h2>Reset your password</h2>
@@ -61,11 +61,11 @@ export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
 };
 
 export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
-    const subject = "Verify your Gymfluence email";
+    const subject = "Verify your Fitting In email";
     const html = `
     <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
       <h2>Verify your email</h2>
-      <p>Confirm your email to finish creating your Gymfluence account.</p>
+      <p>Confirm your email to finish creating your Fitting In account.</p>
       <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p>
       <p>If that button doesn’t work, copy and paste this link into your browser:<br/>${verifyUrl}</p>
     </div>
