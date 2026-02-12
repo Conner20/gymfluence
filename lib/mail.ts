@@ -7,7 +7,7 @@ const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_
 async function sendMail(to: string, subject: string, html: string, fallbackLabel: string, fallbackUrl: string) {
     if (resendClient) {
         const { error } = await resendClient.emails.send({
-            from: process.env.EMAIL_FROM || "noreply@fittingin.co",
+            from: process.env.EMAIL_FROM || "mail@fittingin.co",
             to,
             subject,
             html,
