@@ -27,22 +27,23 @@ export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
     const subject = "Reset your Fitting In password";
 
     const html = `
-  <div style="margin:0;padding:0;background:#ffffff;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;border-collapse:collapse;">
+  <div style="margin:0;padding:0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
       <tr>
-        <td align="center" style="padding:32px 16px;">
+        <td align="left" style="padding:32px 16px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="width:560px;max-width:100%;border-collapse:collapse;">
             <tr>
-              <td style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
+              <td align="left" style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
                 <div style="font-size:18px;font-weight:600;line-height:1.3;margin:0 0 12px 0;">
                   Reset your password
                 </div>
 
-                <div style="font-size:14px;line-height:1.6;color:#374151;margin:0 0 20px 0;">
-                  Use the button below to set a new password. This link expires in <span style="color:#111827;font-weight:600;">1 hour</span>.
+                <div style="font-size:14px;line-height:1.6;color:#374151;margin:0 0 18px 0;">
+                  Use the button below to set a new password. This link expires in
+                  <span style="color:#111827;font-weight:600;">1 hour</span>.
                 </div>
 
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 20px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 18px 0;">
                   <tr>
                     <td style="border-radius:10px;background:#16a34a;">
                       <a href="${resetUrl}"
@@ -58,18 +59,21 @@ export const sendPasswordResetEmail: Mailer = async (to, resetUrl) => {
                   If the button doesn’t work, copy and paste this link:
                 </div>
 
-                <div style="font-size:12px;line-height:1.6;margin:0 0 22px 0;">
+                <div style="font-size:12px;line-height:1.6;margin:0 0 18px 0;">
                   <a href="${resetUrl}" style="color:#111827;text-decoration:underline;word-break:break-word;">
                     ${resetUrl}
                   </a>
                 </div>
 
-                <div style="font-size:12px;line-height:1.6;color:#9ca3af;margin:0;">
+                <div style="font-size:12px;line-height:1.6;color:#9ca3af;margin:0 0 22px 0;">
                   If you didn’t request a password reset, you can safely ignore this email.
                 </div>
 
-                <div style="font-size:12px;line-height:1.6;color:#9ca3af;margin:16px 0 0 0;">
-                  — Fitting In
+                <!-- Logo (bottom) -->
+                <div style="margin-top:18px;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1;">
+                  <span style="font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#15803d;">fitt</span>
+                  <span style="font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#15803d;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px;text-decoration-color:#16a34a;">in</span>
+                  <span style="font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#15803d;">g</span>
                 </div>
               </td>
             </tr>
@@ -87,22 +91,22 @@ export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
     const subject = "Verify your Fitting In email";
 
     const html = `
-  <div style="margin:0;padding:0;background:#ffffff;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;border-collapse:collapse;">
+  <div style="margin:0;padding:0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
       <tr>
-        <td align="center" style="padding:32px 16px;">
+        <td align="left" style="padding:32px 16px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="width:560px;max-width:100%;border-collapse:collapse;">
             <tr>
-              <td style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
+              <td align="left" style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
                 <div style="font-size:18px;font-weight:600;line-height:1.3;margin:0 0 12px 0;">
                   Verify your email
                 </div>
 
-                <div style="font-size:14px;line-height:1.6;color:#374151;margin:0 0 20px 0;">
+                <div style="font-size:14px;line-height:1.6;color:#374151;margin:0 0 18px 0;">
                   Confirm your email address to finish creating your Fitting In account.
                 </div>
 
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 20px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 18px 0;">
                   <tr>
                     <td style="border-radius:10px;background:#16a34a;">
                       <a href="${verifyUrl}"
@@ -118,18 +122,21 @@ export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
                   If the button doesn’t work, copy and paste this link:
                 </div>
 
-                <div style="font-size:12px;line-height:1.6;margin:0 0 22px 0;">
+                <div style="font-size:12px;line-height:1.6;margin:0 0 18px 0;">
                   <a href="${verifyUrl}" style="color:#111827;text-decoration:underline;word-break:break-word;">
                     ${verifyUrl}
                   </a>
                 </div>
 
-                <div style="font-size:12px;line-height:1.6;color:#9ca3af;margin:0;">
+                <div style="font-size:12px;line-height:1.6;color:#9ca3af;margin:0 0 22px 0;">
                   If you didn’t create an account, you can ignore this email.
                 </div>
 
-                <div style="font-size:12px;line-height:1.6;color:#9ca3af;margin:16px 0 0 0;">
-                  — Fitting In
+                <!-- Logo (bottom) -->
+                <div style="margin-top:18px;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1;">
+                  <span style="font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#15803d;">fitt</span>
+                  <span style="font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#15803d;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px;text-decoration-color:#16a34a;">in</span>
+                  <span style="font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#15803d;">g</span>
                 </div>
               </td>
             </tr>
@@ -142,4 +149,3 @@ export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
 
     await sendMail(to, subject, html, "[verify-email]", `[verify-email] ${to}: ${verifyUrl}`);
 };
-
