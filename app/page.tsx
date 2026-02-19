@@ -1,25 +1,14 @@
 // app/(main)/landing/page.tsx
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Instagram, Linkedin, Facebook, Moon, Sun } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
   const darkMode = theme === "dark";
-  const { status } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/home");
-    }
-  }, [status, router]);
 
   return (
       <div className="min-h-screen bg-white text-black transition-colors dark:bg-[#050505] dark:text-white">
