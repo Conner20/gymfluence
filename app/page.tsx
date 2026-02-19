@@ -28,7 +28,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
             <span>fitt</span>
-            <span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>
+            <span className="underline decoration-2 decoration-green-700 underline-offset-[2px] dark:decoration-green-400">in</span>
             <span>g</span>
           </Link>
 

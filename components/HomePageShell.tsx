@@ -33,7 +33,7 @@ export default function HomePageShell({ posts }: HomePageShellProps) {
                     <ThemeToggle className="absolute left-6 hidden lg:inline-flex" />
                     <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
                         <span>fitt</span>
-                        <span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>
+                        <span className="underline decoration-2 decoration-green-700 underline-offset-[2px] dark:decoration-green-400">in</span>
                         <span>g</span>
                     </Link>
                 </header>
