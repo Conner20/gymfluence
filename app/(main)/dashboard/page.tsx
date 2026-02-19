@@ -15,11 +15,14 @@ import {
     deleteExerciseServer,
     addCardioSessionServer,
     deleteCardioSessionServer,
+    addCardioActivityServer,
+    deleteCardioActivityServer,
     type SetEntry,
     type CardioSessionEntry,
     type CardioMode,
     type DistanceUnit,
 } from '@/components/workoutActions';
+import { DEFAULT_CARDIO_ACTIVITIES } from '@/lib/workoutDefaults';
 import { HEATMAP_COLORS_DARK, HEATMAP_COLORS_LIGHT } from '@/lib/heatmapColors';
 
 type RangeKey = '1W' | '1M' | '3M' | '1Y' | 'ALL';
@@ -31,6 +34,7 @@ const CARDIO_RANGE_DAYS: Record<RangeKey, number> = {
     '1Y': 365,
     'ALL': 120,
 };
+
 
 type ShareUserInfo = {
     id: string;
@@ -552,16 +556,17 @@ function DashboardContent() {
     const [exercises, setExercises] = useState<string[]>([]);
     const [exercise, setExercise] = useState<string>('');
     const [cardioForm, setCardioForm] = useState<CardioFormState>({
-        activity: 'running',
+        activity: DEFAULT_CARDIO_ACTIVITIES[0],
         time: '',
         distance: '',
         calories: '',
         date: fmtDate(new Date()),
     });
     const [cardioSessions, setCardioSessions] = useState<CardioSessionEntry[]>([]);
-    const [cardioMode, setCardioMode] = useState<CardioMode>('running');
+    const [cardioMode, setCardioMode] = useState<CardioMode>(DEFAULT_CARDIO_ACTIVITIES[0]);
     const [cardioRange, setCardioRange] = useState<RangeKey>('1W');
     const [cardioDistanceUnit, setCardioDistanceUnit] = useState<DistanceUnit>('mi');
+    const [cardioActivities, setCardioActivities] = useState<string[]>(DEFAULT_CARDIO_ACTIVITIES);
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [shareLoading, setShareLoading] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
@@ -628,7 +633,14 @@ function DashboardContent() {
                 setExercises(data.exercises);
                 const defaultExercise = data.exercises[0] ?? '';
                 setExercise(defaultExercise);
+                const activities = (data.cardioActivities?.length ? data.cardioActivities : DEFAULT_CARDIO_ACTIVITIES);
+                setCardioActivities(activities);
                 setCardioSessions(data.cardioSessions ?? []);
+                setCardioForm((prev) => {
+                    const nextActivity = prev.activity && activities.includes(prev.activity) ? prev.activity : activities[0] ?? '';
+                    return { ...prev, activity: nextActivity };
+                });
+                setCardioMode((prev) => (prev && activities.includes(prev) ? prev : activities[0] ?? ''));
                 setViewingUser(data.viewingUser ?? null);
             } catch (e) {
                 console.error(e);
@@ -843,6 +855,25 @@ function DashboardContent() {
     const repsSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.reps)) : 0));
 
 
+    useEffect(() => {
+        if (!cardioActivities.length) {
+            setCardioMode('');
+            setCardioForm((prev) => ({ ...prev, activity: '' }));
+            return;
+        }
+        setCardioForm((prev) => {
+            if (prev.activity && cardioActivities.includes(prev.activity)) {
+                return prev;
+            }
+            return { ...prev, activity: cardioActivities[0] };
+        });
+        setCardioMode((prev) => (prev && cardioActivities.includes(prev) ? prev : cardioActivities[0]));
+    }, [cardioActivities]);
+
+    useEffect(() => {
+        setCardioForm((prev) => (prev.activity === cardioMode ? prev : { ...prev, activity: cardioMode || prev.activity }));
+    }, [cardioMode]);
+
     const addExercise = async () => {
         const name = prompt('New exercise name');
         if (!name) return;
@@ -884,10 +915,52 @@ function DashboardContent() {
         }
     };
 
+    const addCardioActivity = async () => {
+        const name = prompt('New activity name');
+        if (!name) return;
+        try {
+            const created = await addCardioActivityServer(name);
+            setCardioActivities((x) => Array.from(new Set([...x, created.name])).sort());
+            setCardioMode(created.name);
+            setCardioForm((prev) => ({ ...prev, activity: created.name }));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const removeCardioActivity = async () => {
+        const current = cardioForm.activity || cardioMode;
+        if (!current) return;
+        const ok = confirm(
+            `Remove activity "${current}"? This will also delete all cardio sessions logged for this activity.`
+        );
+        if (!ok) return;
+
+        try {
+            const res = await deleteCardioActivityServer(current);
+            if (!res?.deleted) return;
+            setCardioActivities((prev) => {
+                const next = prev.filter((act) => act !== current);
+                const fallback = next[0] ?? '';
+                setCardioMode(fallback);
+                setCardioForm((state) => ({ ...state, activity: fallback }));
+                return next;
+            });
+            setCardioSessions((prev) => prev.filter((entry) => entry.activity !== current));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     const handleCardioSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const timeMinutes = Number(cardioForm.time);
         if (!Number.isFinite(timeMinutes) || timeMinutes <= 0) {
+            return;
+        }
+        const activityName = cardioForm.activity?.trim();
+        if (!activityName) {
+            alert('Please select or add an activity first.');
             return;
         }
         const distanceValue = cardioForm.distance.trim() !== '' ? Number(cardioForm.distance) : undefined;
@@ -895,7 +968,7 @@ function DashboardContent() {
 
         try {
             const created = await addCardioSessionServer({
-                activity: cardioForm.activity as CardioMode,
+                activity: activityName,
                 timeMinutes,
                 distance: distanceValue,
                 distanceUnit: cardioDistanceUnit,
@@ -1122,38 +1195,28 @@ function DashboardContent() {
                                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Session log</h3>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Distance, time, and calories at a glance.</p>
                             </header>
-                            <CardioForm
-                                form={cardioForm}
-                                setForm={setCardioForm}
-                                onSubmit={handleCardioSubmit}
-                                distanceUnit={cardioDistanceUnit}
-                                setDistanceUnit={setCardioDistanceUnit}
-                            />
-                        </section>
+            <CardioForm
+                form={cardioForm}
+                setForm={setCardioForm}
+                onSubmit={handleCardioSubmit}
+                distanceUnit={cardioDistanceUnit}
+                setDistanceUnit={setCardioDistanceUnit}
+                activities={cardioActivities}
+                addActivity={addCardioActivity}
+                removeActivity={removeCardioActivity}
+                onActivityChange={setCardioMode}
+            />
+        </section>
 
                         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900 lg:col-span-7">
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">Cardio trends</p>
-                                    <h3 className="text-lg font-semibold capitalize text-black dark:text-white">{cardioMode} sessions</h3>
+                                    <h3 className="text-lg font-semibold capitalize text-black dark:text-white">
+                                        {cardioMode ? `${cardioMode} sessions` : 'Add an activity to view sessions'}
+                                    </h3>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold">
-                                    <div className="flex flex-wrap gap-2">
-                                        {( ['running','biking','walking','swimming'] as CardioMode[]).map((mode) => (
-                                            <button
-                                                key={mode}
-                                                className={`rounded-full px-3 py-1.5 capitalize transition ${
-                                                    cardioMode === mode
-                                                        ? 'bg-black text-white dark:bg-white dark:text-black'
-                                                        : 'text-neutral-700 hover:bg-neutral-100 dark:text-gray-200 dark:hover:bg-white/10'
-                                                }`}
-                                                onClick={() => setCardioMode(mode)}
-                                                aria-pressed={cardioMode === mode}
-                                            >
-                                                {mode}
-                                            </button>
-                                        ))}
-                                    </div>
                                     <div className="flex flex-wrap gap-1 rounded-full border border-zinc-200/70 bg-white/70 p-1 text-[10px] font-semibold uppercase tracking-wide dark:border-white/15 dark:bg-white/5">
                                         {( ['1W','1M','3M','1Y','ALL'] as RangeKey[]).map((rangeKey) => (
                                             <button
@@ -1306,6 +1369,8 @@ function StrengthForm({
     removeExercise,
     recordSet,
 }: StrengthFormProps) {
+    const formatExerciseLabel = (name: string) => name.replace(/\b\w/g, (c) => c.toUpperCase());
+
     return (
         <div className="flex flex-col gap-5">
             <div>
@@ -1315,11 +1380,11 @@ function StrengthForm({
                         <select
                             value={exercise}
                             onChange={(e) => setExercise(e.target.value)}
-                            className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-10 text-sm font-semibold text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
+                            className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-10 text-sm font-semibold text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white capitalize"
                         >
                             {exercises.map((ex) => (
                                 <option key={ex} value={ex}>
-                                    {ex}
+                                    {formatExerciseLabel(ex)}
                                 </option>
                             ))}
                         </select>
@@ -1417,11 +1482,25 @@ type CardioFormProps = {
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     distanceUnit: DistanceUnit;
     setDistanceUnit: React.Dispatch<React.SetStateAction<DistanceUnit>>;
+    activities: string[];
+    addActivity: () => void;
+    removeActivity: () => void;
+    onActivityChange: (activity: string) => void;
 };
 
-function CardioForm({ form, setForm, onSubmit, distanceUnit, setDistanceUnit }: CardioFormProps) {
+function CardioForm({
+    form,
+    setForm,
+    onSubmit,
+    distanceUnit,
+    setDistanceUnit,
+    activities,
+    addActivity,
+    removeActivity,
+    onActivityChange,
+}: CardioFormProps) {
     const update = (field: keyof CardioFormState) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
-    const activities: CardioMode[] = ['running', 'walking', 'biking', 'swimming'];
+    const hasActivities = activities.length > 0;
 
     return (
         <>
@@ -1429,35 +1508,49 @@ function CardioForm({ form, setForm, onSubmit, distanceUnit, setDistanceUnit }: 
                 onSubmit={onSubmit}
                 className="grid grid-cols-1 gap-3 text-sm text-zinc-700 dark:text-gray-100 sm:grid-cols-2"
             >
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:col-span-2">
-                    Activity
-                    <div className="relative">
-                        <select
-                            value={form.activity}
-                            onChange={(e) => update('activity')(e.target.value as CardioMode)}
-                            className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-10 text-sm font-semibold capitalize text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
-                        >
-                            {activities.map((activity) => (
-                                <option key={activity} value={activity}>
-                                    {activity}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/80" />
+                <div className="sm:col-span-2">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">Activity</label>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                        <div className="relative w-full">
+                            <select
+                                value={form.activity}
+                                onChange={(e) => {
+                                    update('activity')(e.target.value as CardioMode);
+                                    onActivityChange(e.target.value);
+                                }}
+                                className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-10 text-sm font-semibold capitalize text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
+                            >
+                                {activities.length === 0 ? (
+                                    <option value="">Add an activity to begin</option>
+                                ) : (
+                                    activities.map((activity) => (
+                                        <option key={activity} value={activity}>
+                                            {activity}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/80" />
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={addActivity}
+                                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-50 dark:border-white/20 dark:text-black dark:hover:bg-white/80"
+                            >
+                                Add
+                            </button>
+                            <button
+                                type="button"
+                                onClick={removeActivity}
+                                disabled={!hasActivities}
+                                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-700 transition hover:bg-red-50 disabled:opacity-40 dark:border-white/20 dark:text-black dark:hover:bg-white/80"
+                            >
+                                Remove
+                            </button>
+                        </div>
                     </div>
-                </label>
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:col-span-2">
-                    Date
-                    <div className="relative max-sm:w-[19.5rem]">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 sm:block" />
-                        <input
-                            type="date"
-                            value={form.date}
-                            onChange={(e) => update('date')(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 bg-white pl-3 pr-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white sm:pl-9"
-                        />
-                    </div>
-                </label>
+                </div>
                 <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     <div className="flex items-center justify-between">
                         <span>Time (min)</span>
@@ -1500,6 +1593,15 @@ function CardioForm({ form, setForm, onSubmit, distanceUnit, setDistanceUnit }: 
                         value={form.calories}
                         onChange={(e) => update('calories')(e.target.value)}
                         placeholder="350"
+                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:col-span-2">
+                    Date
+                    <input
+                        type="date"
+                        value={form.date}
+                        onChange={(e) => update('date')(e.target.value)}
                         className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
                     />
                 </label>

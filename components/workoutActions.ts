@@ -3,8 +3,9 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/prisma/client';
+import { DEFAULT_CARDIO_ACTIVITIES } from '@/lib/workoutDefaults';
 
-export type CardioMode = 'running' | 'biking' | 'walking' | 'swimming';
+export type CardioMode = string;
 export type DistanceUnit = 'mi' | 'km';
 
 /** ---------------- Auth helper ---------------- */
@@ -56,6 +57,7 @@ export async function fetchAllDashboardData(viewUserId?: string) {
             return {
                 requiresAuth: true,
                 exercises: [],
+                cardioActivities: [],
                 sets: [],
                 cardioSessions: [],
             };
@@ -79,6 +81,7 @@ export async function fetchAllDashboardData(viewUserId?: string) {
             return {
                 requiresAuth: true,
                 exercises: [],
+                cardioActivities: [],
                 sets: [],
                 cardioSessions: [],
             };
@@ -93,6 +96,26 @@ export async function fetchAllDashboardData(viewUserId?: string) {
         orderBy: { name: 'asc' },
         select: { name: true },
     });
+
+    let cardioActivities = await db.cardioActivityEntry.findMany({
+        where: { userId: targetUserId },
+        orderBy: { name: 'asc' },
+        select: { name: true },
+    });
+    if (cardioActivities.length === 0) {
+        await db.cardioActivityEntry.createMany({
+            data: DEFAULT_CARDIO_ACTIVITIES.map((name) => ({
+                userId: targetUserId,
+                name,
+            })),
+            skipDuplicates: true,
+        });
+        cardioActivities = await db.cardioActivityEntry.findMany({
+            where: { userId: targetUserId },
+            orderBy: { name: 'asc' },
+            select: { name: true },
+        });
+    }
 
     // All sets for this user (latest first)
     const sets = await db.workoutSet.findMany({
@@ -122,7 +145,7 @@ export async function fetchAllDashboardData(viewUserId?: string) {
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         select: {
             id: true,
-            activity: true,
+            activity: { select: { name: true } },
             date: true,
             timeMinutes: true,
             distance: true,
@@ -133,7 +156,7 @@ export async function fetchAllDashboardData(viewUserId?: string) {
 
     const cardioSessions: CardioSessionEntry[] = cardioRows.map((row) => ({
         id: row.id,
-        activity: row.activity as CardioMode,
+        activity: row.activity?.name ?? 'cardio',
         date: row.date.toISOString().slice(0, 10),
         timeMinutes: row.timeMinutes,
         distance: row.distance ?? null,
@@ -145,6 +168,7 @@ export async function fetchAllDashboardData(viewUserId?: string) {
         requiresAuth: false,
         viewingUser,
         exercises: exercises.map((e: typeof exercises[number]) => e.name),
+        cardioActivities: cardioActivities.map((a) => a.name),
         sets: setEntries,
         cardioSessions,
     };
@@ -163,6 +187,23 @@ export async function addExerciseServer(name: string) {
     if (existing) return existing;
 
     return db.workoutExercise.create({
+        data: { userId, name: trimmed },
+        select: { id: true, name: true },
+    });
+}
+
+export async function addCardioActivityServer(name: string) {
+    const userId = await requireMe();
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed) throw new Error('Activity name required');
+
+    const existing = await db.cardioActivityEntry.findFirst({
+        where: { userId, name: trimmed },
+        select: { id: true, name: true },
+    });
+    if (existing) return existing;
+
+    return db.cardioActivityEntry.create({
         data: { userId, name: trimmed },
         select: { id: true, name: true },
     });
@@ -244,10 +285,24 @@ export async function addCardioSessionServer(input: {
     date: string; // YYYY-MM-DD
 }) {
     const userId = await requireMe();
-    const activity = input.activity;
+    const activityName = input.activity.trim().toLowerCase();
+    if (!activityName) {
+        throw new Error('Activity name is required');
+    }
     const timeMinutes = Math.max(0, Math.round(input.timeMinutes));
     if (timeMinutes <= 0) {
         throw new Error('Time in minutes is required');
+    }
+
+    let activity = await db.cardioActivityEntry.findFirst({
+        where: { userId, name: activityName },
+        select: { id: true, name: true },
+    });
+    if (!activity) {
+        activity = await db.cardioActivityEntry.create({
+            data: { userId, name: activityName },
+            select: { id: true, name: true },
+        });
     }
 
     const distanceValue =
@@ -260,7 +315,7 @@ export async function addCardioSessionServer(input: {
     const created = await db.cardioSession.create({
         data: {
             userId,
-            activity,
+            activityId: activity.id,
             timeMinutes,
             distance: distanceValue,
             distanceUnit: input.distanceUnit,
@@ -269,7 +324,7 @@ export async function addCardioSessionServer(input: {
         },
         select: {
             id: true,
-            activity: true,
+            activity: { select: { name: true } },
             date: true,
             timeMinutes: true,
             distance: true,
@@ -280,7 +335,7 @@ export async function addCardioSessionServer(input: {
 
     const result: CardioSessionEntry = {
         id: created.id,
-        activity: created.activity as CardioMode,
+        activity: created.activity?.name ?? activityName,
         date: created.date.toISOString().slice(0, 10),
         timeMinutes: created.timeMinutes,
         distance: created.distance ?? null,
@@ -331,6 +386,31 @@ export async function deleteExerciseServer(name: string) {
     // Delete the exercise itself
     await db.workoutExercise.delete({
         where: { id: exercise.id },
+    });
+
+    return { deleted: true };
+}
+
+export async function deleteCardioActivityServer(name: string) {
+    const userId = await requireMe();
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed) throw new Error('Activity name required');
+
+    const activity = await db.cardioActivityEntry.findFirst({
+        where: { userId, name: trimmed },
+        select: { id: true },
+    });
+
+    if (!activity) {
+        return { deleted: false };
+    }
+
+    await db.cardioSession.deleteMany({
+        where: { userId, activityId: activity.id },
+    });
+
+    await db.cardioActivityEntry.delete({
+        where: { id: activity.id },
     });
 
     return { deleted: true };
