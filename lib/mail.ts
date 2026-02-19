@@ -95,7 +95,7 @@ export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
               <td align="left" style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
                 
                 <div style="font-size:18px;font-weight:600;line-height:1.3;margin:0 0 14px 0;">
-                  Verify email
+                  Welcome to Fitting In!
                 </div>
 
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 14px 0;">
@@ -104,7 +104,7 @@ export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
                       <a href="${verifyUrl}"
                         style="display:inline-block;padding:10px 14px;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
                                font-size:14px;font-weight:600;line-height:1;text-decoration:none;color:#ffffff;border-radius:10px;">
-                        Continue
+                        Verify email
                       </a>
                     </td>
                   </tr>
@@ -112,16 +112,6 @@ export const sendEmailVerificationEmail: Mailer = async (to, verifyUrl) => {
 
                 <div style="font-size:12px;line-height:1.6;color:#6b7280;margin:0 0 22px 0;">
                   This link may expire soon.
-                </div>
-
-                <div style="font-size:12px;line-height:1.6;color:#6b7280;margin:0 0 6px 0;">
-                  Or paste:
-                </div>
-
-                <div style="font-size:12px;line-height:1.6;margin:0 0 22px 0;">
-                  <a href="${verifyUrl}" style="color:#111827;text-decoration:underline;word-break:break-word;">
-                    ${verifyUrl}
-                  </a>
                 </div>
 
                 <!-- Logo (bottom) -->
