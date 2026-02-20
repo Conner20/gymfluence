@@ -227,7 +227,7 @@ export default function SearchProfileEditor({
                                         className={clsx(
                                             "px-3 py-1 rounded-full border text-sm transition",
                                             goals.includes(g)
-                                                ? "bg-green-600 text-white border-green-600 hover:bg-green-700 shadow-sm dark:bg-green-500 dark:hover:bg-green-700 dark:hover:border-green-700 dark:text-black dark:border-green-500"
+                                                ? "bg-green-600 text-white border-green-600 hover:bg-green-700 shadow-sm dark:bg-green-600 dark:hover:bg-green-700 dark:hover:border-green-700 dark:text-white dark:border-green-600"
                                                 : "bg-white hover:bg-gray-100 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                         )}
                                     >
@@ -254,55 +254,13 @@ export default function SearchProfileEditor({
                                             className={clsx(
                                                 "px-3 py-1 rounded-full border text-sm transition",
                                                 services.includes(s)
-                                                    ? "bg-green-600 text-white border-green-600 shadow-sm dark:bg-green-500 dark:text-black dark:border-green-500"
+                                                    ? "bg-green-600 text-white border-green-600 hover:bg-green-700 shadow-sm dark:bg-green-600 dark:hover:bg-green-700 dark:hover:border-green-700 dark:text-white dark:border-green-600"
                                                     : "bg-white hover:bg-gray-100 text-gray-900 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                                             )}
                                         >
                                             {s}
                                         </button>
                                     ))}
-                                </div>
-
-                                {/* Current selected chips with remove */}
-                                {services.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                        {services.map((s) => (
-                                            <span key={s} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs bg-gray-50">
-                                                {s}
-                                                <button
-                                                    type="button"
-                                                    className="text-gray-500 hover:text-black"
-                                                    onClick={() => setServices(services.filter((x) => x !== s))}
-                                                    title="Remove"
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Add custom service */}
-                                <div className="flex items-center gap-2 max-w-md">
-                                <input
-                                    className="flex-1 border rounded px-3 py-2 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
-                                        placeholder="Add a custom service and press Enter…"
-                                        value={newService}
-                                        onChange={(e) => setNewService(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault();
-                                                addCustom(newService, services, setServices, () => setNewService(""));
-                                            }
-                                        }}
-                                    />
-                                <button
-                                    type="button"
-                                    onClick={() => addCustom(newService, services, setServices, () => setNewService(""))}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-100 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                >
-                                        Add
-                                    </button>
                                 </div>
                             </div>
 
@@ -344,7 +302,7 @@ export default function SearchProfileEditor({
                                     value={amenitiesText}
                                     onChange={(e) => setAmenitiesText(e.target.value)}
                                 />
-                                <div className="text-xs text-gray-500 mt-1">
+                                    <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">
                                     Shown on your Search details card under “Amenities”.
                                 </div>
                             </div>

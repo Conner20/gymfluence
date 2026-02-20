@@ -327,8 +327,8 @@ export default function PostDetail({
                 className={clsx(
                     "flex items-center gap-1 text-xs transition",
                     showComments
-                        ? "text-green-700 font-semibold"
-                        : "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
+                        ? "text-green-600 font-semibold"
+                        : "text-gray-400 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-500"
                 )}
                 onClick={toggleComments}
                 title={showComments ? "Hide comments" : "Show comments"}
@@ -343,9 +343,9 @@ export default function PostDetail({
                     className={clsx(
                         "flex items-center gap-1 text-xs transition",
                         isFlat
-                            ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
+                            ? "text-gray-400 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-500"
                             : canShare
-                                ? "text-gray-400 hover:text-green-700 dark:text-gray-300 dark:hover:text-green-500"
+                                ? "text-gray-400 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-500"
                                 : "text-gray-300 cursor-not-allowed dark:text-gray-600"
                     )}
                     onClick={async () => {

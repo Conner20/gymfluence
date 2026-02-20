@@ -49,10 +49,6 @@ export default function LandingPage() {
       {/* ======= HERO ======= */}
       <section className="relative overflow-hidden">
         {/* subtle background glows */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -left-24 h-120 w-120 rounded-full bg-green-700/10 blur-3xl dark:bg-white/7" />
-          <div className="absolute -bottom-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-black/5 blur-3xl dark:bg-white/7" />
-        </div>
 
         <div className="mx-auto flex max-w-7xl items-center justify-center px-4 pb-8 pt-16 sm:px-6 lg:pb-12 lg:pt-28">
           <div className="w-full max-w-3xl text-center">
@@ -69,7 +65,7 @@ export default function LandingPage() {
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 href="/sign-up"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-700 text-white hover:bg-black transition dark:bg-green-600"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-700 text-white hover:bg-black transition dark:bg-green-600 dark:hover:bg-white/10"
               >
                 Get Started <ArrowRight size={18} />
               </Link>

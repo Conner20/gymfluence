@@ -576,7 +576,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
             <aside
                 className={clsx(
                     "w-full bg-white flex flex-col items-center pt-6 pb-6 shadow-sm lg:shadow-none dark:bg-neutral-900 dark:border-b dark:border-white/5 dark:text-gray-100",
-                    "lg:w-72 lg:pt-8 lg:pb-0 lg:sticky lg:top-[84px] lg:self-start lg:h-[calc(100vh-84px)] lg:border-r lg:border-white/10"
+                    "lg:w-72 lg:pt-8 lg:pb-0 lg:sticky lg:top-[84px] lg:self-start lg:min-h-[calc(100vh)] lg:border-r lg:border-white/10"
                 )}
             >
                 <div className="w-full px-6 flex flex-col items-center gap-4">
@@ -590,7 +590,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 className="w-20 h-20 rounded-full object-cover border border-gray-200 dark:border-white/20"
                             />
                         ) : (
-                            <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex.items-center justify-center dark:bg-neutral-800 dark:border-white/20">
+                            <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center dark:bg-neutral-800 dark:border-white/20">
                                 <span className="text-green-700 font-semibold text-lg select-none dark:text-green-400">
                                     {(user.name || user.username || "U").slice(0, 2)}
                                 </span>

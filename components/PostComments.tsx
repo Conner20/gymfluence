@@ -166,7 +166,7 @@ export function PostComments({
 
                         {session && (
                             <button
-                                className="text-[11px] text-blue-500 hover:underline dark:text-blue-400"
+                                className="text-[11px] text-green-600 hover:underline dark:text-green-600"
                                 onClick={() => setShowReply(!showReply)}
                             >
                                 Reply
@@ -182,7 +182,7 @@ export function PostComments({
                                     placeholder="Reply..."
                                 />
                                 <button
-                                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded flex items-center gap-1 dark:bg-blue-600"
+                                    className="text-xs bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1 dark:bg-green-600"
                                     onClick={async () => {
                                         await handleAdd(replyContent, comment.id);
                                         setReplyContent("");
@@ -228,7 +228,7 @@ export function PostComments({
                         required
                     />
                     <button
-                        className="bg-blue-500 text-white px-3 py-1 rounded text-sm dark:bg-blue-600"
+                        className="bg-green-600 text-white px-3 py-1 rounded text-sm dark:bg-green-600 dark:hover:bg-green-700"
                         type="submit"
                     >
                         Post
@@ -237,7 +237,7 @@ export function PostComments({
             )}
 
             {loading ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400">Loading comments...</div>
+                <div className="text-sm text-gray-400 dark:text-gray-400">Loading comments...</div>
             ) : comments.length === 0 ? (
                 <div className="text-gray-400 text-sm dark:text-gray-400">No comments yet.</div>
             ) : (

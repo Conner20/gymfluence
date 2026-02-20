@@ -429,7 +429,7 @@ export default function SettingsPage() {
                             confirmNewPassword.length === 0 ||
                             (hasPassword && currentPassword.length === 0)
                         }
-                        className="px-4 py-2 rounded bg-gray-900 text-white hover:bg-black disabled:opacity-50 dark:bg-green-600 dark:text-white dark:hover:bg-green-500"
+                        className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
                     >
                         {passwordLoading ? "Saving…" : hasPassword ? "Update Password" : "Create Password"}
                     </button>

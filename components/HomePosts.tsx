@@ -405,7 +405,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                     className={clsx(
                                         "flex items-center gap-1 text-xs transition",
                                         openComments[post.id]
-                                            ? "text-green-600 font-semibold"
+                                            ? "text-green-500 font-semibold"
                                             : "text-gray-400 hover:text-green-600 dark:text-gray-300 dark:hover:text-green-500"
                                     )}
                                     onClick={() => toggleComments(post.id)}
@@ -419,7 +419,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                     className={clsx(
                                         "flex items-center gap-1 text-xs transition",
                                         canShare
-                                            ? "text-gray-500 hover:text-green-700 dark:text-gray-200 dark:hover:text-green-500"
+                                            ? "text-gray-500 hover:text-green-600 dark:text-gray-200 dark:hover:text-green-500"
                                             : "text-gray-300 cursor-not-allowed dark:text-gray-500 dark:hover:text-green-500"
                                     )}
                                     onClick={() => canShare && openShareModal(post.id)}
