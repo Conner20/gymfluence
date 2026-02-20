@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CornerDownRight, Trash2 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
@@ -100,6 +101,7 @@ export function PostComments({
             comment.author?.username ||
             comment.author?.email?.split("@")[0] ||
             "Unknown";
+        const profileSlug = comment.author?.username ?? null;
 
         const initials = (displayName || "U")
             .trim()
@@ -126,9 +128,19 @@ export function PostComments({
                     {/* Main comment body */}
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
-                                {displayName}
-                            </span>
+                            {profileSlug ? (
+                                <Link
+                                    href={`/u/${encodeURIComponent(profileSlug)}`}
+                                    className="font-semibold text-sm text-gray-800 transition hover:underline decoration-2 underline-offset-2 dark:text-gray-100"
+                                    title={`View ${displayName}'s profile`}
+                                >
+                                    {displayName}
+                                </Link>
+                            ) : (
+                                <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
+                                    {displayName}
+                                </span>
+                            )}
                             <span
                                 className="text-xs text-gray-400 dark:text-gray-400"
                                 title={new Date(comment.createdAt).toLocaleString()}

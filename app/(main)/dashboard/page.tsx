@@ -1551,7 +1551,7 @@ function CardioForm({
                         </div>
                     </div>
                 </div>
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
                     <div className="flex items-center justify-between">
                         <span>Time (min)</span>
                         <span className="h-5 w-16" />
@@ -1564,7 +1564,7 @@ function CardioForm({
                         required
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
                     <div className="flex items-center justify-between">
                         <span>Distance</span>
                         <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 text-[10px] font-semibold uppercase dark:border-white/15">
@@ -1587,7 +1587,7 @@ function CardioForm({
                         className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
                     Calories
                     <input
                         value={form.calories}
@@ -1596,7 +1596,7 @@ function CardioForm({
                         className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:col-span-2">
+                <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300 sm:col-span-2">
                     Date
                     <input
                         type="date"
