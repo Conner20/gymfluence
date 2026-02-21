@@ -15,6 +15,7 @@ import {
     addNutritionEntryServer,
     deleteNutritionEntryServer,
     upsertBodyweightServer,
+    deleteBodyweightEntryServer,
     saveCustomFoodServer,
     deleteCustomFoodServer,
     saveMacroGoalsServer,
@@ -233,6 +234,16 @@ function NutritionContent() {
             console.error(e);
         }
     };
+    const deleteBw = async (dateISO: string) => {
+        try {
+            const res = await deleteBodyweightEntryServer(dateISO);
+            if (res.deleted) {
+                setBodyweights((prev) => prev.filter((entry) => entry.date !== dateISO));
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     /** Heatmap: metric state + computed values for selected metric */
     const [heatMetric, setHeatMetric] = useState<HMMetric>('kcal');
@@ -401,7 +412,7 @@ function NutritionContent() {
                         <select
                             value={selectedViewUser ?? ''}
                             onChange={(e) => handleViewChange(e.target.value || null)}
-                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40"
+                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 hover:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40 dark:hover:border-white/30"
                         >
                             <option value="">My stats</option>
                             {availableIncoming.map((entry) => (
@@ -540,7 +551,12 @@ function NutritionContent() {
                     <section className="col-span-12 min-h-0 xl:col-span-5 xl:flex xl:flex-col gap-3">
                         <div className="mx-auto flex w-full max-w-[375px] flex-col gap-3 xl:flex-1 xl:max-w-none">
                             <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none xl:flex-1">
-                                <BWChartLiftsStyle points={bw} onAdd={(d, w) => addBw(d, w)} isDark={isDark} />
+                                <BWChartLiftsStyle
+                                    points={bw}
+                                    onAdd={(d, w) => addBw(d, w)}
+                                    onDelete={deleteBw}
+                                    isDark={isDark}
+                                />
                             </div>
 
                             <div className="relative min-h-[220px] flex flex-col rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none xl:flex-1">
@@ -719,8 +735,8 @@ function NutritionContent() {
                                             className={clsx(
                                                 'rounded-full px-4 py-1.5 text-sm font-medium transition',
                                                 granted
-                                                    ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
-                                                    : 'border border-green-300 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
+                                                    ? 'border border-red-400 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
+                                                    : 'border border-green-400 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
                                                 shareSaving === follower.id && 'opacity-50',
                                             )}
                                         >
@@ -1090,10 +1106,12 @@ function AddFoodPanel({
 function BWChartLiftsStyle({
     points,
     onAdd,
+    onDelete,
     isDark = false,
 }: {
     points: BWPoint[];
     onAdd: (dateISO: string, weight: number) => void;
+    onDelete?: (dateISO: string) => Promise<void> | void;
     isDark?: boolean;
 }) {
     const [range, setRange] = useState<RangeKey>('1W');
@@ -1224,6 +1242,7 @@ function BWChartLiftsStyle({
 
     const svgRef = useRef<SVGSVGElement | null>(null);
     const [hover, setHover] = useState<{ i: number; cx: number; cy: number | null } | null>(null);
+    const [deletingDate, setDeletingDate] = useState<string | null>(null);
     const pointerActive = useRef(false);
     const isCoarsePointer = useIsCoarsePointer();
     const tipRef = useRef<HTMLDivElement | null>(null);
@@ -1276,13 +1295,53 @@ function BWChartLiftsStyle({
         }
     };
 
-    const onPointerLeave = () => {
+    const onPointerLeave = (e: React.PointerEvent<SVGSVGElement>) => {
         pointerActive.current = false;
+        if (e.pointerType === 'touch') {
+            setHover(null);
+            return;
+        }
+        const next = e.relatedTarget;
+        if (next instanceof Node && tipRef.current && tipRef.current.contains(next)) {
+            return;
+        }
         setHover(null);
     };
 
     const onPointerCancel = () => {
         pointerActive.current = false;
+        setHover(null);
+    };
+
+    const hoveredDate = hover ? labels[hover.i] : null;
+    const hasValueForHover =
+        hoveredDate && byDate[hoveredDate]?.some((v) => Number.isFinite(v) && v > 0) ? true : false;
+    const canDelete = Boolean(onDelete && hoveredDate && hasValueForHover);
+    const isDeleting = hoveredDate && deletingDate === hoveredDate;
+
+    const handleDeleteDate = async (dateISO: string) => {
+        if (!onDelete) return;
+        setDeletingDate(dateISO);
+        try {
+            await onDelete(dateISO);
+            setHover((prev) => {
+                if (!prev) return prev;
+                const prevDate = labels[prev.i];
+                return prevDate === dateISO ? null : prev;
+            });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeletingDate((prev) => (prev === dateISO ? null : prev));
+        }
+    };
+
+    const handleTooltipLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (event.pointerType === 'touch') return;
+        const next = event.relatedTarget;
+        if (next instanceof Node && svgRef.current && svgRef.current.contains(next)) {
+            return;
+        }
         setHover(null);
     };
 
@@ -1511,11 +1570,27 @@ function BWChartLiftsStyle({
                 {hover && labels.length > 0 && (
                     <div
                         ref={tipRef}
-                        className="pointer-events-none absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
+                        className="absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                         style={{ left: tooltipLeft, top: 120 }}
+                        onPointerLeave={handleTooltipLeave}
                     >
-                        <div className="text-[11px] text-zinc-500">{labels[hover.i]}</div>
-                        <div className="mt-1 inline-flex items-center gap-2">
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                {labels[hover.i]}
+                            </div>
+                            {canDelete && hoveredDate && (
+                                <button
+                                    type="button"
+                                    className="rounded-full border border-transparent p-1 text-red-500 hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:border-red-400/40 dark:hover:bg-red-500/10"
+                                    onClick={() => handleDeleteDate(hoveredDate)}
+                                    disabled={Boolean(isDeleting)}
+                                    aria-label="Delete bodyweight entry"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                        <div className="inline-flex items-center gap-2">
                             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
                             <span className="font-medium">
                                 {series[hover.i] ? `${series[hover.i].toFixed(1)} ${fmtUnit}` : '—'}

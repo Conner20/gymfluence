@@ -1048,7 +1048,7 @@ function WellnessPageContent() {
                         <select
                             value={selectedViewUser ?? ''}
                             onChange={(e) => handleViewChange(e.target.value || null)}
-                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40"
+                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 hover:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40 dark:hover:border-white/30"
                         >
                             <option value="">My stats</option>
                             {availableIncoming.map((entry) => (
@@ -1355,8 +1355,8 @@ function WellnessPageContent() {
                                                 className={clsx(
                                                     'rounded-full px-4 py-1.5 text-sm font-medium transition',
                                                     granted
-                                                        ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
-                                                        : 'border border-green-300 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
+                                                        ? 'border border-red-400 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
+                                                        : 'border border-green-400 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
                                                     shareSaving === follower.id && 'opacity-50',
                                                 )}
                                             >

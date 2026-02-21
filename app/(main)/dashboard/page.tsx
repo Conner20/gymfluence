@@ -68,6 +68,13 @@ function fmtDate(d: Date) {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+function formatDateLabel(dateStr?: string) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    return `${month}/${day}`;
+}
 function daysAgo(n: number) {
     const d = new Date();
     d.setDate(d.getDate() - n);
@@ -186,10 +193,6 @@ function LiftsChart({ width, height, labels, weight, reps, dayEntries, isDark, o
     );
     const yScale = (value: number) => top + h - (Math.max(0, value) / maxValue) * h;
 
-    const formatLabel = (label?: string) => {
-        if (!label) return '';
-        return label.includes('-') ? label.slice(5).replace('-', '/') : label;
-    };
     const mkPath = (values: number[]) => {
         let started = false;
         let d = '';
@@ -333,7 +336,7 @@ function LiftsChart({ width, height, labels, weight, reps, dayEntries, isDark, o
                             textAnchor="start"
                             fill={axisColor}
                         >
-                            {formatLabel(labels[0])}
+                            {formatDateLabel(labels[0])}
                         </text>
                         {labels.length > 1 && (
                             <text
@@ -343,7 +346,7 @@ function LiftsChart({ width, height, labels, weight, reps, dayEntries, isDark, o
                                 textAnchor="end"
                                 fill={axisColor}
                             >
-                                {formatLabel(labels[labels.length - 1])}
+                                {formatDateLabel(labels[labels.length - 1])}
                             </text>
                         )}
                     </g>
@@ -761,7 +764,7 @@ function DashboardContent() {
                         <select
                             value={selectedViewUser ?? ''}
                             onChange={(e) => handleViewChange(e.target.value || null)}
-                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40"
+                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 hover:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40 dark:hover:border-white/30"
                         >
                             <option value="">My stats</option>
                             {availableIncoming.map((entry) => (
@@ -1301,8 +1304,8 @@ function DashboardContent() {
                                             className={clsx(
                                                 'rounded-full px-4 py-1.5 text-sm font-medium transition',
                                                 granted
-                                                    ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
-                                                    : 'border border-green-300 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
+                                                    ? 'border border-red-400 text-red-600 hover:bg-red-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10'
+                                                    : 'border border-green-400 text-green-600 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10',
                                                 shareSaving === follower.id && 'opacity-50',
                                             )}
                                         >
@@ -1638,6 +1641,13 @@ function CardioChart({
     sessionIdsPerPoint,
 }: CardioChartProps) {
     const { labels, distance, time, calories } = data;
+    const formatAxisLabel = (iso?: string) => {
+        if (!iso) return '';
+        const date = new Date(`${iso}T00:00:00`);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}/${day}`;
+    };
     const left = 48;
     const right = 52;
     const top = 32;
@@ -1813,7 +1823,7 @@ function CardioChart({
                             textAnchor="start"
                             fill={axisColor}
                         >
-                            {labels[0]}
+                            {formatAxisLabel(labels[0])}
                         </text>
                         {labels.length > 1 && (
                             <text
@@ -1823,7 +1833,7 @@ function CardioChart({
                                 textAnchor="end"
                                 fill={axisColor}
                             >
-                                {labels[labels.length - 1]}
+                                {formatAxisLabel(labels[labels.length - 1])}
                             </text>
                         )}
                     </g>

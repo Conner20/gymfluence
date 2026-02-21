@@ -422,6 +422,15 @@ export async function upsertBodyweightServer(bw: {
     return { date: toISODate(up.date), weight: up.weight };
 }
 
+export async function deleteBodyweightEntryServer(dateISO: string): Promise<{ deleted: boolean }> {
+    const userId = await requireMe();
+    const date = toUTCDate(dateISO);
+    const deleted = await db.bodyweightEntry.deleteMany({
+        where: { userId, date },
+    });
+    return { deleted: deleted.count > 0 };
+}
+
 export async function saveCustomFoodServer(cf: {
     name: string;
     grams: number;
