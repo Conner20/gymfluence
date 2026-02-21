@@ -117,7 +117,7 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
                             </button>
 
                             <button
-                                className="flex items-center gap-1 text-xs ml-2 text-gray-500 hover:text-green-700"
+                                className="flex items-center gap-1 text-xs ml-2 text-gray-400 hover:text-green-700"
                                 title="Share via Messenger"
                                 onClick={() =>
                                     router.push(`/messages?shareType=post&shareId=${encodeURIComponent(post.id)}`)

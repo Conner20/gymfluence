@@ -420,7 +420,7 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                                         "flex items-center gap-1 text-xs transition",
                                         canShare
                                             ? "text-gray-500 hover:text-green-600 dark:text-gray-200 dark:hover:text-green-500"
-                                            : "text-gray-300 cursor-not-allowed dark:text-gray-500 dark:hover:text-green-500"
+                                            : "text-gray-400 cursor-not-allowed dark:text-gray-500 dark:hover:text-green-500"
                                     )}
                                     onClick={() => canShare && openShareModal(post.id)}
                                     disabled={!canShare}

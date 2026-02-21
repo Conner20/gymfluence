@@ -37,7 +37,7 @@ const roleOptions = [
 const LOCKED_PAGE_CLASS = "bg-neutral-50 text-zinc-900 dark:bg-neutral-50 dark:text-zinc-900";
 const LOCKED_CARD_CLASS = "w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/95 p-6 shadow-xl shadow-zinc-100 dark:border-zinc-200 dark:bg-white/95 dark:shadow-zinc-100";
 const LOCKED_INPUT_CLASS = "bg-white text-zinc-900 border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-emerald-600 focus-visible:ring-emerald-600/20 dark:bg-white dark:text-zinc-900 dark:border-zinc-200 dark:placeholder:text-zinc-500 dark:focus-visible:border-emerald-600 dark:focus-visible:ring-emerald-600/20";
-const LOCKED_PRIMARY_BUTTON = "rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 transition dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700";
+const LOCKED_PRIMARY_BUTTON = "rounded-2xl bg-green-700 text-white hover:bg-black";
 const LOCKED_TEXT_BUTTON = "text-sm text-zinc-500 transition hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-800";
 
 
