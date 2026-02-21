@@ -98,7 +98,7 @@ export default function LandingPage() {
         imageSrc={darkMode ? "/images/search_dark.png" : "/images/search.png"} // Replace with your Search page screenshot
         imageAlt="Search & connect"
         // slightly wider & more cinematic for this screenshot
-        frameClassName="max-w-[740px] aspect-[16/9]"
+        frameClassName="max-w-[740px] aspect-[15/9]"
         imageClassName="object-contain"
       />
 
@@ -110,7 +110,7 @@ export default function LandingPage() {
         body="Visualize metrics that matter, stay accountable with ratings & reviews, and see the bigger picture at a glance."
         imageSrc={darkMode ? "/images/dashboard_dark.png" : "/images/dashboard.png"} // Replace with your Dashboard screenshot
         imageAlt="Analytics dashboard"
-        frameClassName="max-w-[740px] aspect-[16/9]"
+        frameClassName="max-w-[740px] aspect-[13/10]"
         imageClassName="object-contain"
       />
 
@@ -121,7 +121,7 @@ export default function LandingPage() {
         body="Publish sessions, share media, and cultivate community. Everything you need to train smarter — together."
         imageSrc={darkMode ? "/images/home_dark.png" : "/images/home.png"} // Replace with your Home/Posts screenshot
         imageAlt="Home posts feed"
-        frameClassName="max-w-[720px] aspect-[17/10]"
+        frameClassName="max-w-[720px] aspect-[14/9]"
         imageClassName="object-contain"
       />
 
