@@ -5,6 +5,7 @@ const envSchema = z.object({
     NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is missing"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     ADMIN_EMAILS: z.string().default(""),
+    NEXTAUTH_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse({
