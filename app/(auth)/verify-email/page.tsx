@@ -33,9 +33,7 @@ function VerifyEmailContent() {
         let mounted = true;
         (async () => {
             try {
-                const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
-                    credentials: "include",
-                });
+                const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
                 const data = await res.json().catch(() => ({}));
                 if (!mounted) return;
                 if (!res.ok || !data?.ok) {
