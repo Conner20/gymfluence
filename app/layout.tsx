@@ -5,9 +5,9 @@ import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fittingin.co";
 const siteName = "Fitting In";
-const description =
-  "The fitness platform built to help you grow.";
+const description = "The fitness platform built to help you grow.";
 const previewImage = `${siteUrl}/images/share_card.png`;
+const pwaIcon = "/favicon_black.ico";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -28,18 +28,26 @@ export const metadata: Metadata = {
         url: previewImage,
         width: 1200,
         height: 630,
-        alt: "Preview of the Fitting In",
+        alt: "Preview of Fitting In",
       },
     ],
   },
-  // twitter: {
-  //   card: "summary_large_image",
-  //   title: siteName,
-  //   description,
-  //   images: [previewImage],
-  //   creator: "@fittingin",
-  //   site: "@fittingin",
-  // },
+  themeColor: "#050505",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+    ],
+    apple: [{ url: pwaIcon, sizes: "180x180" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: siteName,
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({

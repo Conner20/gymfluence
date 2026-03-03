@@ -9,6 +9,7 @@ import { TraineeProfile } from "@/components/TraineeProfile";
 import { TrainerProfile } from "@/components/TrainerProfile";
 import { GymProfile } from "@/components/GymProfile";
 import MobileHeader from "@/components/MobileHeader";
+import { Share, SquarePlus } from 'lucide-react';
 
 export default function ProfilePage() {
     const { data: session } = useSession();
@@ -16,6 +17,9 @@ export default function ProfilePage() {
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showShortcutPrompt, setShowShortcutPrompt] = useState(false);
+    const [isMobilePrompt, setIsMobilePrompt] = useState(false);
+    const shortcutKey = user ? `fi_shortcut_prompt_${user.id}` : null;
 
     useEffect(() => {
         if (!session?.user?.email) return;
@@ -38,6 +42,18 @@ export default function ProfilePage() {
         }
     }, [loading, router, user]);
 
+    useEffect(() => {
+        if (loading || !user || typeof window === 'undefined') return;
+        const isMobile = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+        setIsMobilePrompt(isMobile);
+        if (!shortcutKey) return;
+        const hasSeen = window.localStorage.getItem(shortcutKey);
+        if (!hasSeen) {
+            setShowShortcutPrompt(true);
+            window.localStorage.setItem(shortcutKey, 'true');
+        }
+    }, [loading, shortcutKey, user]);
+
     if (loading) return <div className="p-8 text-gray-500">Loading profile...</div>;
     if (!user) return <div className="p-8 text-red-500">User not found</div>;
 
@@ -58,6 +74,46 @@ export default function ProfilePage() {
             <main className="flex-1 w-full">
                 {children}
             </main>
+            {showShortcutPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 text-sm text-neutral-700 shadow-xl dark:bg-neutral-900 dark:text-neutral-200">
+                        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Save Fitting In for next time</h2>
+                        {isMobilePrompt ? (
+                            <div className="mt-3 space-y-2">
+                                <p>Add Fitting In to your home screen</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    <li className="flex items-center gap-1">
+                                        <span>1. Tap the share button</span>
+                                        <Share className="inline-block" />
+                                    </li>
+                                    <li className="flex items-center gap-1">
+                                        <span>2. Choose <strong>Add to Home Screen</strong></span>
+                                        <SquarePlus className="inline-block" />
+                                    </li>
+                                    <li className="flex items-center gap-1">
+                                        <span>3. Select <strong>Add</strong></span>
+                                    </li>
+                                </ul>
+                            </div>
+                        ) : (
+                            <div className="mt-3 space-y-2">
+                                <p>Bookmark it so it's always ready when you are</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    <li>Mac: <strong>⌘ Cmd + D</strong></li>
+                                    <li>Windows: <strong>Ctrl + D</strong></li>
+                                </ul>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setShowShortcutPrompt(false)}
+                            className="mt-5 w-full rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
+                        >
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 

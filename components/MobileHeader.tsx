@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import clsx from "clsx";
+import { useSession } from "next-auth/react";
 
 type MobileHeaderProps = {
     title: string;
@@ -14,19 +15,22 @@ type MobileHeaderProps = {
 };
 
 export default function MobileHeader({ title, href = "/", subContent, leftAccessory }: MobileHeaderProps) {
+    const { data: session } = useSession();
     const [mobileNavOpen, setMobileNavOpen] = useState(true);
+
+    const navKey = session?.user?.id ? `fi_mobile_nav_${session.user.id}` : "fi_mobile_nav_default";
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const stored = window.localStorage.getItem("mobileNavOpen");
+        const stored = window.localStorage.getItem(navKey);
         if (stored === null) return;
         setMobileNavOpen(stored === "true");
-    }, []);
+    }, [navKey]);
 
     const persistState = (next: boolean) => {
         setMobileNavOpen(next);
         if (typeof window !== "undefined") {
-            window.localStorage.setItem("mobileNavOpen", next ? "true" : "false");
+            window.localStorage.setItem(navKey, next ? "true" : "false");
         }
     };
 
@@ -65,7 +69,7 @@ export default function MobileHeader({ title, href = "/", subContent, leftAccess
                 </div>
             )}
 
-            <Navbar mobileOpen={mobileNavOpen} onMobileClose={() => persistState(false)} />
+            <Navbar mobileOpen={mobileNavOpen} />
         </>
     );
 }

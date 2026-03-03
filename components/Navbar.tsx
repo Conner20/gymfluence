@@ -93,10 +93,9 @@ const navItems = [
 
 type NavbarProps = {
     mobileOpen?: boolean;
-    onMobileClose?: () => void;
 };
 
-export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProps) {
+export default function Sidebar({ mobileOpen = true }: NavbarProps) {
     const pathname = usePathname();
     const [showModal, setShowModal] = useState(false);
 
@@ -126,13 +125,12 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
                                 : "hover:bg-zinc-50 dark:hover:bg-white/5"
                         }`}
                         title={item.label}
-                        onClick={() => onMobileClose?.()}
                     >
                         {item.icon(isActive)}
                     </Link>
                 );
             }),
-        [onMobileClose, pathname]
+        [pathname]
     );
 
     return (
@@ -171,7 +169,6 @@ export default function Sidebar({ mobileOpen = true, onMobileClose }: NavbarProp
                         className={`p-2 rounded-full transition ${
                             isActive ? "bg-zinc-100 dark:bg-white/10" : "hover:bg-zinc-50 dark:hover:bg-white/5"
                         }`}
-                                onClick={() => onMobileClose?.()}
                                 title={item.label}
                                 aria-label={item.label}
                             >

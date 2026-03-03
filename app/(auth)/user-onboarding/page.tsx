@@ -101,7 +101,7 @@ function UserOnboardingContent() {
 
             const data = await res.json();
             console.log("User updated:", data);
-            router.push("/log-in");
+            router.push("/home");
             // route wherever you want after onboarding
         } catch (err) {
             console.error(err);
@@ -131,7 +131,7 @@ function UserOnboardingContent() {
 
             const data = await res.json();
             console.log("User updated:", data);
-            router.push("/log-in?onboarded=1");
+            router.push("/home");
         } catch (err) {
             console.error("Update failed:", err);
         }
