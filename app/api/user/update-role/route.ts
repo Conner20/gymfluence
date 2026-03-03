@@ -1,7 +1,7 @@
 // app/api/user/update-role/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
+import { jwtVerify, SignJWT } from "jose";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -124,6 +124,40 @@ export async function POST(req: Request) {
 
         const res = NextResponse.json({ user, message: "User updated" });
         res.cookies.delete("onboarding_token");
+
+        const sessionPayload: Record<string, any> = {
+            name: user.username || user.email,
+            email: user.email,
+            picture: user.image,
+            sub: user.id.toString(),
+            username: user.username,
+        };
+
+        const sessionToken = await new SignJWT(sessionPayload)
+            .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+            .setIssuedAt()
+            .setExpirationTime("1h")
+            .sign(new TextEncoder().encode(env.NEXTAUTH_SECRET));
+
+        const useSecureCookies =
+            (env.NEXTAUTH_URL && env.NEXTAUTH_URL.startsWith("https://")) ||
+            env.NODE_ENV === "production";
+        const cookieOptions = {
+            httpOnly: true,
+            sameSite: "lax" as const,
+            secure: useSecureCookies,
+            path: "/",
+            maxAge: 60 * 60,
+        };
+
+        res.cookies.set("next-auth.session-token", sessionToken, cookieOptions);
+        if (useSecureCookies) {
+            res.cookies.set("__Secure-next-auth.session-token", sessionToken, {
+                ...cookieOptions,
+                secure: true,
+            });
+        }
+
         return res;
     } catch (err: any) {
         console.error("update-role error:", err);
