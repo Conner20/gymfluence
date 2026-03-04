@@ -526,7 +526,13 @@ function UserOnboardingContent() {
 
 export default function UserOnboarding() {
     return (
-        <Suspense fallback={<div className={`w-full min-h-screen flex items-center justify-center ${LOCKED_PAGE_CLASS}`}>Loading...</div>}>
+        <Suspense
+            fallback={
+                <div className={`w-full min-h-screen flex items-center justify-center ${LOCKED_PAGE_CLASS}`}>
+                    <span className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                </div>
+            }
+        >
             <UserOnboardingContent />
         </Suspense>
     );

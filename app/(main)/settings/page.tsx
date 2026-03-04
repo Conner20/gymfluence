@@ -247,7 +247,13 @@ export default function SettingsPage() {
         }
     }, [router, session, status]);
 
-    if (status === "loading" || loading) return <div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>;
+    if (status === "loading" || loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950">
+                <span className="h-12 w-12 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+            </div>
+        );
+    }
     if (!session) return null;
 
     const displayImage = previewUrl || imageUrl;

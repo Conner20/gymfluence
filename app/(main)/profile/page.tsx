@@ -54,7 +54,13 @@ export default function ProfilePage() {
         }
     }, [loading, shortcutKey, user]);
 
-    if (loading) return <div className="p-8 text-gray-500">Loading profile...</div>;
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950">
+                <span className="h-12 w-12 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+            </div>
+        );
+    }
     if (!user) return <div className="p-8 text-red-500">User not found</div>;
 
     const username = session?.user?.username ?? user?.username ?? "Profile";

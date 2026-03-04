@@ -6,7 +6,13 @@ const page = () => {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-neutral-50 px-4">
             <div className="w-full max-w-sm space-y-6 rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-xl shadow-zinc-100">
-                <Suspense fallback={<div className="text-center text-sm text-gray-500">Loading…</div>}>
+                <Suspense
+                    fallback={
+                        <div className="flex min-h-[320px] items-center justify-center">
+                            <span className="h-10 w-10 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+                        </div>
+                    }
+                >
                     <SignUpForm />
                 </Suspense>
                 <div className="text-center">

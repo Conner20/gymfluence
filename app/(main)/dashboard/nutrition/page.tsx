@@ -763,7 +763,13 @@ function NutritionContent() {
 
 export default function Nutrition() {
     return (
-        <Suspense fallback={<div className="p-8 text-gray-500 dark:text-gray-300">Loading…</div>}>
+        <Suspense
+            fallback={
+                <div className="flex min-h-[200px] items-center justify-center bg-gray-50 dark:bg-neutral-950">
+                    <span className="h-8 w-8 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+                </div>
+            }
+        >
             <NutritionContent />
         </Suspense>
     );
