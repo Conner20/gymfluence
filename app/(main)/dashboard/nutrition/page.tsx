@@ -1847,8 +1847,31 @@ function EditGoalsModal({
     onSave: (m: Macro) => void | Promise<void>;
     onClose: () => void;
 }) {
-    const [form, setForm] = useState<Macro>(initial);
+    const [form, setForm] = useState<{ kcal: string; p: string; f: string; c: string }>({
+        kcal: initial.kcal.toString(),
+        p: initial.p.toString(),
+        f: initial.f.toString(),
+        c: initial.c.toString(),
+    });
+    useEffect(() => {
+        setForm({
+            kcal: initial.kcal.toString(),
+            p: initial.p.toString(),
+            f: initial.f.toString(),
+            c: initial.c.toString(),
+        });
+    }, [initial]);
     const field = 'h-10 w-full rounded-md border px-3 text-sm outline-none';
+
+    const handleChange = (key: keyof Macro) => (value: string) => {
+        setForm((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const parseValue = (value: string) => {
+        if (!value.trim()) return 0;
+        const num = Number(value);
+        return Number.isFinite(num) ? num : 0;
+    };
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-3">
@@ -1860,23 +1883,43 @@ function EditGoalsModal({
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label className="mb-1 block text-xs text-zinc-600">Calories (kcal)</label>
-                        <input className={field} type="number" inputMode="numeric" value={form.kcal}
-                            onChange={(e) => setForm((s) => ({ ...s, kcal: Number(e.target.value) || 0 }))} />
+                        <input
+                            className={field}
+                            type="text"
+                            inputMode="numeric"
+                            value={form.kcal}
+                            onChange={(e) => handleChange('kcal')(e.target.value)}
+                        />
                     </div>
                     <div>
                         <label className="mb-1 block text-xs text-zinc-600">Protein (g)</label>
-                        <input className={field} type="number" inputMode="numeric" value={form.p}
-                            onChange={(e) => setForm((s) => ({ ...s, p: Number(e.target.value) || 0 }))} />
+                        <input
+                            className={field}
+                            type="text"
+                            inputMode="numeric"
+                            value={form.p}
+                            onChange={(e) => handleChange('p')(e.target.value)}
+                        />
                     </div>
                     <div>
                         <label className="mb-1 block text-xs text-zinc-600">Fat (g)</label>
-                        <input className={field} type="number" inputMode="numeric" value={form.f}
-                            onChange={(e) => setForm((s) => ({ ...s, f: Number(e.target.value) || 0 }))} />
+                        <input
+                            className={field}
+                            type="text"
+                            inputMode="numeric"
+                            value={form.f}
+                            onChange={(e) => handleChange('f')(e.target.value)}
+                        />
                     </div>
                     <div>
                         <label className="mb-1 block text-xs text-zinc-600">Carbs (g)</label>
-                        <input className={field} type="number" inputMode="numeric" value={form.c}
-                            onChange={(e) => setForm((s) => ({ ...s, c: Number(e.target.value) || 0 }))} />
+                        <input
+                            className={field}
+                            type="text"
+                            inputMode="numeric"
+                            value={form.c}
+                            onChange={(e) => handleChange('c')(e.target.value)}
+                        />
                     </div>
                 </div>
 
@@ -1884,7 +1927,14 @@ function EditGoalsModal({
                     <button className="rounded-md border px-3 py-2 text-sm hover:border-zinc-400 dark:hover:border-white/40" onClick={onClose}>Cancel</button>
                     <button
                         className="rounded-md border px-3 py-2 text-sm hover:border-zinc-400 dark:hover:border-white/40"
-                        onClick={() => { void onSave(form); }}
+                        onClick={() => {
+                            void onSave({
+                                kcal: parseValue(form.kcal),
+                                p: parseValue(form.p),
+                                f: parseValue(form.f),
+                                c: parseValue(form.c),
+                            });
+                        }}
                     >
                         Save
                     </button>
