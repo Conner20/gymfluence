@@ -26,6 +26,7 @@ import { DEFAULT_CARDIO_ACTIVITIES } from '@/lib/workoutDefaults';
 import { HEATMAP_COLORS_DARK, HEATMAP_COLORS_LIGHT } from '@/lib/heatmapColors';
 
 type RangeKey = '1W' | '1M' | '3M' | '1Y' | 'ALL';
+type WeightUnit = 'lbs' | 'kg';
 
 const CARDIO_RANGE_DAYS: Record<RangeKey, number> = {
     '1W': 7,
@@ -33,6 +34,14 @@ const CARDIO_RANGE_DAYS: Record<RangeKey, number> = {
     '3M': 90,
     '1Y': 365,
     'ALL': 120,
+};
+
+const WEIGHT_UNIT_STORAGE_KEY = 'fi_weight_unit';
+const LBS_PER_KG = 2.20462262185;
+
+const convertWeightValue = (value: number, from: WeightUnit, to: WeightUnit) => {
+    if (!Number.isFinite(value) || from === to) return value;
+    return from === 'lbs' && to === 'kg' ? value / LBS_PER_KG : value * LBS_PER_KG;
 };
 
 
@@ -159,9 +168,20 @@ type LiftsChartProps = {
     dayEntries: SetEntry[][];
     isDark: boolean;
     onDeleteSet: (setId: string) => void;
+    weightUnit: WeightUnit;
 };
 
-function LiftsChart({ width, height, labels, weight, reps, dayEntries, isDark, onDeleteSet }: LiftsChartProps) {
+function LiftsChart({
+    width,
+    height,
+    labels,
+    weight,
+    reps,
+    dayEntries,
+    isDark,
+    onDeleteSet,
+    weightUnit,
+}: LiftsChartProps) {
     const left = 48;
     const right = 48;
     const top = 32;
@@ -177,8 +197,9 @@ function LiftsChart({ width, height, labels, weight, reps, dayEntries, isDark, o
         );
     }
 
+    const weightSuffix = weightUnit === 'kg' ? ' kg' : ' lbs';
     const series = [
-        { key: 'weight', label: 'Weight', color: '#16a34a', suffix: ' lbs', values: weight },
+        { key: 'weight', label: 'Weight', color: '#16a34a', suffix: weightSuffix, values: weight },
         { key: 'reps', label: 'Reps', color: isDark ? '#93c5fd' : '#111827', suffix: ' reps', values: reps },
     ] as const;
 
@@ -586,6 +607,7 @@ function DashboardContent() {
     const [reps, setReps] = useState('');
     const [date, setDate] = useState(fmtDate(new Date()));
     const [showRequired, setShowRequired] = useState(false);
+    const [weightUnit, setWeightUnit] = useState<WeightUnit>('lbs');
 
     // chart range
     const [range, setRange] = useState<RangeKey>('1W');
@@ -595,6 +617,23 @@ function DashboardContent() {
     const [cardioChartWidth, setCardioChartWidth] = useState(860);
 
     const todayDay = daysSinceEpochUTC();
+    const handleWeightUnitChange = useCallback((unit: WeightUnit) => {
+        setWeightUnit((prevUnit) => {
+            if (prevUnit === unit) return prevUnit;
+            setWeight((prevWeight) => {
+                if (!prevWeight.trim()) return prevWeight;
+                const numeric = Number(prevWeight);
+                if (!Number.isFinite(numeric)) return prevWeight;
+                const converted = convertWeightValue(numeric, prevUnit, unit);
+                const rounded = Math.round(converted * 1000) / 1000;
+                return Number(rounded.toFixed(2)).toString();
+            });
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem(WEIGHT_UNIT_STORAGE_KEY, unit);
+            }
+            return unit;
+        });
+    }, []);
     const repsLineColor = isDark ? '#93c5fd' : '#111827';
     const viewParam = searchParams?.get('view');
 
@@ -854,8 +893,19 @@ function DashboardContent() {
         return labels.map((d) => g[d] || []);
     }, [filtered, labels]);
 
-    const weightSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.weight)) : 0));
-    const repsSeries = perDay.map((rows) => (rows.length ? average(rows.map((r) => r.reps)) : 0));
+    const weightSeries = useMemo(
+        () =>
+            perDay.map((rows) => {
+                if (!rows.length) return 0;
+                const avgLbs = average(rows.map((r) => r.weight));
+                return convertWeightValue(avgLbs, 'lbs', weightUnit);
+            }),
+        [perDay, weightUnit],
+    );
+    const repsSeries = useMemo(
+        () => perDay.map((rows) => (rows.length ? average(rows.map((r) => r.reps)) : 0)),
+        [perDay],
+    );
 
 
     useEffect(() => {
@@ -876,6 +926,13 @@ function DashboardContent() {
     useEffect(() => {
         setCardioForm((prev) => (prev.activity === cardioMode ? prev : { ...prev, activity: cardioMode || prev.activity }));
     }, [cardioMode]);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const stored = window.localStorage.getItem(WEIGHT_UNIT_STORAGE_KEY) as WeightUnit | null;
+        if (stored === 'kg' || stored === 'lbs') {
+            setWeightUnit(stored);
+        }
+    }, []);
 
     const addExercise = async () => {
         const name = prompt('New exercise name');
@@ -1010,18 +1067,19 @@ function DashboardContent() {
             return;
         }
 
-        const w = Number(weight),
+        let w = Number(weight),
             s = Number(setsNum),
             r = Number(reps);
         if (!Number.isFinite(w) || !Number.isFinite(s) || !Number.isFinite(r)) {
             alert('Enter numeric weight/sets/reps.');
             return;
         }
+        const weightInLbs = convertWeightValue(w, weightUnit, 'lbs');
 
         try {
             const created = await addSetServer({
                 exerciseName: exercise,
-                weight: w,
+                weight: weightInLbs,
                 sets: s,
                 reps: r,
                 date,
@@ -1139,6 +1197,8 @@ function DashboardContent() {
                                 addExercise={addExercise}
                                 removeExercise={removeExercise}
                                 recordSet={recordSet}
+                                weightUnit={weightUnit}
+                                onWeightUnitChange={handleWeightUnitChange}
                             />
                         </section>
 
@@ -1169,7 +1229,7 @@ function DashboardContent() {
                             <div className="mb-4 flex items-center gap-4 text-[11px] text-zinc-600 dark:text-gray-300">
                                 <span className="inline-flex items-center gap-1">
                                     <span className="inline-block h-2 w-2 rounded-full bg-green-600" />
-                                    <span>Weight</span>
+                                    <span>Weight ({weightUnit.toUpperCase()})</span>
                                 </span>
                                 <span className="inline-flex items-center gap-1">
                                     <span className="inline-block h-2 w-2 rounded-full" style={{ background: repsLineColor }} />
@@ -1186,6 +1246,7 @@ function DashboardContent() {
                                     dayEntries={perDay}
                                     isDark={isDark}
                                     onDeleteSet={deleteSet}
+                                    weightUnit={weightUnit}
                                 />
                             </div>
                         </section>
@@ -1354,6 +1415,8 @@ type StrengthFormProps = {
     addExercise: () => void;
     removeExercise: () => void;
     recordSet: () => void;
+    weightUnit: WeightUnit;
+    onWeightUnitChange: (unit: WeightUnit) => void;
 };
 
 function StrengthForm({
@@ -1371,6 +1434,8 @@ function StrengthForm({
     addExercise,
     removeExercise,
     recordSet,
+    weightUnit,
+    onWeightUnitChange,
 }: StrengthFormProps) {
     const formatExerciseLabel = (name: string) => name.replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -1414,7 +1479,25 @@ function StrengthForm({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
-                    Weight (lbs)
+                    <div className="flex items-center justify-between">
+                        <span>Weight ({weightUnit.toUpperCase()})</span>
+                        <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 text-[10px] font-semibold uppercase dark:border-white/15">
+                            {(['lbs', 'kg'] as WeightUnit[]).map((unit) => (
+                                <button
+                                    key={unit}
+                                    type="button"
+                                    className={`px-2 py-0.5 ${
+                                        weightUnit === unit
+                                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-black'
+                                            : 'text-zinc-500 dark:text-zinc-300'
+                                    }`}
+                                    onClick={() => onWeightUnitChange(unit)}
+                                >
+                                    {unit}
+                                </button>
+                            ))}
+                        </span>
+                    </div>
                     <input
                         value={weight}
                         onChange={(e) => setWeight(e.target.value)}
