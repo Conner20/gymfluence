@@ -833,8 +833,11 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
               </div>
             </div>
 
-            {postsLoading && !fullPosts && (
-              <div className="text-gray-500 dark:text-gray-400">Loading posts…</div>
+                        {postsLoading && !fullPosts && (
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                Loading posts…
+              </div>
             )}
 
             {viewMode === "grid" ? (

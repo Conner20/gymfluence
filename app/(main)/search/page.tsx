@@ -632,7 +632,10 @@ export default function SearchPage() {
                     {mobileView === 'list' && (
                         <div className="px-4 py-4 space-y-4">
                             {loading ? (
-                                <div className="p-4 text-sm text-gray-500 bg-white rounded-xl border dark:bg-neutral-900 dark:border-white/10 dark:text-gray-400">Loading…</div>
+                                <div className="flex items-center justify-center rounded-xl border bg-white py-6 text-sm text-gray-500 dark:bg-neutral-900 dark:border-white/10 dark:text-gray-300">
+                                    <span className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                                    Loading…
+                                </div>
                             ) : error ? (
                                 <div className="p-4 text-sm text-red-500 bg-white rounded-xl border dark:bg-neutral-900 dark:border-white/10">{error}</div>
                             ) : allResults.length ? (
@@ -704,7 +707,10 @@ export default function SearchPage() {
                                         className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0 dark:divide-white/10 scrollbar-slim"
                                     >
                                         {loading ? (
-                                            <div className="p-4 text-sm text-gray-500 dark:text-gray-400">Loading…</div>
+                                            <div className="flex items-center justify-center p-4 text-sm text-gray-500 dark:text-gray-400">
+                                                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                                                Loading…
+                                            </div>
                                         ) : error ? (
                                             <div className="p-4 text-sm text-red-500">{error}</div>
                                         ) : allResults.length === 0 ? (
@@ -793,7 +799,7 @@ export default function SearchPage() {
                                     {allResults.length > 0 && (
                                         <div className="px-4 py-3 border-t flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                                             <button
-                                                className="px-2 py-1 rounded border disabled:opacity-40 dark:border-white/20 dark:text-gray-100"
+                                                className="px-2 py-1 rounded border disabled:opacity-40 hover:bg-gray-50 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                                                 disabled={page === 1}
                                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                             >
@@ -803,7 +809,7 @@ export default function SearchPage() {
                                                 Page {page} of {totalPages}
                                             </span>
                                             <button
-                                                className="px-2 py-1 rounded border disabled:opacity-40 dark:border-white/20 dark:text-gray-100"
+                                                className="px-2 py-1 rounded border disabled:opacity-40 hover:bg-gray-50 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                                                 disabled={page === totalPages}
                                                 onClick={() =>
                                                     setPage((p) => Math.min(totalPages, p + 1))

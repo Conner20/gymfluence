@@ -363,7 +363,12 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
     const canShare = useMemo(() => !!session, [session]);
 
     if (loading && posts.length === 0) {
-        return <div className="p-8 text-gray-500 dark:text-gray-300">Loading posts...</div>;
+        return (
+            <div className="flex items-center justify-center p-8 text-gray-500 dark:text-gray-300">
+                <span className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                Loading posts…
+            </div>
+        );
     }
     if (error && posts.length === 0) {
         return <div className="p-8 text-red-500 dark:text-red-400">{error}</div>;

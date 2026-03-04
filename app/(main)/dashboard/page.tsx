@@ -1336,7 +1336,10 @@ function DashboardContent() {
                     </div>
 
                     {shareLoading ? (
-                        <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-300">Loading followers…</div>
+                        <div className="flex flex-col items-center justify-center py-10">
+                            <span className="h-8 w-8 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+                            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-300">Loading followers…</p>
+                        </div>
                     ) : shareFollowers.length === 0 ? (
                         <div className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-300">
                             No followers to share with yet.
@@ -1395,8 +1398,8 @@ export default function Dashboard() {
     return (
         <Suspense
             fallback={
-                <div className="flex min-h-[200px] items-center justify-center bg-gray-50 dark:bg-neutral-950">
-                    <span className="h-8 w-8 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+                <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950">
+                    <span className="h-12 w-12 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
                 </div>
             }
         >

@@ -59,7 +59,13 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
         }
     };
 
-    if (loading) return <div className="text-gray-500 p-6">Loading posts…</div>;
+    if (loading)
+        return (
+            <div className="flex items-center gap-2 p-6 text-gray-500 dark:text-gray-300">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                Loading posts…
+            </div>
+        );
     if (err) return <div className="text-red-500 p-6">{err}</div>;
     if (posts.length === 0) return <div className="text-gray-400 p-6">No posts yet.</div>;
 
