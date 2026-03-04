@@ -90,7 +90,7 @@ export function PostComments({
         }
     };
 
-    function CommentNode({ comment }: { comment: Comment }) {
+    function CommentNode({ comment, depth = 0 }: { comment: Comment; depth?: number }) {
         const [showReply, setShowReply] = useState(false);
         const [replyContent, setReplyContent] = useState("");
 
@@ -150,21 +150,21 @@ export function PostComments({
 
                             {isMine && (
                                 <button
-                                    className="ml-2 text-[11px] text-red-500 hover:text-red-600 flex items-center gap-1 dark:hover:text-red-400"
+                                    className="ml-2 flex items-center gap-1 text-[11px] text-red-500 hover:text-red-600 dark:hover:text-red-400 sm:text-[11px]"
                                     onClick={() => handleDelete(comment.id)}
                                     title="Delete comment"
                                 >
-                                    <Trash2 size={12} />
-                                    Delete
+                                    <Trash2 size={12} className="sm:h-3 sm:w-3" />
+                                    <span className="hidden sm:inline">Delete</span>
                                 </button>
                             )}
                         </div>
 
-                        <div className="mt-1 mb-1 text-sm text-gray-800 dark:text-gray-100">
+                        <div className="mt-1 mb-1 text-sm text-gray-800 break-words break-all dark:text-gray-100">
                             {comment.content}
                         </div>
 
-                        {session && (
+                        {session && depth === 0 && (
                             <button
                                 className="text-[11px] text-green-600 hover:underline dark:text-green-600"
                                 onClick={() => setShowReply(!showReply)}
@@ -173,16 +173,16 @@ export function PostComments({
                             </button>
                         )}
 
-                        {showReply && (
-                            <div className="mt-2 flex gap-1">
+                        {showReply && depth === 0 && (
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <input
-                                    className="border px-2 py-1 rounded text-xs flex-1 dark:bg-transparent dark:border-white/20 dark:text-gray-100"
+                                    className="w-full flex-1 rounded border px-2 py-1 text-xs dark:bg-transparent dark:border-white/20 dark:text-gray-100"
                                     value={replyContent}
                                     onChange={(e) => setReplyContent(e.target.value)}
                                     placeholder="Reply..."
                                 />
                                 <button
-                                    className="text-xs bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1 dark:bg-green-600"
+                                    className="inline-flex items-center gap-1 rounded bg-green-600 px-3 py-1 text-xs text-white dark:bg-green-600 sm:self-stretch"
                                     onClick={async () => {
                                         await handleAdd(replyContent, comment.id);
                                         setReplyContent("");
@@ -195,10 +195,10 @@ export function PostComments({
                         )}
 
                         {/* Replies */}
-                        {comment.replies && comment.replies.length > 0 && (
+                        {depth === 0 && comment.replies && comment.replies.length > 0 && (
                             <div className="ml-4 mt-2 border-l border-gray-100 pl-3 dark:border-white/10">
                                 {comment.replies.map((reply) => (
-                                    <CommentNode key={reply.id} comment={reply} />
+                                    <CommentNode key={reply.id} comment={reply} depth={1} />
                                 ))}
                             </div>
                         )}
@@ -242,7 +242,7 @@ export function PostComments({
                 <div className="text-gray-400 text-sm dark:text-gray-400">No comments yet.</div>
             ) : (
                 comments.map((comment) => (
-                    <CommentNode key={comment.id} comment={comment} />
+                    <CommentNode key={comment.id} comment={comment} depth={0} />
                 ))
             )}
         </div>
