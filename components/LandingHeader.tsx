@@ -11,7 +11,7 @@ export default function LandingHeader() {
     return (
         <header
             className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur dark:border-white/10 dark:bg-black/40"
-            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
         >
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
                 <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
