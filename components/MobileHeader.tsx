@@ -36,10 +36,11 @@ export default function MobileHeader({ title, href = "/", subContent, leftAccess
 
     return (
         <>
-            <header
-                className="lg:hidden w-full bg-white py-5 px-4 sm:px-6 relative flex items-center justify-center z-20 dark:bg-neutral-900"
-                style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.25rem)' }}
-            >
+            <header className="lg:hidden w-full bg-white py-5 px-4 sm:px-6 relative flex items-center justify-center z-20 dark:bg-neutral-900">
+                <div
+                    className="absolute inset-x-0 top-0 bg-white dark:bg-neutral-900 lg:hidden"
+                    style={{ height: 'env(safe-area-inset-top, 0px)' }}
+                />
                 {leftAccessory && (
                     <div className="absolute left-4">
                         {leftAccessory}
