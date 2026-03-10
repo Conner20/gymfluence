@@ -68,7 +68,6 @@ jobs:
       - name: Codex implement & commit
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CODEX_QUIET_MODE: "1"
           ISSUE_KEY: ${{ env.ISSUE_KEY }}
           TITLE: ${{ env.TITLE }}
           DESC: ${{ env.DESC }}
