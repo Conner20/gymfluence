@@ -73,8 +73,7 @@ jobs:
           DESC: ${{ env.DESC }}
         run: |
           set -e
-          codex --approval-mode full-auto --no-terminal --quiet \
-            "Implement JIRA ticket $ISSUE_KEY: $TITLE. $DESC"
+          codex exec --full-auto "Implement JIRA ticket $ISSUE_KEY: $TITLE. $DESC"
 
           git add -A
           git commit -m "feat($ISSUE_KEY): $TITLE" || echo "No changes to commit"
