@@ -115,7 +115,7 @@ jobs:
             ---
             ${{ env.DESC }}
 
-      # 9 – Transition Jira to In Review and comment PR link
+      # 9 – Transition Jira to In Review and comment PR link 
       - name: Jira – Transition to In Review & Comment PR link
         env:
           ISSUE_KEY: ${{ env.ISSUE_KEY }}
