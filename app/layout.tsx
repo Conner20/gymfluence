@@ -5,7 +5,7 @@ import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fittingin.co";
 const siteName = "Fitting In";
-const description = "The fitness platform built to help you grow.";
+const description = "The fitness marketplace built to help you grow.";
 const previewImage = `${siteUrl}/images/share_card.png`;
 const pwaIcon = "/favicon_black.ico";
 
