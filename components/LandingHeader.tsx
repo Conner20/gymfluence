@@ -10,8 +10,10 @@ export default function LandingHeader() {
 
     return (
         <header
-            className="sticky top-0 z-50 border-b bg-white text-black dark:border-black/40 dark:bg-black dark:text-white lg:bg-white/80 lg:backdrop-blur lg:dark:border-white/10 lg:dark:bg-black/40"
-            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur dark:border-white/10 dark:bg-black/40"
+            style={{
+                paddingTop: 'env(safe-area-inset-top, 0px)',
+            }}
         >
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
                 <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
