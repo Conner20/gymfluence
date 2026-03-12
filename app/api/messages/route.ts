@@ -5,16 +5,38 @@ import type { Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
+function toLiteUser(
+    u: { id: string; username: string | null; name: string | null; image: string | null; deletedAt?: Date | null } | null | undefined,
+) {
+    if (!u) return null;
+    if (u.deletedAt) {
+        return {
+            id: u.id,
+            username: null,
+            name: "Deleted User",
+            image: null,
+            isDeleted: true,
+        };
+    }
+    return {
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        image: u.image,
+        isDeleted: false,
+    };
+}
+
 // Resolve "to" value as id or username
 async function resolveUser(toRaw: string) {
     const byId =
         (await db.user.findUnique({
             where: { id: toRaw },
-            select: { id: true, username: true, name: true, image: true },
+            select: { id: true, username: true, name: true, image: true, deletedAt: true },
         })) ||
         (await db.user.findUnique({
             where: { username: toRaw },
-            select: { id: true, username: true, name: true, image: true },
+            select: { id: true, username: true, name: true, image: true, deletedAt: true },
         }));
     return byId;
 }
@@ -79,7 +101,11 @@ export async function GET(req: Request) {
         const convo = await db.conversation.findUnique({
             where: { id: conversationId },
             include: {
-                participants: { include: { user: { select: { id: true, username: true, name: true, image: true } } } },
+                participants: {
+                    include: {
+                        user: { select: { id: true, username: true, name: true, image: true, deletedAt: true } },
+                    },
+                },
             },
         });
         if (!convo) return NextResponse.json({ message: "Conversation not found" }, { status: 404 });
@@ -93,7 +119,8 @@ export async function GET(req: Request) {
 
         const others = convo.participants
             .filter((p: typeof convo.participants[number]) => p.userId !== me.id)
-            .map((p: typeof convo.participants[number]) => p.user);
+            .map((p: typeof convo.participants[number]) => toLiteUser(p.user))
+            .filter(Boolean);
         if (convo.dmKey) {
             other = others[0] ?? null;
         } else {
@@ -103,10 +130,16 @@ export async function GET(req: Request) {
         const otherUser = await resolveUser(toRaw!);
         if (!otherUser) return NextResponse.json({ message: "Target user not found" }, { status: 404 });
         if (otherUser.id === me.id) return NextResponse.json({ message: "Cannot message yourself" }, { status: 400 });
+        if (otherUser.deletedAt) {
+            return NextResponse.json(
+                { message: "This user has deleted their account and can no longer be messaged." },
+                { status: 410 },
+            );
+        }
 
         const convo = await findOrCreateDM(me.id, otherUser.id);
         convoId = convo.id;
-        other = otherUser;
+        other = toLiteUser(otherUser);
     }
 
     const threadWhere: any = { conversationId: convoId };
@@ -120,8 +153,8 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "asc" },
         take: 50,
         include: {
-            sender: { select: { id: true, username: true, name: true, image: true } },
-            sharedUser: { select: { id: true, username: true, name: true, image: true } },
+            sender: { select: { id: true, username: true, name: true, image: true, deletedAt: true } },
+            sharedUser: { select: { id: true, username: true, name: true, image: true, deletedAt: true } },
             sharedPost: {
                 select: {
                     id: true,
@@ -150,12 +183,8 @@ export async function GET(req: Request) {
             createdAt: m.createdAt,
             isMine: m.senderId === me.id,
             readAt: m.readAt,
-            sender: m.sender
-                ? { id: m.sender.id, username: m.sender.username, name: m.sender.name, image: m.sender.image }
-                : null,
-            sharedUser: m.sharedUser
-                ? { id: m.sharedUser.id, username: m.sharedUser.username, name: m.sharedUser.name, image: m.sharedUser.image }
-                : null,
+            sender: toLiteUser(m.sender),
+            sharedUser: toLiteUser(m.sharedUser),
             sharedPost: m.sharedPost
                 ? {
                     id: m.sharedPost.id,
@@ -213,15 +242,40 @@ export async function POST(req: Request) {
 
     if (body.conversationId) {
         convoId = String(body.conversationId);
-        const member = await db.conversationParticipant.findFirst({
-            where: { conversationId: convoId, userId: me.id },
-            select: { id: true },
+        const member = await db.conversation.findUnique({
+            where: { id: convoId },
+            select: {
+                id: true,
+                dmKey: true,
+                participants: {
+                    select: { userId: true, user: { select: { id: true, deletedAt: true } } },
+                },
+            },
         });
-        if (!member) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        if (!member) return NextResponse.json({ message: "Conversation not found" }, { status: 404 });
+
+        const isParticipant = member.participants.some((p: { userId: string }) => p.userId === me.id);
+        if (!isParticipant) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
+        if (member.dmKey) {
+            const otherParticipant = member.participants.find((p: { userId: string }) => p.userId !== me.id);
+            if (otherParticipant?.user.deletedAt) {
+                return NextResponse.json(
+                    { message: "This user has deleted their account and can no longer be messaged." },
+                    { status: 410 },
+                );
+            }
+        }
     } else if (body.to) {
         const other = await resolveUser(String(body.to));
         if (!other) return NextResponse.json({ message: "Target user not found" }, { status: 404 });
         if (other.id === me.id) return NextResponse.json({ message: "Cannot message yourself" }, { status: 400 });
+        if (other.deletedAt) {
+            return NextResponse.json(
+                { message: "This user has deleted their account and can no longer be messaged." },
+                { status: 410 },
+            );
+        }
         const convo = await findOrCreateDM(me.id, other.id);
         convoId = convo.id;
     } else {

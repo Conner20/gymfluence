@@ -68,9 +68,11 @@ type LiteUser = {
     username: string | null;
     name: string | null;
     image?: string | null;
+    isDeleted?: boolean;
 };
 
 const displayName = (u?: LiteUser | null, fallback = 'User') =>
+    (u?.isDeleted && 'Deleted User') ||
     (u?.name && u.name.trim()) ||
     (u?.username && u.username.trim()) ||
     fallback;
@@ -227,7 +229,7 @@ export default function Messenger() {
     const formatTimestamp = useCallback((iso: string) => formatRelativeTime(iso), []);
 
     const goToProfile = (u: LiteUser | undefined | null) => {
-        if (!u) return;
+        if (!u || u.isDeleted) return;
         const slug = u.username || u.id;
         router.push(`/u/${encodeURIComponent(slug)}`);
     };
@@ -528,7 +530,8 @@ export default function Messenger() {
                     )
                 );
             } catch (err: any) {
-                if (err?.name !== 'AbortError') setThreadError('Failed to load messages.');
+                if (err?.name === 'AbortError') return;
+                setThreadError('Failed to load messages.');
             } finally {
                 if (showSpinner) setThreadLoading(false);
                 inputRef.current?.focus();
@@ -554,7 +557,15 @@ export default function Messenger() {
                     cache: 'no-store',
                     signal: abort.signal,
                 });
-                if (!res.ok) throw new Error(await res.text());
+                if (!res.ok) {
+                    if (res.status === 410) {
+                        const data = await res.json().catch(() => null);
+                        throw new Error(
+                            data?.message || 'This user has deleted their account and cannot be messaged.'
+                        );
+                    }
+                    throw new Error();
+                }
 
                 const data: {
                     conversationId: string;
@@ -598,7 +609,9 @@ export default function Messenger() {
                     return normalizeConvos(Array.from(byKey.values()));
                 });
             } catch (err: any) {
-                if (err?.name !== 'AbortError') setThreadError('Failed to load messages.');
+                if (err?.name !== 'AbortError') {
+                    setThreadError(err?.message || 'Failed to load messages.');
+                }
             } finally {
                 if (showSpinner) setThreadLoading(false);
                 inputRef.current?.focus();
@@ -671,6 +684,7 @@ export default function Messenger() {
             const hasFiles = files.length > 0;
             const hasShare = !!shareDraft;
             if (!hasText && !hasFiles && !hasShare) return;
+            if (activeOther?.isDeleted && !activeGroupMembers) return;
             if (!activeConvoId && !activeOther) return;
 
             // For profile share: if no text provided, send the URL as content
@@ -784,6 +798,7 @@ export default function Messenger() {
             fetchConversations,
             myUsername,
             shareDraft,
+            activeGroupMembers,
             router,
             pathname,
             searchParams,
@@ -860,14 +875,14 @@ export default function Messenger() {
             setActiveGroupMembers(null);
             setActiveGroupName(null);
             setActiveConvoId(row.id);
-            const pretty = row.other.username || row.other.id;
-            router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
-            loadByTo(row.other.id);
+            router.replace(`${pathname}?convoId=${encodeURIComponent(row.id)}`);
+            loadByConversationId(row.id);
             setMobileView('thread');
         }
     };
 
     const startChatWithUser = (user: LiteUser) => {
+        if (user.isDeleted) return;
         setThreadError(null);
         setMessages([]);
         setActiveConvoId(null);
@@ -1028,6 +1043,8 @@ export default function Messenger() {
     };
 
     const normalized = normalizeConvos(convos);
+    const isDmWithDeletedUser = !!activeOther?.isDeleted && !activeGroupMembers;
+    const canCompose = !!(activeConvoId || activeOther) && !!session && !isDmWithDeletedUser;
 
     const messagesPaneRef = useRef<HTMLDivElement | null>(null);
 
@@ -1150,16 +1167,20 @@ export default function Messenger() {
                                                             {realGroup ? (
                                                                 title
                                                             ) : (
-                                                                <button
-                                                                    className="hover:underline"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        goToProfile(c.other);
-                                                                    }}
-                                                                    title={title}
-                                                                >
-                                                                    {title}
-                                                                </button>
+                                                                c.other?.isDeleted ? (
+                                                                    <span title={title}>{title}</span>
+                                                                ) : (
+                                                                    <button
+                                                                        className="hover:underline"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            goToProfile(c.other);
+                                                                        }}
+                                                                        title={title}
+                                                                    >
+                                                                        {title}
+                                                                    </button>
+                                                                )
                                                             )}
                                                         </div>
                                                         <div className="text-xs text-gray-500 truncate dark:text-gray-400">
@@ -1248,12 +1269,16 @@ export default function Messenger() {
                                             </span>
                                         )
                                     ) : (
-                                        <button
-                                            className="hover:underline"
-                                            onClick={() => goToProfile(activeOther!)}
-                                        >
-                                            {displayName(activeOther)}
-                                        </button>
+                                        activeOther?.isDeleted ? (
+                                            <span>{displayName(activeOther)}</span>
+                                        ) : (
+                                            <button
+                                                className="hover:underline"
+                                                onClick={() => goToProfile(activeOther!)}
+                                            >
+                                                {displayName(activeOther)}
+                                            </button>
+                                        )
                                     )}
                                 </div>
 
@@ -1372,6 +1397,12 @@ export default function Messenger() {
 
                     {/* Composer */}
                     <div className="border-t flex flex-col gap-2 px-3 sm:px-4 py-3 flex-shrink-0 dark:border-white/10">
+                        {isDmWithDeletedUser && (
+                            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 dark:text-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
+                                This user deleted their account. Messaging is disabled, but past messages are preserved.
+                            </div>
+                        )}
+
                         {/* Share draft preview bar */}
                         {shareDraft && (
                             <div className="border rounded-lg p-2 flex items-center gap-3 dark:border-white/10">
@@ -1461,10 +1492,12 @@ export default function Messenger() {
                                 key={activeConvoId || activeOther?.id || 'no-thread'}
                                 ref={inputRef}
                                 className="flex-1 h-full border rounded-full px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-600/40 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                                placeholder="Type a message..."
+                                placeholder={
+                                    isDmWithDeletedUser ? 'Messaging disabled for deleted user' : 'Type a message...'
+                                }
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
-                                disabled={!(activeConvoId || activeOther) || !session}
+                                disabled={!canCompose}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
@@ -1490,10 +1523,10 @@ export default function Messenger() {
                             />
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                disabled={!(activeConvoId || activeOther) || !session}
+                                disabled={!canCompose}
                                 className={clsx(
                                     'px-3 py-2 rounded-full text-sm font-medium border flex items-center justify-center',
-                                    !(activeConvoId || activeOther) || !session
+                                    !canCompose
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-neutral-800 dark:text-gray-500'
                                         : 'bg-white hover:bg-gray-50 dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100 dark:hover:bg-white/10'
                                 )}
@@ -1505,14 +1538,12 @@ export default function Messenger() {
                             <button
                                 onClick={send}
                                 disabled={
-                                    !(activeConvoId || activeOther) ||
-                                    !session ||
+                                    !canCompose ||
                                     (!draft.trim() && files.length === 0 && !shareDraft)
                                 }
                                 className={clsx(
                                     'px-4 py-2 rounded-full text-sm font-medium',
-                                    !(activeConvoId || activeOther) ||
-                                        !session ||
+                                    !canCompose ||
                                         (!draft.trim() && files.length === 0 && !shareDraft)
                                         ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-neutral-700 dark:text-gray-500'
                                         : 'bg-gray-900 text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-200'

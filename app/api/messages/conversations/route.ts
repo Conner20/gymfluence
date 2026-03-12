@@ -5,6 +5,27 @@ import type { Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
+function toConversationUser(
+    u: { id: string; username: string | null; name: string | null; image: string | null; deletedAt?: Date | null },
+) {
+    if (u.deletedAt) {
+        return {
+            id: u.id,
+            username: null,
+            name: "Deleted User",
+            image: null,
+            isDeleted: true,
+        };
+    }
+    return {
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        image: u.image,
+        isDeleted: false,
+    };
+}
+
 export async function GET() {
     const session = await getServerSession(authOptions);
     const sessionUser = session?.user as (Session["user"] & { id?: string }) | undefined;
@@ -30,7 +51,7 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
         include: {
             participants: {
-                include: { user: { select: { id: true, username: true, name: true, image: true } } },
+                include: { user: { select: { id: true, username: true, name: true, image: true, deletedAt: true } } },
             },
             messages: {
                 orderBy: { createdAt: "desc" },
@@ -45,7 +66,7 @@ export async function GET() {
         rows.map(async (c: typeof rows[number]) => {
             const others = c.participants
                 .filter((p: typeof c.participants[number]) => p.userId !== me.id)
-                .map((p: typeof c.participants[number]) => p.user);
+                .map((p: typeof c.participants[number]) => toConversationUser(p.user));
             const isGroup = others.length >= 2;
             const last = c.messages[0] ?? null;
 

@@ -50,6 +50,7 @@ export async function GET(req: Request) {
     const results = await db.user.findMany({
         where: {
             id: { in: Array.from(idSet) },
+            deletedAt: null,
             OR: [
                 { username: { contains: q, mode: "insensitive" } },
                 { name: { contains: q, mode: "insensitive" } },

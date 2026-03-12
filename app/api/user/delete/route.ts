@@ -13,22 +13,54 @@ function isAdminEmail(email: string | null | undefined) {
     return adminList.includes(email.toLowerCase());
 }
 
-async function deleteUserAndRelations(userId: string) {
+async function anonymizeUserAndRelations(userId: string) {
+    const deletedAt = new Date();
     await db.$transaction([
+        db.session.deleteMany({ where: { userId } }),
+        db.account.deleteMany({ where: { userId } }),
         db.like.deleteMany({ where: { userId } }),
         db.comment.deleteMany({ where: { authorId: userId } }),
+        db.notification.deleteMany({ where: { OR: [{ userId }, { actorId: userId }] } }),
         db.follow.deleteMany({
             where: {
                 OR: [{ followerId: userId }, { followingId: userId }],
             },
         }),
-        db.message.deleteMany({
+        db.post.deleteMany({ where: { authorId: userId } }),
+        db.traineeProfile.deleteMany({ where: { userId } }),
+        db.trainerProfile.deleteMany({ where: { userId } }),
+        db.gymProfile.deleteMany({ where: { userId } }),
+        db.searchGalleryImage.deleteMany({ where: { userId } }),
+        db.workoutSet.deleteMany({ where: { userId } }),
+        db.workoutExercise.deleteMany({ where: { userId } }),
+        db.cardioSession.deleteMany({ where: { userId } }),
+        db.cardioActivityEntry.deleteMany({ where: { userId } }),
+        db.nutritionEntry.deleteMany({ where: { userId } }),
+        db.nutritionCustomFood.deleteMany({ where: { userId } }),
+        db.bodyweightEntry.deleteMany({ where: { userId } }),
+        db.nutritionSettings.deleteMany({ where: { userId } }),
+        db.sleepEntry.deleteMany({ where: { userId } }),
+        db.waterEntry.deleteMany({ where: { userId } }),
+        db.wellnessSettings.deleteMany({ where: { userId } }),
+        db.dashboardShare.deleteMany({
             where: {
-                OR: [{ senderId: userId }, { sharedUserId: userId }],
+                OR: [{ ownerId: userId }, { viewerId: userId }],
             },
         }),
-        db.post.deleteMany({ where: { authorId: userId } }),
-        db.user.delete({ where: { id: userId } }),
+        db.user.update({
+            where: { id: userId },
+            data: {
+                username: null,
+                email: null,
+                password: null,
+                name: "Deleted User",
+                image: null,
+                location: null,
+                bio: null,
+                role: null,
+                deletedAt,
+            },
+        }),
     ]);
 }
 
@@ -101,7 +133,7 @@ export async function DELETE(req: Request) {
         targetId = targetUser.id;
     }
 
-    await deleteUserAndRelations(targetId);
+    await anonymizeUserAndRelations(targetId);
 
     const deletedSelf = targetId === requester.id;
     const message = deletedSelf ? "Account deleted." : "Target user deleted.";

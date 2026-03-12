@@ -75,6 +75,7 @@ model User {
   role          Role?
   isPrivate     Boolean   @default(false)
   bio           String?
+  deletedAt     DateTime?
 
   post           Post[]
   accounts       Account[]
