@@ -156,6 +156,7 @@ export async function GET(req: Request) {
             sharedUser: m.sharedUser
                 ? { id: m.sharedUser.id, username: m.sharedUser.username, name: m.sharedUser.name, image: m.sharedUser.image }
                 : null,
+            sharedUserDeleted: Boolean(m.sharedUserId && !m.sharedUser),
             sharedPost: m.sharedPost
                 ? {
                     id: m.sharedPost.id,
@@ -169,6 +170,7 @@ export async function GET(req: Request) {
                     },
                 }
                 : null,
+            sharedPostDeleted: Boolean(m.sharedPostId && !m.sharedPost),
         })),
     });
 }

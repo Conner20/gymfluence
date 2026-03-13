@@ -70,6 +70,14 @@ type LiteUser = {
     image?: string | null;
 };
 
+const DELETED_USER_LABEL = 'Deleted User';
+const DELETED_USER_PLACEHOLDER: LiteUser = {
+    id: 'deleted-user',
+    username: null,
+    name: DELETED_USER_LABEL,
+    image: null,
+};
+
 const displayName = (u?: LiteUser | null, fallback = 'User') =>
     (u?.name && u.name.trim()) ||
     (u?.username && u.username.trim()) ||
@@ -109,6 +117,8 @@ type ThreadMessage = {
     sender?: LiteUser | null;
     sharedUser?: LiteUser | null;
     sharedPost?: SharedPost | null;
+    sharedUserDeleted?: boolean;
+    sharedPostDeleted?: boolean;
 };
 
 type ShareDraft =
@@ -231,6 +241,17 @@ export default function Messenger() {
         const slug = u.username || u.id;
         router.push(`/u/${encodeURIComponent(slug)}`);
     };
+
+    const activeConversationMeta = useMemo(() => {
+        if (!activeConvoId) return null;
+        return convos.find((c) => c.id === activeConvoId) ?? null;
+    }, [convos, activeConvoId]);
+
+    const activeDmIsDeleted = Boolean(
+        activeConversationMeta && !activeConversationMeta.isGroup && !activeConversationMeta.other
+    );
+
+    const composerDisabled = !(activeConvoId || activeOther) || !session || activeDmIsDeleted;
 
     // ---------- URL helpers ----------
     const linkify = (text: string) => {
@@ -672,6 +693,7 @@ export default function Messenger() {
             const hasShare = !!shareDraft;
             if (!hasText && !hasFiles && !hasShare) return;
             if (!activeConvoId && !activeOther) return;
+            if (activeDmIsDeleted) return;
 
             // For profile share: if no text provided, send the URL as content
             const profileUrl = shareDraft?.type === 'profile' ? shareDraft.url : '';
@@ -708,6 +730,8 @@ export default function Messenger() {
                         }
                         : null,
                 sharedPost: shareDraft?.type === 'post' ? shareDraft.post : null,
+                sharedUserDeleted: false,
+                sharedPostDeleted: false,
             };
             setMessages((m) => [...m, optimistic]);
 
@@ -781,6 +805,7 @@ export default function Messenger() {
             files,
             activeConvoId,
             activeOther,
+            activeDmIsDeleted,
             fetchConversations,
             myUsername,
             shareDraft,
@@ -864,6 +889,14 @@ export default function Messenger() {
             router.replace(`${pathname}?to=${encodeURIComponent(pretty)}`);
             loadByTo(row.other.id);
             setMobileView('thread');
+        } else {
+            setActiveOther(null);
+            setActiveGroupMembers(null);
+            setActiveGroupName(null);
+            setActiveConvoId(row.id);
+            router.replace(`${pathname}?convoId=${encodeURIComponent(row.id)}`);
+            loadByConversationId(row.id);
+            setMobileView('thread');
         }
     };
 
@@ -945,28 +978,11 @@ export default function Messenger() {
             'block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-white/10';
 
         // PROFILE SHARE
-        if (m.sharedUser || (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.test(m.content))) {
+        if (m.sharedUser) {
             const u = m.sharedUser;
-
-            // Infer slug from URL if needed
-            const linkFromContent =
-                (m.content && /(https?:\/\/[^\s]+|\/u\/[^\s]+)/.exec(m.content)?.[0]) || '';
-            let inferredSlug: string | undefined = u?.username || u?.name || u?.id || undefined;
-            if (!inferredSlug && linkFromContent) {
-                try {
-                    const url = linkFromContent.startsWith('http')
-                        ? new URL(linkFromContent)
-                        : new URL(linkFromContent, window.location.origin);
-                    const parts = url.pathname.split('/').filter(Boolean);
-                    if (parts[0] === 'u' && parts[1]) inferredSlug = decodeURIComponent(parts[1]);
-                } catch {
-                    /* ignore */
-                }
-            }
-
-            const display = displayName(u, inferredSlug || 'Profile');
-            const href =
-                linkFromContent || (inferredSlug ? `/u/${encodeURIComponent(inferredSlug)}` : '#');
+            const slug = u?.username || u?.id;
+            const display = displayName(u, slug || 'Profile');
+            const href = slug ? `/u/${encodeURIComponent(slug)}` : '#';
 
             return (
                 <a
@@ -987,6 +1003,19 @@ export default function Messenger() {
             );
         }
 
+        if (m.sharedUserDeleted) {
+            return (
+                <div
+                    className={`${containerClasses} cursor-not-allowed border-dashed text-gray-600 dark:text-gray-300`}
+                    title="Profile removed"
+                >
+                    <div className="text-[11px] uppercase tracking-wide">Shared Profile</div>
+                    <div className="font-medium">Profile deleted</div>
+                    <div className={subTextClasses}>This user no longer exists.</div>
+                </div>
+            );
+        }
+
         // POST SHARE — now same size as profile card (40×40 thumb, same paddings/typography)
         if (m.sharedPost) {
             const p = m.sharedPost;
@@ -1003,17 +1032,13 @@ export default function Messenger() {
                     title="Open post"
                 >
                     <div className="flex items-center gap-3">
-                        {p.imageUrl ? (
+                        {p.imageUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={p.imageUrl}
                                 alt=""
                                 className="w-10 h-10 object-cover rounded-md border-2 border-black flex-shrink-0"
                             />
-                        ) : (
-                            <div className="w-10 h-10 rounded-md bg-white border-2 border-black flex items-center justify-center text-xs dark:bg-neutral-800 dark:border-white/40 dark:text-white">
-                                P
-                            </div>
                         )}
                         <div className="min-w-0">
                             <div className="text-sm font-medium truncate text-black dark:text-white">{p.title}</div>
@@ -1024,10 +1049,30 @@ export default function Messenger() {
             );
         }
 
+        if (m.sharedPostDeleted) {
+            return (
+                <div className={`${containerClasses} w-full text-left cursor-not-allowed`} title="Post removed">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-md border-2 border-black/40 bg-gray-200 flex items-center justify-center text-xs font-semibold uppercase text-gray-600 dark:border-white/20 dark:bg-neutral-800 dark:text-gray-200">
+                            ✕
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-sm font-semibold text-black dark:text-white">Post deleted</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-300">
+                                This shared post is no longer available.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         return null;
     };
 
     const normalized = normalizeConvos(convos);
+    const sendDisabled =
+        composerDisabled || (!draft.trim() && files.length === 0 && !shareDraft);
 
     const messagesPaneRef = useRef<HTMLDivElement | null>(null);
 
@@ -1112,13 +1157,14 @@ export default function Messenger() {
                                 <ul>
                                     {normalized.map((c) => {
                                         const realGroup = c.isGroup && ((c.groupMembers?.length ?? 0) >= 2);
+                                        const isDeletedDm = !realGroup && !c.other;
                                         const active =
                                             c.id === activeConvoId ||
                                             (!realGroup && c.other?.id === activeOther?.id);
                                         const title = realGroup
                                             ? (c.groupName && c.groupName.trim()) ||
                                             groupTitleFromMembers(c.groupMembers, myId)
-                                            : displayName(c.other);
+                                            : displayName(c.other, DELETED_USER_LABEL);
                                         const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
                                         const previewText = c.lastMessage
                                             ? c.lastMessage.content?.trim()
@@ -1130,7 +1176,11 @@ export default function Messenger() {
 
                                         return (
                                             <li
-                                                key={realGroup ? `grp:${c.id}` : `dm:${c.other?.id}`}
+                                                key={
+                                                    realGroup
+                                                        ? `grp:${c.id}`
+                                                        : `dm:${c.other?.id ?? c.id}`
+                                                }
                                                 className={clsx(
                                                     'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b dark:hover:bg-white/5 dark:border-white/5',
                                                     active && 'bg-gray-100 dark:bg-white/10'
@@ -1143,23 +1193,37 @@ export default function Messenger() {
                                                             G
                                                         </div>
                                                     ) : (
-                                                        <Avatar user={c.other} size={32} />
+                                                        <Avatar
+                                                            user={
+                                                                isDeletedDm
+                                                                    ? DELETED_USER_PLACEHOLDER
+                                                                    : c.other
+                                                            }
+                                                            size={32}
+                                                            fallbackChar={isDeletedDm ? 'D' : undefined}
+                                                        />
                                                     )}
                                                     <div className="min-w-0 flex-1">
                                                         <div className="text-sm font-medium truncate">
                                                             {realGroup ? (
                                                                 title
                                                             ) : (
-                                                                <button
-                                                                    className="hover:underline"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        goToProfile(c.other);
-                                                                    }}
-                                                                    title={title}
-                                                                >
-                                                                    {title}
-                                                                </button>
+                                                                isDeletedDm ? (
+                                                                    <span className="text-gray-500 dark:text-gray-400">
+                                                                        {DELETED_USER_LABEL}
+                                                                    </span>
+                                                                ) : (
+                                                                    <button
+                                                                        className="hover:underline"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            goToProfile(c.other);
+                                                                        }}
+                                                                        title={title}
+                                                                    >
+                                                                        {title}
+                                                                    </button>
+                                                                )
                                                             )}
                                                         </div>
                                                         <div className="text-xs text-gray-500 truncate dark:text-gray-400">
@@ -1221,7 +1285,11 @@ export default function Messenger() {
                                         G
                                     </div>
                                 ) : (
-                                    <Avatar user={activeOther} size={36} />
+                                    <Avatar
+                                        user={activeDmIsDeleted ? DELETED_USER_PLACEHOLDER : activeOther}
+                                        size={36}
+                                        fallbackChar={activeDmIsDeleted ? 'D' : undefined}
+                                    />
                                 )}
                                 <div className="font-medium truncate flex-1">
                                     {activeGroupMembers ? (
@@ -1248,12 +1316,18 @@ export default function Messenger() {
                                             </span>
                                         )
                                     ) : (
-                                        <button
-                                            className="hover:underline"
-                                            onClick={() => goToProfile(activeOther!)}
-                                        >
-                                            {displayName(activeOther)}
-                                        </button>
+                                        activeDmIsDeleted ? (
+                                            <span className="text-gray-500 dark:text-gray-400">
+                                                {DELETED_USER_LABEL}
+                                            </span>
+                                        ) : (
+                                            <button
+                                                className="hover:underline"
+                                                onClick={() => activeOther && goToProfile(activeOther)}
+                                            >
+                                                {displayName(activeOther)}
+                                            </button>
+                                        )
                                     )}
                                 </div>
 
@@ -1278,6 +1352,12 @@ export default function Messenger() {
                         )}
                     </div>
 
+                    {activeDmIsDeleted && (
+                        <div className="mx-3 sm:mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+                            This user has deleted their account.
+                        </div>
+                    )}
+
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 scrollbar-slim" ref={messagesPaneRef}>
                         {!activeConvoId ? (
@@ -1298,17 +1378,22 @@ export default function Messenger() {
                                                     {systemText(m)}
                                                 </div>
                                             </div>
-                                        );
-                                    }
-                                    const ts = formatTimestamp(m.createdAt);
-                                    const hasText = Boolean(m.content && m.content.trim().length);
-                                    const imgs = m.imageUrls ?? [];
-                                    const sender = m.sender;
-                                    const senderLabel = displayName(sender, m.isMine ? 'You' : 'User');
-                                    const hasShare =
-                                        !!m.sharedUser ||
-                                        !!m.sharedPost ||
-                                        (m.content && /^https?:\/\//.test(m.content));
+                                );
+                            }
+                            const ts = formatTimestamp(m.createdAt);
+            const textContent = (() => {
+                if (m.content && m.content.trim().length) return m.content;
+                if (m.sharedPostDeleted) return 'Post deleted';
+                if (m.sharedUserDeleted) return 'Profile deleted';
+                return '';
+            })();
+                            const hasText = Boolean(textContent);
+                            const imgs = m.imageUrls ?? [];
+                            const sender = m.sender;
+                            const senderLabel = displayName(sender, m.isMine ? 'You' : 'User');
+            const hasShare = Boolean(
+                m.sharedUser || m.sharedPost || m.sharedUserDeleted || m.sharedPostDeleted
+            );
 
                                     return (
                                         <div
@@ -1334,9 +1419,9 @@ export default function Messenger() {
                                                         ? 'bg-green-600 text-white'
                                                         : 'bg-gray-100 text-gray-800 dark:bg-neutral-800 dark:text-gray-100'
                                                 )}
-                                                title={new Date(m.createdAt).toLocaleString()}
-                                            >
-                                                {hasText && <span>{linkify(m.content)}</span>}
+                                            title={new Date(m.createdAt).toLocaleString()}
+                                        >
+                                            {hasText && <span>{linkify(textContent)}</span>}
 
                                                 {imgs.length > 0 && (
                                                     <div className={clsx((hasText || hasShare) && 'mt-2')}>
@@ -1464,7 +1549,7 @@ export default function Messenger() {
                                 placeholder="Type a message..."
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
-                                disabled={!(activeConvoId || activeOther) || !session}
+                                disabled={composerDisabled}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
@@ -1490,10 +1575,10 @@ export default function Messenger() {
                             />
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                disabled={!(activeConvoId || activeOther) || !session}
+                                disabled={composerDisabled}
                                 className={clsx(
                                     'px-3 py-2 rounded-full text-sm font-medium border flex items-center justify-center',
-                                    !(activeConvoId || activeOther) || !session
+                                    composerDisabled
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-neutral-800 dark:text-gray-500'
                                         : 'bg-white hover:bg-gray-50 dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100 dark:hover:bg-white/10'
                                 )}
@@ -1504,16 +1589,10 @@ export default function Messenger() {
                             </button>
                             <button
                                 onClick={send}
-                                disabled={
-                                    !(activeConvoId || activeOther) ||
-                                    !session ||
-                                    (!draft.trim() && files.length === 0 && !shareDraft)
-                                }
+                                disabled={sendDisabled}
                                 className={clsx(
                                     'px-4 py-2 rounded-full text-sm font-medium',
-                                    !(activeConvoId || activeOther) ||
-                                        !session ||
-                                        (!draft.trim() && files.length === 0 && !shareDraft)
+                                    sendDisabled
                                         ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-neutral-700 dark:text-gray-500'
                                         : 'bg-gray-900 text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-200'
                                 )}
@@ -1521,7 +1600,6 @@ export default function Messenger() {
                                 Send
                             </button>
                         </div>
-
                         {files.length > 0 && (
                             <div className="border rounded-lg p-2 dark:border-white/10">
                                 <div className="text-xs text-gray-500 mb-2 dark:text-gray-400">Attachments</div>
