@@ -975,7 +975,8 @@ export default function Messenger() {
 
     const ShareCard = ({ m }: { m: ThreadMessage }) => {
         const containerClasses =
-            'block rounded-lg p-3 bg-white/80 hover:bg-white/90 backdrop-blur-sm text-black border border-black/20 no-underline dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-white/10';
+            'block rounded-2xl border border-black/5 bg-white/80 px-4 py-3 text-sm text-black shadow-sm transition-all duration-200 hover:border-black/20 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/10';
+        const subTextClasses = 'text-xs text-gray-500 dark:text-gray-400';
 
         // PROFILE SHARE
         if (m.sharedUser) {
