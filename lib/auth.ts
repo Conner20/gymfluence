@@ -10,10 +10,10 @@ export const authOptions: NextAuthOptions = {
     secret: env.NEXTAUTH_SECRET,
     session: {
         strategy: "jwt",
-        maxAge: 60 * 60, // keep users signed in for 1 hour via cookie
+        maxAge: 60 * 60 * 24, // keep users signed in for 1 hour via cookie
     },
     jwt: {
-        maxAge: 60 * 60,
+        maxAge: 60 * 60 * 24,
     },
     pages: {
         signIn: '/log-in',
