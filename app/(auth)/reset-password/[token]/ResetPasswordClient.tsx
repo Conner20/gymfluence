@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 
 const schema = z
@@ -165,8 +166,7 @@ export default function ResetPasswordClient() {
                                     <FormItem>
                                         <FormLabel className="text-zinc-700">New password</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="password"
+                                            <PasswordInput
                                                 placeholder="********"
                                                 minLength={8}
                                                 className={inputClass}
@@ -185,8 +185,7 @@ export default function ResetPasswordClient() {
                                     <FormItem>
                                         <FormLabel className="text-zinc-700">Confirm password</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="password"
+                                            <PasswordInput
                                                 placeholder="********"
                                                 minLength={8}
                                                 className={inputClass}

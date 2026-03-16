@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, ShieldAlert, CheckSquare, Square, ChevronDown, ChevronRight, RefreshCw, Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 
 type AdminUser = {
@@ -508,9 +509,8 @@ export default function AdminUserManager() {
                                     <label className="text-sm font-medium text-black dark:text-white" htmlFor="admin-password">
                                         Confirm your password
                                     </label>
-                                    <Input
+                                    <PasswordInput
                                         id="admin-password"
-                                        type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Enter your password to confirm"

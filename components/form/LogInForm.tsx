@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { signIn } from 'next-auth/react'
@@ -125,7 +126,7 @@ const LogInForm = () => {
                                     </Link>
                                 </div>
                                 <FormControl className="bg-white">
-                                    <Input placeholder="Enter your password" type='password' {...field} className={inputClass} />
+                                    <PasswordInput placeholder="Enter your password" {...field} className={inputClass} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -186,7 +187,7 @@ const SignUpForm = () => {
                             <FormItem>
                                 <FormLabel className="mb-2 text-black">Password</FormLabel>
                                 <FormControl className="bg-white">
-                                    <Input placeholder="Enter your password" type="password" {...field} className={LOCKED_INPUT_CLASS} />
+                                    <PasswordInput placeholder="Enter your password" {...field} className={LOCKED_INPUT_CLASS} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -200,7 +201,7 @@ const SignUpForm = () => {
                             <FormItem>
                                 <FormLabel className="mb-2 text-black">Re-Enter your password</FormLabel>
                                 <FormControl className="bg-white">
-                                    <Input placeholder="Re-Enter your password" type="password" {...field} className={LOCKED_INPUT_CLASS} />
+                                    <PasswordInput placeholder="Re-Enter your password" {...field} className={LOCKED_INPUT_CLASS} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

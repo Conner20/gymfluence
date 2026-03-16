@@ -7,6 +7,7 @@ import PrivacyToggle from "./privacy-toggle";
 import MobileHeader from "@/components/MobileHeader";
 import SearchProfileEditor from "@/components/SearchProfileEditor";
 import { useRouter } from "next/navigation";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type LocationSuggestion = {
     id: string;
@@ -393,8 +394,7 @@ export default function SettingsPage() {
                     {hasPassword && (
                         <div>
                             <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Current password</label>
-                            <input
-                                type="password"
+                            <PasswordInput
                                 className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -405,8 +405,7 @@ export default function SettingsPage() {
                     )}
                     <div>
                         <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">New password</label>
-                        <input
-                            type="password"
+                        <PasswordInput
                             className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
@@ -416,8 +415,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                         <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Confirm new password</label>
-                        <input
-                            type="password"
+                        <PasswordInput
                             className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                             value={confirmNewPassword}
                             onChange={(e) => setConfirmNewPassword(e.target.value)}
@@ -468,9 +466,8 @@ export default function SettingsPage() {
                                 <label htmlFor="delete-password" className="block text-sm text-gray-700 dark:text-gray-300">
                                     Confirm password
                                 </label>
-                                <input
+                                <PasswordInput
                                     id="delete-password"
-                                    type="password"
                                     className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                     value={deletePassword}
                                     onChange={(e) => setDeletePassword(e.target.value)}
