@@ -22,7 +22,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, Props>(function Passwor
             <button
                 type="button"
                 onClick={() => setVisible((v) => !v)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition hover:text-gray-800"
                 aria-label={visible ? "Hide password" : "Show password"}
             >
                 {visible ? <EyeOff size={18} /> : <Eye size={18} />}
