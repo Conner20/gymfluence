@@ -6,6 +6,7 @@ import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { encode } from "next-auth/jwt";
 
 async function getIdentifierFromOnboardingCookie() {
     const cookieStore = await cookies();
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "User not found" }, { status: 404 });
         }
 
-        const data: any = { role };
+        const data: any = { role, lastLoginAt: new Date() };
 
         if (role === "TRAINEE") {
             if (!Array.isArray(selections)) selections = [];
@@ -115,7 +116,12 @@ export async function POST(req: Request) {
         const user = await db.user.update({
             where: { id: current.id },
             data,
-            include: {
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                name: true,
+                image: true,
                 traineeProfile: true,
                 trainerProfile: true,
                 gymProfile: true,
@@ -124,6 +130,43 @@ export async function POST(req: Request) {
 
         const res = NextResponse.json({ user, message: "User updated" });
         res.cookies.delete("onboarding_token");
+
+        const sessionMaxAge = authOptions.session?.maxAge ?? 60 * 60;
+        const sessionToken = await encode({
+            token: {
+                sub: user.id,
+                email: user.email,
+                name: user.name ?? user.username ?? user.email ?? undefined,
+                picture: user.image ?? undefined,
+                username: user.username,
+            },
+            secret: env.NEXTAUTH_SECRET,
+            maxAge: sessionMaxAge,
+        });
+
+        const cookieConfigs = [
+            { name: "next-auth.session-token", secure: false },
+            { name: "__Secure-next-auth.session-token", secure: true },
+        ];
+
+        cookieConfigs.forEach(({ name, secure }) => {
+            res.cookies.set(name, sessionToken, {
+                httpOnly: true,
+                sameSite: "lax",
+                secure: secure ? true : env.NODE_ENV === "production",
+                path: "/",
+                maxAge: sessionMaxAge,
+            });
+        });
+
+        res.cookies.set("next-auth.callback-url", "/home", {
+            httpOnly: false,
+            sameSite: "lax",
+            secure: env.NODE_ENV === "production",
+            path: "/",
+            maxAge: 30 * 24 * 60 * 60,
+        });
+
         return res;
     } catch (err: any) {
         console.error("update-role error:", err);

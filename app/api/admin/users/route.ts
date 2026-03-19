@@ -63,6 +63,27 @@ export async function GET(req: Request) {
     });
 
     const deletableUsers = users.filter((user) => !isAdminEmail(user.email));
+    const lastActivityRows = deletableUsers.length
+        ? await db.pageView.groupBy({
+            by: ["userId"],
+            where: {
+                userId: {
+                    in: deletableUsers.map((user) => user.id),
+                },
+            },
+            _max: {
+                createdAt: true,
+            },
+        })
+        : [];
+    const lastActivityByUserId = new Map(
+        lastActivityRows.map((row) => [row.userId, row._max.createdAt?.toISOString() ?? null]),
+    );
 
-    return NextResponse.json({ users: deletableUsers });
+    const usersWithActivity = deletableUsers.map((user) => ({
+        ...user,
+        lastActiveAt: lastActivityByUserId.get(user.id) ?? null,
+    }));
+
+    return NextResponse.json({ users: usersWithActivity });
 }

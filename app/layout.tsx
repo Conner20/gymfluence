@@ -1,6 +1,6 @@
 import Provider from "@/components/Provider";
 import { Toaster } from "@/components/ui/sonner";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fittingin.co";
@@ -32,7 +32,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  themeColor: "#050505",
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -48,6 +47,13 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#050505" },
+  ],
 };
 
 export default function RootLayout({

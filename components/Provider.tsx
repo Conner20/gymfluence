@@ -3,6 +3,7 @@
 import { SessionProvider } from "next-auth/react";
 import { FC, ReactNode } from "react";
 import { ThemeProvider } from "./ThemeProvider";
+import PageViewTracker from "./PageViewTracker";
 
 interface ProviderProps {
     children: ReactNode
@@ -10,7 +11,10 @@ interface ProviderProps {
 const Provider: FC<ProviderProps> = ({ children }) => {
     return (
         <SessionProvider>
-            <ThemeProvider>{children}</ThemeProvider>
+            <ThemeProvider>
+                {children}
+                <PageViewTracker />
+            </ThemeProvider>
         </SessionProvider>
     );
 };

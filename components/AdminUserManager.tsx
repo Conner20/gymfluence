@@ -15,6 +15,7 @@ type AdminUser = {
     email: string | null;
     role: string | null;
     isPrivate: boolean;
+    lastActiveAt: string | null;
     _count: {
         post: number;
         likes: number;
@@ -41,6 +42,32 @@ type AdminComment = {
     postId: string;
 };
 
+type AdminActivityEntry = {
+    id: string;
+    path: string;
+    createdAt: string;
+};
+
+function formatRelativeActivity(value: string | null) {
+    if (!value) return "No activity yet";
+
+    const date = new Date(value);
+    const diff = Date.now() - date.getTime();
+    if (Number.isNaN(diff) || diff < 0) return "Just now";
+
+    const hour = 1000 * 60 * 60;
+    const day = hour * 24;
+    const week = day * 7;
+    const month = day * 30;
+    const year = day * 365;
+
+    if (diff >= year) return `${Math.floor(diff / year)}y ago`;
+    if (diff >= month) return `${Math.floor(diff / month)}mo ago`;
+    if (diff >= week) return `${Math.floor(diff / week)}w ago`;
+    if (diff >= day) return `${Math.floor(diff / day)}d ago`;
+    return `${Math.max(1, Math.floor(diff / hour))}h ago`;
+}
+
 export default function AdminUserManager() {
     const [query, setQuery] = useState("");
     const [users, setUsers] = useState<AdminUser[]>([]);
@@ -51,10 +78,13 @@ export default function AdminUserManager() {
     const [deleting, setDeleting] = useState(false);
     const [posts, setPosts] = useState<AdminPost[]>([]);
     const [comments, setComments] = useState<AdminComment[]>([]);
+    const [activity, setActivity] = useState<AdminActivityEntry[]>([]);
     const [postsState, setPostsState] = useState<FetchState>("idle");
     const [commentsState, setCommentsState] = useState<FetchState>("idle");
+    const [activityState, setActivityState] = useState<FetchState>("idle");
     const [postsPanelOpen, setPostsPanelOpen] = useState(false);
     const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
+    const [activityPanelOpen, setActivityPanelOpen] = useState(false);
 
     const selectedUsers = useMemo(
         () => users.filter((u) => selectedIds.includes(u.id)),
@@ -106,10 +136,13 @@ export default function AdminUserManager() {
     useEffect(() => {
         setPosts([]);
         setComments([]);
+        setActivity([]);
         setPostsState("idle");
         setCommentsState("idle");
+        setActivityState("idle");
         setPostsPanelOpen(false);
         setCommentsPanelOpen(false);
+        setActivityPanelOpen(false);
     }, [activeUser?.id]);
 
     const handleSearch = (e: React.FormEvent) => {
@@ -195,6 +228,21 @@ export default function AdminUserManager() {
         }
     };
 
+    const fetchActivity = async () => {
+        if (!activeUser) return;
+        setActivityState("loading");
+        try {
+            const res = await fetch(`/api/admin/users/${activeUser.id}/activity`, { cache: "no-store" });
+            if (!res.ok) throw new Error("Unable to load activity.");
+            const data = await res.json();
+            setActivity(data?.activity ?? []);
+            setActivityState("idle");
+        } catch (err) {
+            console.error(err);
+            setActivityState("error");
+        }
+    };
+
     const togglePostsPanel = () => {
         const next = !postsPanelOpen;
         setPostsPanelOpen(next);
@@ -208,6 +256,14 @@ export default function AdminUserManager() {
         setCommentsPanelOpen(next);
         if (next && commentsState === "idle" && comments.length === 0) {
             fetchComments();
+        }
+    };
+
+    const toggleActivityPanel = () => {
+        const next = !activityPanelOpen;
+        setActivityPanelOpen(next);
+        if (next && activityState === "idle" && activity.length === 0) {
+            fetchActivity();
         }
     };
 
@@ -298,23 +354,33 @@ export default function AdminUserManager() {
                                         <button
                                             type="button"
                                             onClick={() => handleToggleSelect(user.id)}
-                                            className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                                            className={`group flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition ${
                                                 isSelected
                                                     ? "border-black/40 bg-white dark:bg-white/10"
                                                     : "border-transparent bg-white hover:border-black/10 dark:bg-white/5 dark:hover:border-white/20 dark:border-transparent"
                                             }`}
                                         >
-                                            {isSelected ? (
-                                                <CheckSquare className="h-4 w-4 text-black dark:text-white" />
-                                            ) : (
-                                                <Square className="h-4 w-4 text-black/40 dark:text-white/40" />
-                                            )}
-                                            <div>
-                                                <p className="font-semibold text-black dark:text-white">
-                                                    {user.username || user.name || "Unnamed"}
+                                            <div className="flex items-center gap-3">
+                                                {isSelected ? (
+                                                    <CheckSquare className="h-4 w-4 text-black dark:text-white" />
+                                                ) : (
+                                                    <Square className="h-4 w-4 text-black/40 dark:text-white/40" />
+                                                )}
+                                                <div>
+                                                    <p className="font-semibold text-black dark:text-white">
+                                                        {user.username || user.name || "Unnamed"}
+                                                    </p>
+                                                    <p className="text-xs text-zinc-500 dark:text-white/60">
+                                                        {user.email ?? "No email"} · {user.role ?? "No role"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="shrink-0 text-right">
+                                                <p className="text-[11px] uppercase tracking-wide text-zinc-400 dark:text-white/40">
+                                                    Last active
                                                 </p>
-                                                <p className="text-xs text-zinc-500 dark:text-white/60">
-                                                    {user.email ?? "No email"} · {user.role ?? "No role"}
+                                                <p className="text-xs font-medium text-zinc-600 dark:text-white/70">
+                                                    {formatRelativeActivity(user.lastActiveAt)}
                                                 </p>
                                             </div>
                                         </button>
@@ -343,12 +409,75 @@ export default function AdminUserManager() {
                                             <p className="text-sm text-zinc-500 dark:text-white/60">
                                                 {selectedUsers[0].email ?? "No email"} · {selectedUsers[0].role ?? "No role"}
                                             </p>
+                                            <p className="mt-1 text-xs text-zinc-500 dark:text-white/60">
+                                                Last active {formatRelativeActivity(selectedUsers[0].lastActiveAt)}
+                                            </p>
                                         </>
                                     )}
                                 </div>
 
                                 {activeUser && (
                                     <div className="space-y-3">
+                                        <button
+                                            type="button"
+                                            onClick={toggleActivityPanel}
+                                            className="flex w-full items-center justify-between rounded-xl border border-black/10 bg-zinc-50 px-3 py-2 text-left text-sm font-medium text-black dark:border-white/10 dark:bg-white/5 dark:text-white"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {activityPanelOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                Activity log
+                                            </div>
+                                            <span className="text-xs text-zinc-500 dark:text-white/60">
+                                                {activityState === "loading" ? "Loading…" : activity.length ? `${activity.length} entries` : "Tap to load"}
+                                            </span>
+                                        </button>
+                                        {activityPanelOpen && (
+                                            <div className="rounded-xl border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-black/40">
+                                                <div className="mb-3 flex items-center justify-between text-sm">
+                                                    <span className="text-zinc-500 dark:text-white/60">
+                                                        Navigation log
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={fetchActivity}
+                                                        className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-black dark:text-white/70 dark:hover:text-white"
+                                                    >
+                                                        <RefreshCw className="h-3 w-3" />
+                                                        Refresh
+                                                    </button>
+                                                </div>
+                                                {activityState === "error" && (
+                                                    <p className="text-xs text-red-500 dark:text-red-200">Unable to load activity.</p>
+                                                )}
+                                                {activityPanelOpen && activityState === "loading" && (
+                                                    <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-white/70">
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        Loading…
+                                                    </div>
+                                                )}
+                                                {activityPanelOpen && activityState === "idle" && activity.length === 0 && (
+                                                    <p className="text-xs text-zinc-500 dark:text-white/60">No activity found.</p>
+                                                )}
+                                                {activity.length > 0 && (
+                                                    <div className="max-h-[320px] overflow-y-auto rounded-lg border border-black/5 bg-[#fcfcfc] p-3 font-mono text-xs text-zinc-700 dark:border-white/10 dark:bg-[#060606] dark:text-white/75">
+                                                        {activity.map((entry) => (
+                                                            <div
+                                                                key={entry.id}
+                                                                className="grid grid-cols-[176px_1fr] gap-3 border-b border-black/5 py-2 last:border-b-0 dark:border-white/5"
+                                                            >
+                                                                <span className="text-zinc-500 dark:text-white/40">
+                                                                    {new Date(entry.createdAt).toLocaleString()}
+                                                                </span>
+                                                                <span className="break-all text-emerald-700 dark:text-emerald-400">
+                                                                    GET {entry.path}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <button
                                             type="button"
                                             onClick={togglePostsPanel}

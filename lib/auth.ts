@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
     secret: env.NEXTAUTH_SECRET,
     session: {
         strategy: "jwt",
-        maxAge: 60 * 60 * 24, // keep users signed in for 1 hour via cookie
+        maxAge: 60 * 60 * 24, // 24 hours
     },
     jwt: {
         maxAge: 60 * 60 * 24,
@@ -46,6 +46,11 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("EMAIL_NOT_VERIFIED");
                 }
 
+                await db.user.update({
+                    where: { id: existingUser.id },
+                    data: { lastLoginAt: new Date() },
+                });
+
                 return {
                     id: `${existingUser.id}`,
                     username: existingUser.username,
@@ -56,7 +61,6 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         async jwt({ token, user }) {
-            console.log(token, user);
             if(user) {
                 return {
                     ...token,

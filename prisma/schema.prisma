@@ -75,6 +75,9 @@ model User {
   role          Role?
   isPrivate     Boolean   @default(false)
   bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  lastLoginAt   DateTime?
 
   post           Post[]
   accounts       Account[]
@@ -120,6 +123,7 @@ model User {
 
   dashboardSharesGranted  DashboardShare[] @relation("DashboardShareOwner")
   dashboardSharesReceived DashboardShare[] @relation("DashboardShareViewer")
+  pageViews              PageView[]
 }
 
 model DashboardShare {
@@ -191,6 +195,19 @@ model GymProfile {
   clients  Int      @default(0)
 
   ratingsReceived Rating[] @relation("RatingsToGym")
+}
+
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  visitorId String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+
+  @@index([path])
+  @@index([createdAt])
+  @@index([visitorId])
 }
 
 model VerificationToken {
