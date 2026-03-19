@@ -86,7 +86,7 @@ export default async function AdminMetricsPage() {
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - ACTIVE_WINDOW_DAYS);
 
-    const [users, pageViews] = await Promise.all([
+    const [users, pageViews, firstTimeLandingVisitors] = await Promise.all([
         db.user.findMany({
             select: { id: true, createdAt: true, email: true },
             orderBy: { createdAt: "asc" },
@@ -105,6 +105,19 @@ export default async function AdminMetricsPage() {
             },
             orderBy: { createdAt: "asc" },
         }),
+        db.pageView.groupBy({
+            by: ["visitorId"],
+            where: {
+                path: "/",
+                userId: null,
+                visitorId: {
+                    not: null,
+                },
+            },
+            _min: {
+                createdAt: true,
+            },
+        }),
     ]);
 
     const adminUserIds = new Set(
@@ -122,12 +135,13 @@ export default async function AdminMetricsPage() {
     const recentActiveViews = nonAdminPageViews.filter(
         (view) => Boolean(view.userId) && isUserActivityPath(view.path) && view.createdAt >= weekAgo,
     );
-    const landingViews = viewsInWindow.filter((view) => view.path === "/");
-
     const totalUsers = users.length;
     const newUsersInWindow = nonAdminUsers.filter((user) => user.createdAt >= chartStart).length;
     const activeUsers = getDistinctCount(recentActiveViews.map((view) => view.userId));
-    const uniqueLandingVisitors = new Set(landingViews.map((view) => getVisitorKey(view))).size;
+    const uniqueLandingVisitors = firstTimeLandingVisitors.filter((visitor) => {
+        const firstSeenAt = visitor._min.createdAt;
+        return firstSeenAt && firstSeenAt >= chartStart;
+    }).length;
     const conversionBase = Math.max(uniqueLandingVisitors, newUsersInWindow);
     const conversionRate = conversionBase > 0 ? newUsersInWindow / conversionBase : 0;
 
@@ -243,7 +257,7 @@ export default async function AdminMetricsPage() {
                     <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
                         <p className="text-sm text-zinc-500 dark:text-white/60">Landing visitors (30d)</p>
                         <p className="mt-2 text-3xl font-semibold">{formatNumber(uniqueLandingVisitors)}</p>
-                        <p className="text-xs text-zinc-500 dark:text-white/60">Unique people visiting `/`</p>
+                        <p className="text-xs text-zinc-500 dark:text-white/60">Unique non-users first seen on `/`</p>
                     </div>
                     <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
                         <p className="text-sm text-zinc-500 dark:text-white/60">Conversion rate (30d)</p>
