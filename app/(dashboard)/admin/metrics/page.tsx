@@ -66,7 +66,7 @@ function isUserActivityPath(path: string) {
 }
 
 function getVisitorKey(view: SimplePageView) {
-    return view.visitorId ?? view.userId ?? `pageview:${view.path}:${view.createdAt.toISOString()}`;
+    return view.userId ?? view.visitorId ?? `pageview:${view.path}:${view.createdAt.toISOString()}`;
 }
 
 function getDistinctCount(values: Array<string | null | undefined>) {
@@ -212,6 +212,21 @@ export default async function AdminMetricsPage() {
             </header>
 
             <section className="mx-auto max-w-6xl space-y-8 px-4 py-10">
+                <nav className="flex gap-2 lg:hidden">
+                    <Link
+                        href="/admin"
+                        className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-zinc-600 dark:border-white/20 dark:text-white/70"
+                    >
+                        Users
+                    </Link>
+                    <Link
+                        href="/admin/metrics"
+                        className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black dark:border-white/20 dark:bg-white/10 dark:text-white"
+                    >
+                        Metrics
+                    </Link>
+                </nav>
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
                         <p className="text-sm text-zinc-500 dark:text-white/60">Total users</p>

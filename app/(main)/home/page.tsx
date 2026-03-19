@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { db } from "@/prisma/client";
 import HomePageShell from "@/components/HomePageShell";
+import { isAdminEmail } from "@/lib/admin";
 
 export const revalidate = 0; // always fresh server render
 
@@ -99,5 +100,7 @@ export default async function Home() {
         };
     });
 
-    return <HomePageShell posts={formatted as any} />;
+    const isAdmin = isAdminEmail(session.user.email);
+
+    return <HomePageShell posts={formatted as any} isAdmin={isAdmin} />;
 }

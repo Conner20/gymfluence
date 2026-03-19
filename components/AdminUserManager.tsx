@@ -48,12 +48,12 @@ type AdminActivityEntry = {
     createdAt: string;
 };
 
-function formatRelativeActivity(value: string | null) {
-    if (!value) return "No activity yet";
+function getRelativeActivityParts(value: string | null) {
+    if (!value) return { compact: "-", full: "No activity yet" };
 
     const date = new Date(value);
     const diff = Date.now() - date.getTime();
-    if (Number.isNaN(diff) || diff < 0) return "Just now";
+    if (Number.isNaN(diff) || diff < 0) return { compact: "0h", full: "Just now" };
 
     const hour = 1000 * 60 * 60;
     const day = hour * 24;
@@ -61,11 +61,31 @@ function formatRelativeActivity(value: string | null) {
     const month = day * 30;
     const year = day * 365;
 
-    if (diff >= year) return `${Math.floor(diff / year)}y ago`;
-    if (diff >= month) return `${Math.floor(diff / month)}mo ago`;
-    if (diff >= week) return `${Math.floor(diff / week)}w ago`;
-    if (diff >= day) return `${Math.floor(diff / day)}d ago`;
-    return `${Math.max(1, Math.floor(diff / hour))}h ago`;
+    if (diff >= year) {
+        const count = Math.floor(diff / year);
+        return { compact: `${count}y`, full: `${count}y ago` };
+    }
+    if (diff >= month) {
+        const count = Math.floor(diff / month);
+        return { compact: `${count}mo`, full: `${count}mo ago` };
+    }
+    if (diff >= week) {
+        const count = Math.floor(diff / week);
+        return { compact: `${count}w`, full: `${count}w ago` };
+    }
+    if (diff >= day) {
+        const count = Math.floor(diff / day);
+        return { compact: `${count}d`, full: `${count}d ago` };
+    }
+
+    const count = Math.max(1, Math.floor(diff / hour));
+    return { compact: `${count}h`, full: `${count}h ago` };
+}
+
+function formatRelativeActivity(value: string | null) {
+    if (!value) return "No activity yet";
+
+    return getRelativeActivityParts(value).full;
 }
 
 export default function AdminUserManager() {
@@ -349,38 +369,44 @@ export default function AdminUserManager() {
                         <ul className="space-y-2">
                             {users.map((user) => {
                                 const isSelected = selectedIds.includes(user.id);
+                                const activityParts = getRelativeActivityParts(user.lastActiveAt);
                                 return (
                                     <li key={user.id}>
                                         <button
                                             type="button"
                                             onClick={() => handleToggleSelect(user.id)}
-                                            className={`group flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                                            className={`group flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left transition sm:items-center sm:justify-between ${
                                                 isSelected
                                                     ? "border-black/40 bg-white dark:bg-white/10"
                                                     : "border-transparent bg-white hover:border-black/10 dark:bg-white/5 dark:hover:border-white/20 dark:border-transparent"
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex min-w-0 flex-1 items-start gap-3">
                                                 {isSelected ? (
-                                                    <CheckSquare className="h-4 w-4 text-black dark:text-white" />
+                                                    <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-black dark:text-white sm:mt-0" />
                                                 ) : (
-                                                    <Square className="h-4 w-4 text-black/40 dark:text-white/40" />
+                                                    <Square className="mt-0.5 h-4 w-4 shrink-0 text-black/40 dark:text-white/40 sm:mt-0" />
                                                 )}
-                                                <div>
-                                                    <p className="font-semibold text-black dark:text-white">
-                                                        {user.username || user.name || "Unnamed"}
-                                                    </p>
-                                                    <p className="text-xs text-zinc-500 dark:text-white/60">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <p className="min-w-0 flex-1 truncate font-semibold text-black dark:text-white">
+                                                            {user.username || user.name || "Unnamed"}
+                                                        </p>
+                                                        <p className="shrink-0 text-xs font-medium text-zinc-600 dark:text-white/70 sm:hidden">
+                                                            {activityParts.compact}
+                                                        </p>
+                                                    </div>
+                                                    <p className="truncate text-xs text-zinc-500 dark:text-white/60">
                                                         {user.email ?? "No email"} · {user.role ?? "No role"}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="shrink-0 text-right">
-                                                <p className="text-[11px] uppercase tracking-wide text-zinc-400 dark:text-white/40">
+                                            <div className="hidden w-full shrink-0 text-right sm:block sm:w-auto">
+                                                <p className="hidden text-[11px] uppercase tracking-wide text-zinc-400 dark:text-white/40 sm:block">
                                                     Last active
                                                 </p>
                                                 <p className="text-xs font-medium text-zinc-600 dark:text-white/70">
-                                                    {formatRelativeActivity(user.lastActiveAt)}
+                                                    {activityParts.full}
                                                 </p>
                                             </div>
                                         </button>

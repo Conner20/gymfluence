@@ -1,6 +1,6 @@
 'use client';
 
-import { Moon, Sun } from "lucide-react";
+import { BriefcaseBusiness, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import MobileHeader from "@/components/MobileHeader";
 import HomePosts from "@/components/HomePosts";
@@ -8,9 +8,10 @@ import { useTheme } from "@/components/ThemeProvider";
 
 type HomePageShellProps = {
     posts: any;
+    isAdmin?: boolean;
 };
 
-export default function HomePageShell({ posts }: HomePageShellProps) {
+export default function HomePageShell({ posts, isAdmin = false }: HomePageShellProps) {
     const { theme, toggleTheme } = useTheme();
     const darkMode = theme === "dark";
 
@@ -25,12 +26,32 @@ export default function HomePageShell({ posts }: HomePageShellProps) {
         </button>
     );
 
+    const AdminButton = ({ className = "" }: { className?: string }) =>
+        isAdmin ? (
+            <Link
+                href="/admin"
+                aria-label="Admin console"
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:bg-black hover:text-white dark:border-white/30 dark:text-white dark:hover:bg-white/10 ${className}`}
+            >
+                <BriefcaseBusiness size={18} />
+            </Link>
+        ) : null;
+
+    const headerActions = (
+        <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <AdminButton />
+        </div>
+    );
+
     return (
             <div className="relative flex min-h-screen flex-col bg-[#f8f8f8] text-black transition-colors dark:bg-[#050505] dark:text-white">
-                <MobileHeader title="fitting" href="/" leftAccessory={<ThemeToggle className="lg:hidden" />} />
+                <MobileHeader title="fitting" href="/" leftAccessory={<div className="lg:hidden">{headerActions}</div>} />
 
                 <header className="hidden w-full items-center justify-center bg-white px-6 py-5 lg:flex dark:bg-neutral-900">
-                    <ThemeToggle className="absolute left-6 hidden lg:inline-flex" />
+                    <div className="absolute left-6 hidden items-center gap-2 lg:flex">
+                        {headerActions}
+                    </div>
                     <Link href="/" className="text-2xl font-semibold tracking-tight text-green-700 dark:text-green-400">
                         <span>fitt</span>
                         <span className="underline decoration-2 decoration-green-700 underline-offset-[2px] dark:decoration-green-400">in</span>
