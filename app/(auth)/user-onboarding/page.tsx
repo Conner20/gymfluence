@@ -2,6 +2,7 @@
 
 import { Suspense, useState, type JSX } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowRight } from 'lucide-react';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "../../../components/ui/form";
 import { Input } from '../../../components/ui/input';
@@ -47,11 +48,27 @@ const LOCKED_TEXT_BUTTON = "text-sm text-zinc-500 transition hover:text-zinc-800
 function UserOnboardingContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { update } = useSession();
     const userName = searchParams?.get('username') ?? 'there';
 
     const [step, setStep] = useState(1);
     const [role, setRole] = useState<string | null>(null);
     const [selections, setSelections] = useState<string[]>([]);
+
+    const finalizeOnboarding = async () => {
+        try {
+            await update();
+        } catch (error) {
+            console.error("Session refresh failed:", error);
+        }
+
+        router.replace("/home");
+        router.refresh();
+
+        if (typeof window !== "undefined") {
+            window.location.assign("/home");
+        }
+    };
 
     const gymFormHook = useForm<GymFormValues>({
         resolver: zodResolver(GymFormSchema) as any,
@@ -101,8 +118,7 @@ function UserOnboardingContent() {
 
             const data = await res.json();
             console.log("User updated:", data);
-            router.push("/log-in");
-            // route wherever you want after onboarding
+            await finalizeOnboarding();
         } catch (err) {
             console.error(err);
         }
@@ -131,7 +147,7 @@ function UserOnboardingContent() {
 
             const data = await res.json();
             console.log("User updated:", data);
-            router.push("/log-in?onboarded=1");
+            await finalizeOnboarding();
         } catch (err) {
             console.error("Update failed:", err);
         }

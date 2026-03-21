@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { db } from "@/prisma/client";
 import HomePageShell from "@/components/HomePageShell";
-import { isAdminEmail } from "@/lib/admin";
+import { hasAdminAccessByEmail } from "@/lib/admin";
 
 export const revalidate = 0; // always fresh server render
 
@@ -19,38 +19,37 @@ export default async function Home() {
     const viewerId = session?.user?.email
         ? (
             await db.user.findUnique({
-                where: { email: session.user.email },
+                where: { email: session.user.email.toLowerCase() },
                 select: { id: true },
             })
         )?.id ?? null
         : null;
 
+    if (!viewerId) {
+        redirect("/");
+    }
+
     // Visibility rules:
     // - Public authors (isPrivate=false): always visible
     // - Private authors (isPrivate=true): visible only if viewer follows them with status=ACCEPTED
     const posts = await db.post.findMany({
-        where: viewerId
-            ? {
-                OR: [
-                    { author: { isPrivate: false } },
-                    {
-                        author: {
-                            isPrivate: true,
-                            // viewer must be an accepted follower
-                            followers: {
-                                some: {
-                                    followerId: viewerId,
-                                    status: "ACCEPTED",
-                                },
+        where: {
+            OR: [
+                { author: { isPrivate: false } },
+                {
+                    author: {
+                        isPrivate: true,
+                        // viewer must be an accepted follower
+                        followers: {
+                            some: {
+                                followerId: viewerId,
+                                status: "ACCEPTED",
                             },
                         },
                     },
-                ],
-            }
-            : {
-                // not signed in → only public authors' posts
-                author: { isPrivate: false },
-            },
+                },
+            ],
+        },
         include: {
             author: {
                 select: {
@@ -100,7 +99,7 @@ export default async function Home() {
         };
     });
 
-    const isAdmin = isAdminEmail(session.user.email);
+    const isAdmin = await hasAdminAccessByEmail(session.user.email);
 
     return <HomePageShell posts={formatted as any} isAdmin={isAdmin} />;
 }

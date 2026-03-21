@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+
+import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
-    const email = searchParams.get("email");
-    if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    const email = searchParams.get("email") ?? session?.user?.email ?? null;
+    if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const user = await db.user.findUnique({
-        where: { email },
+        where: { email: email.toLowerCase() },
         include: {
             traineeProfile: true,
             trainerProfile: true,

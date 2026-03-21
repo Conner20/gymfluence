@@ -4,12 +4,12 @@ import Link from "next/link";
 import MobileHeader from "@/components/MobileHeader";
 import AdminUserManager from "@/components/AdminUserManager";
 import { authOptions } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { hasAdminAccessByEmail } from "@/lib/admin";
 
 export default async function AdminPage() {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user || !isAdminEmail(session.user.email)) {
+    if (!session?.user || !(await hasAdminAccessByEmail(session.user.email))) {
         redirect("/");
     }
 

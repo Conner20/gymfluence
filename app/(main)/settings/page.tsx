@@ -20,12 +20,13 @@ type LocationSuggestion = {
 };
 
 export default function SettingsPage() {
-    const { data: session, status } = useSession();
+    const { data: session } = useSession();
     const router = useRouter();
 
     const [loading, setLoading] = useState(true);
     const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
     const [profileError, setProfileError] = useState<string | null>(null);
+    const [accountEmail, setAccountEmail] = useState("");
 
     // Profile text fields
     const [name, setName] = useState("");
@@ -64,31 +65,78 @@ export default function SettingsPage() {
     const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
+
         (async () => {
-            const res = await fetch("/api/user/profile");
-            if (res.ok) {
+            try {
+                let res: Response | null = null;
+
+                for (let attempt = 0; attempt < 2; attempt += 1) {
+                    res = await fetch("/api/user/profile", {
+                        cache: "no-store",
+                        credentials: "include",
+                    });
+
+                    if (res.ok || res.status === 404) {
+                        break;
+                    }
+
+                    if (res.status === 401 && attempt === 0) {
+                        await new Promise((resolve) => window.setTimeout(resolve, 500));
+                        continue;
+                    }
+
+                    break;
+                }
+
+                if (!res) {
+                    throw new Error("Unable to load settings");
+                }
+
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        router.replace("/");
+                        return;
+                    }
+                    if (res.status === 401) {
+                        router.replace("/log-in");
+                        return;
+                    }
+                    throw new Error("Unable to load settings");
+                }
+
                 const me = await res.json();
+                if (cancelled) return;
+
                 setName(me.name || "");
                 setLocation(me.location || "");
                 setBio(me.bio || "");
                 setImageUrl(me.image || null);
                 setHasPassword(Boolean(me.hasPassword));
+                setAccountEmail(me.email || "");
 
-                // NEW: hydrate structured location from API
                 setCity(me.city || "");
                 setStateRegion(me.state || "");
                 setCountry(me.country || "");
                 setLat(typeof me.lat === "number" ? me.lat : null);
                 setLng(typeof me.lng === "number" ? me.lng : null);
 
-                // If user.location is empty but we have structured parts, synthesize a label
                 if (!me.location && (me.city || me.state || me.country)) {
                     const label = [me.city, me.state, me.country].filter(Boolean).join(", ");
                     setLocation(label);
                 }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
-            setLoading(false);
         })();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     // Clean up blob URLs
@@ -241,21 +289,13 @@ export default function SettingsPage() {
         }
     };
 
-    useEffect(() => {
-        if (status === "loading") return;
-        if (!session) {
-            router.replace("/");
-        }
-    }, [router, session, status]);
-
-    if (status === "loading" || loading) {
+    if (loading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950">
                 <span className="h-12 w-12 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
             </div>
         );
     }
-    if (!session) return null;
 
     const displayImage = previewUrl || imageUrl;
 
@@ -442,12 +482,12 @@ export default function SettingsPage() {
                 {/* Log Out */}
                 <div className="bg-white rounded-xl shadow p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
                     <h2 className="font-semibold mb-3">Log Out</h2>
-                    <p className="text-sm text-gray-600 mb-4 dark:text-gray-300">
-                        You are currently signed in as{" "}
-                        <span className="font-medium">
-                            {session?.user?.email || session?.user?.name || "your account"}
-                        </span>.
-                    </p>
+                        <p className="text-sm text-gray-600 mb-4 dark:text-gray-300">
+                            You are currently signed in as{" "}
+                            <span className="font-medium">
+                                {accountEmail || session?.user?.email || session?.user?.name || "your account"}
+                            </span>.
+                        </p>
                     <button
                         onClick={() => signOut({ callbackUrl: "/" })}
                         className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"

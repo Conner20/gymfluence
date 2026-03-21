@@ -1,35 +1,52 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getUserAdminStatus, hasAdminAccessByEmail, hasSuperAdminAccessByEmail } from "@/lib/admin";
 import { db } from "@/prisma/client";
 import { compare } from "bcrypt";
-import { env } from "@/lib/env";
-
-function isAdminEmail(email: string | null | undefined) {
-    if (!email) return false;
-    const adminList = env.ADMIN_EMAILS.split(",")
-        .map((entry) => entry.trim().toLowerCase())
-        .filter(Boolean);
-    return adminList.includes(email.toLowerCase());
-}
 
 async function deleteUserAndRelations(userId: string) {
-    await db.$transaction([
-        db.like.deleteMany({ where: { userId } }),
-        db.comment.deleteMany({ where: { authorId: userId } }),
-        db.follow.deleteMany({
+    await db.$transaction(async (tx) => {
+        const trackedVisitorIds = await tx.pageView.findMany({
+            where: {
+                userId,
+                visitorId: {
+                    not: null,
+                },
+            },
+            select: {
+                visitorId: true,
+            },
+            distinct: ["visitorId"],
+        });
+
+        const visitorIds = trackedVisitorIds
+            .map((entry) => entry.visitorId)
+            .filter((value): value is string => Boolean(value));
+
+        await tx.pageView.deleteMany({
+            where: {
+                OR: [
+                    { userId },
+                    ...(visitorIds.length ? [{ visitorId: { in: visitorIds } }] : []),
+                ],
+            },
+        });
+        await tx.like.deleteMany({ where: { userId } });
+        await tx.comment.deleteMany({ where: { authorId: userId } });
+        await tx.follow.deleteMany({
             where: {
                 OR: [{ followerId: userId }, { followingId: userId }],
             },
-        }),
-        db.message.deleteMany({
+        });
+        await tx.message.deleteMany({
             where: {
                 OR: [{ senderId: userId }, { sharedUserId: userId }],
             },
-        }),
-        db.post.deleteMany({ where: { authorId: userId } }),
-        db.user.delete({ where: { id: userId } }),
-    ]);
+        });
+        await tx.post.deleteMany({ where: { authorId: userId } });
+        await tx.user.delete({ where: { id: userId } });
+    });
 }
 
 export async function DELETE(req: Request) {
@@ -50,7 +67,7 @@ export async function DELETE(req: Request) {
 
     const requester = await db.user.findUnique({
         where: { email: session.user.email },
-        select: { id: true, password: true, email: true },
+        select: { id: true, password: true, email: true, isAdmin: true },
     });
 
     if (!requester) {
@@ -69,12 +86,16 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ message: "Incorrect password." }, { status: 401 });
     }
 
-    const hasAdminPrivileges = isAdminEmail(requester.email);
+    const hasAdminPrivileges = await hasAdminAccessByEmail(requester.email);
+    const hasSuperAdminPrivileges = await hasSuperAdminAccessByEmail(requester.email);
 
     let targetId = requester.id;
     if (targetUserId || targetEmail) {
         if (!hasAdminPrivileges) {
             return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+        if (!hasSuperAdminPrivileges) {
+            return NextResponse.json({ message: "Only the super admin can delete other users." }, { status: 403 });
         }
 
         const targetUser = await db.user.findFirst({
@@ -84,14 +105,14 @@ export async function DELETE(req: Request) {
                     ...(targetEmail ? [{ email: targetEmail }] : []),
                 ],
             },
-            select: { id: true, email: true },
+            select: { id: true, email: true, isAdmin: true },
         });
 
         if (!targetUser) {
             return NextResponse.json({ message: "Target user not found." }, { status: 404 });
         }
 
-        if (isAdminEmail(targetUser.email)) {
+        if (getUserAdminStatus(targetUser)) {
             return NextResponse.json(
                 { message: "Admins cannot delete other admin accounts." },
                 { status: 403 },

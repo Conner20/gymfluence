@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { hasAdminAccessByEmail } from "@/lib/admin";
 import { db } from "@/prisma/client";
 
 type Params = {
@@ -11,7 +11,7 @@ type Params = {
 
 export async function GET(req: Request, { params }: Params) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+    if (!session?.user?.email || !(await hasAdminAccessByEmail(session.user.email))) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

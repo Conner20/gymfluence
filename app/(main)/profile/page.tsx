@@ -17,30 +17,87 @@ export default function ProfilePage() {
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [profileResolved, setProfileResolved] = useState(false);
     const [showShortcutPrompt, setShowShortcutPrompt] = useState(false);
     const [isMobilePrompt, setIsMobilePrompt] = useState(false);
     const shortcutKey = user ? `fi_shortcut_prompt_${user.id}` : null;
 
     useEffect(() => {
-        if (!session?.user?.email) return;
+        let cancelled = false;
+
         (async () => {
-            const res = await fetch(`/api/profile?email=${session.user.email}`);
-            const data = await res.json();
-            setUser(data.user);
-            setPosts(data.posts);
-            setLoading(false);
+            try {
+                setLoading(true);
+                let res: Response | null = null;
+
+                for (let attempt = 0; attempt < 2; attempt += 1) {
+                    res = await fetch("/api/profile", {
+                        cache: "no-store",
+                        credentials: "include",
+                    });
+
+                    if (res.ok || res.status === 404) {
+                        break;
+                    }
+
+                    if (res.status === 401 && attempt === 0) {
+                        await new Promise((resolve) => window.setTimeout(resolve, 500));
+                        continue;
+                    }
+
+                    break;
+                }
+
+                if (!res) {
+                    throw new Error("Unable to load profile");
+                }
+
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        router.replace("/");
+                        return;
+                    }
+                    if (res.status === 401) {
+                        router.replace("/log-in");
+                        return;
+                    }
+                    throw new Error("Unable to load profile");
+                }
+
+                const data = await res.json();
+                if (cancelled) return;
+
+                setUser(data.user);
+                setPosts(data.posts ?? []);
+                setProfileResolved(true);
+            } catch (error) {
+                console.error(error);
+                if (!cancelled) {
+                    setUser(null);
+                    setPosts([]);
+                    setProfileResolved(true);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
         })();
-    }, [session?.user?.email]);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
 
     useEffect(() => {
-        if (!loading && user && !user.role) {
+        if (!loading && profileResolved && user && !user.role) {
             const params = new URLSearchParams();
             if (user.username || user.name) {
                 params.set("username", user.username ?? user.name ?? "");
             }
             router.push(`/user-onboarding?${params.toString()}`);
         }
-    }, [loading, router, user]);
+    }, [loading, profileResolved, router, user]);
 
     useEffect(() => {
         if (loading || !user || typeof window === 'undefined') return;
@@ -61,7 +118,7 @@ export default function ProfilePage() {
             </div>
         );
     }
-    if (!user) return <div className="p-8 text-red-500">User not found</div>;
+    if (!user) return null;
 
     const username = session?.user?.username ?? user?.username ?? "Profile";
 

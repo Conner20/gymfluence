@@ -14,6 +14,9 @@ type AdminUser = {
     name: string | null;
     email: string | null;
     role: string | null;
+    isAdmin: boolean;
+    isConfiguredAdmin: boolean;
+    hasAdminAccess: boolean;
     isPrivate: boolean;
     lastActiveAt: string | null;
     _count: {
@@ -91,11 +94,13 @@ function formatRelativeActivity(value: string | null) {
 export default function AdminUserManager() {
     const [query, setQuery] = useState("");
     const [users, setUsers] = useState<AdminUser[]>([]);
+    const [canManageUsers, setCanManageUsers] = useState(false);
     const [state, setState] = useState<FetchState>("idle");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [updatingPrivileges, setUpdatingPrivileges] = useState(false);
     const [posts, setPosts] = useState<AdminPost[]>([]);
     const [comments, setComments] = useState<AdminComment[]>([]);
     const [activity, setActivity] = useState<AdminActivityEntry[]>([]);
@@ -131,6 +136,7 @@ export default function AdminUserManager() {
             }
             const data = await res.json();
             setUsers(data?.users ?? []);
+            setCanManageUsers(Boolean(data?.canManageUsers));
             setState("idle");
             if (data?.users?.length) {
                 const ids = data.users.map((u: AdminUser) => u.id);
@@ -157,6 +163,7 @@ export default function AdminUserManager() {
         setPosts([]);
         setComments([]);
         setActivity([]);
+        setMessage(null);
         setPostsState("idle");
         setCommentsState("idle");
         setActivityState("idle");
@@ -334,6 +341,47 @@ export default function AdminUserManager() {
         }
     };
 
+    const updatePrivileges = async (nextIsAdmin: boolean) => {
+        if (!activeUser || !requirePassword()) return;
+        setUpdatingPrivileges(true);
+        setMessage(null);
+        try {
+            const res = await fetch(`/api/admin/users/${activeUser.id}/privileges`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password, isAdmin: nextIsAdmin }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.message || "Failed to update privileges.");
+            }
+
+            setUsers((prev) => {
+                return prev.map((user) => {
+                    if (user.id !== activeUser.id) return user;
+
+                    return {
+                        ...user,
+                        isAdmin: nextIsAdmin,
+                        hasAdminAccess: data?.user?.hasAdminAccess ?? nextIsAdmin,
+                    };
+                });
+            });
+            setMessage({
+                type: "success",
+                text: data?.message || "Privileges updated.",
+            });
+        } catch (err) {
+            console.error(err);
+            setMessage({
+                type: "error",
+                text: err instanceof Error ? err.message : "Failed to update privileges.",
+            });
+        } finally {
+            setUpdatingPrivileges(false);
+        }
+    };
+
     return (
         <div className="w-full max-w-5xl space-y-6">
             <section className="rounded-2xl border border-black/5 bg-white p-6 shadow-lg shadow-black/10 dark:border-white/10 dark:bg-neutral-900/80 dark:shadow-black/20">
@@ -441,6 +489,70 @@ export default function AdminUserManager() {
                                         </>
                                     )}
                                 </div>
+
+                                {activeUser && (
+                                    <div className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div>
+                                                <p className="text-sm font-medium text-black dark:text-white">Privileges</p>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-medium text-black dark:border-white/10 dark:bg-black/40 dark:text-white">
+                                                        User
+                                                    </span>
+                                                    {activeUser.hasAdminAccess && (
+                                                        <span className="rounded-full border border-emerald-600/20 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                            Admin
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {activeUser.isConfiguredAdmin ? (
+                                                    <p className="mt-2 text-xs text-zinc-500 dark:text-white/60">
+                                                        This admin is managed by environment configuration.
+                                                    </p>
+                                                ) : !canManageUsers ? (
+                                                    <p className="mt-2 text-xs text-zinc-500 dark:text-white/60">
+                                                        Only the super admin can change user privileges.
+                                                    </p>
+                                                ) : (
+                                                    <p className="mt-2 text-xs text-zinc-500 dark:text-white/60">
+                                                        Promote or demote this user from the directory.
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {canManageUsers && !activeUser.isConfiguredAdmin && (
+                                                <div className="group relative shrink-0">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="shrink-0"
+                                                        disabled={updatingPrivileges || !password || !canManageUsers}
+                                                        onClick={() => updatePrivileges(!activeUser.hasAdminAccess)}
+                                                    >
+                                                        {updatingPrivileges ? (
+                                                            <>
+                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                Saving…
+                                                            </>
+                                                        ) : activeUser.hasAdminAccess ? (
+                                                            "Remove admin"
+                                                        ) : (
+                                                            "Make admin"
+                                                        )}
+                                                    </Button>
+                                                    {!updatingPrivileges ? !canManageUsers ? (
+                                                        <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 hidden min-w-52 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-zinc-600 shadow-lg group-hover:block dark:border-white/10 dark:bg-neutral-900 dark:text-white/70">
+                                                            Only the super admin can change user privileges.
+                                                        </div>
+                                                    ) : !password ? (
+                                                        <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 hidden min-w-52 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-zinc-600 shadow-lg group-hover:block dark:border-white/10 dark:bg-neutral-900 dark:text-white/70">
+                                                            Enter your password to use this button.
+                                                        </div>
+                                                    ) : null : null}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {activeUser && (
                                     <div className="space-y-3">
@@ -685,25 +797,32 @@ export default function AdminUserManager() {
                                     </div>
                                 )}
 
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    className="w-full bg-red-600 text-white hover:bg-red-700"
-                                    disabled={deleting || !password || !selectedUsers.length}
-                                    onClick={handleDelete}
-                                >
-                                    {deleting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            Deleting…
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ShieldAlert className="h-4 w-4 mr-2" />
-                                            Delete selected users
-                                        </>
-                                    )}
-                                </Button>
+                                {canManageUsers && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        className="w-full bg-red-600 text-white hover:bg-red-700"
+                                        disabled={deleting || !password || !selectedUsers.length}
+                                        onClick={handleDelete}
+                                    >
+                                        {deleting ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                Deleting…
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ShieldAlert className="h-4 w-4 mr-2" />
+                                                Delete selected users
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
+                                {!canManageUsers && (
+                                    <p className="text-xs text-zinc-500 dark:text-white/60">
+                                        Only the super admin can delete users or change user privileges.
+                                    </p>
+                                )}
                             </div>
                         ) : (
                             <p className="text-sm text-zinc-500 dark:text-white/60">Select a user to view details.</p>

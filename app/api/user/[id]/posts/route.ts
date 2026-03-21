@@ -4,15 +4,7 @@ import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { env } from "@/lib/env";
-
-const isAdminEmail = (email: string | null | undefined) => {
-    if (!email) return false;
-    return env.ADMIN_EMAILS.split(",")
-        .map((entry) => entry.trim().toLowerCase())
-        .filter(Boolean)
-        .includes(email.toLowerCase());
-};
+import { hasAdminAccessByEmail } from "@/lib/admin";
 
 export async function GET(
     _req: Request,
@@ -30,7 +22,7 @@ export async function GET(
 
     const viewerId = viewer?.id ?? null;
     const isOwner = viewerId === userId;
-    const isAdmin = isAdminEmail(session?.user?.email ?? null);
+    const isAdmin = await hasAdminAccessByEmail(session?.user?.email ?? null);
 
     if (target.isPrivate && !isOwner && !isAdmin) {
         const rel = await db.follow.findUnique({

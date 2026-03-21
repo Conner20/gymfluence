@@ -119,6 +119,7 @@ export default function Sidebar({ mobileOpen = true }: NavbarProps) {
                     <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={false}
                         className={`p-2 rounded-xl flex items-center justify-center transition ${
                             isActive
                                 ? "bg-zinc-100 dark:bg-white/10"
@@ -166,6 +167,7 @@ export default function Sidebar({ mobileOpen = true }: NavbarProps) {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                prefetch={false}
                         className={`p-2 rounded-full transition ${
                             isActive ? "bg-zinc-100 dark:bg-white/10" : "hover:bg-zinc-50 dark:hover:bg-white/5"
                         }`}

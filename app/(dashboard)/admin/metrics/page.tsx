@@ -4,7 +4,7 @@ import Link from "next/link";
 import MobileHeader from "@/components/MobileHeader";
 import AdminUserGrowthChart from "@/components/AdminUserGrowthChart";
 import { authOptions } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { getUserAdminStatus, hasAdminAccessByEmail } from "@/lib/admin";
 import { db } from "@/prisma/client";
 
 type ChartPoint = {
@@ -75,7 +75,7 @@ function getDistinctCount(values: Array<string | null | undefined>) {
 
 export default async function AdminMetricsPage() {
     const session = await getServerSession(authOptions);
-    if (!session?.user || !isAdminEmail(session.user.email)) {
+    if (!session?.user || !(await hasAdminAccessByEmail(session.user.email))) {
         redirect("/");
     }
 
@@ -88,7 +88,7 @@ export default async function AdminMetricsPage() {
 
     const [users, pageViews, firstTimeLandingVisitors] = await Promise.all([
         db.user.findMany({
-            select: { id: true, createdAt: true, email: true },
+            select: { id: true, createdAt: true, email: true, isAdmin: true },
             orderBy: { createdAt: "asc" },
         }),
         db.pageView.findMany({
@@ -122,7 +122,7 @@ export default async function AdminMetricsPage() {
 
     const adminUserIds = new Set(
         users
-            .filter((user) => isAdminEmail(user.email))
+            .filter((user) => getUserAdminStatus(user))
             .map((user) => user.id),
     );
     const nonAdminUsers = users.filter((user) => !adminUserIds.has(user.id));

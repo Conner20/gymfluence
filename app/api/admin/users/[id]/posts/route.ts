@@ -3,16 +3,8 @@ import { getServerSession } from "next-auth";
 import { compare } from "bcrypt";
 
 import { authOptions } from "@/lib/auth";
+import { hasAdminAccessByEmail } from "@/lib/admin";
 import { db } from "@/prisma/client";
-import { env } from "@/lib/env";
-
-function isAdmin(email: string | null | undefined) {
-    if (!email) return false;
-    return env.ADMIN_EMAILS.split(",")
-        .map((entry) => entry.trim().toLowerCase())
-        .filter(Boolean)
-        .includes(email.toLowerCase());
-}
 
 type Params = {
     params: Promise<{ id: string }>;
@@ -20,7 +12,7 @@ type Params = {
 
 export async function GET(_: Request, { params }: Params) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !isAdmin(session.user.email)) {
+    if (!session?.user?.email || !(await hasAdminAccessByEmail(session.user.email))) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -46,7 +38,7 @@ export async function GET(_: Request, { params }: Params) {
 
 export async function DELETE(req: Request, { params }: Params) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !isAdmin(session.user.email)) {
+    if (!session?.user?.email || !(await hasAdminAccessByEmail(session.user.email))) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
