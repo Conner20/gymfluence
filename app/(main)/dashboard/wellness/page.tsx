@@ -518,7 +518,7 @@ function SleepLine({
                             pad={pad}
                             content={
                                 <div className="leading-tight">
-                                    <div className="font-medium">{hoveredPoint.date}</div>
+                                    <div className="whitespace-nowrap font-medium">{hoveredPoint.date}</div>
                                     <div>
                                         {hoveredPoint.hours != null
                                             ? `${hoveredPoint.hours.toFixed(1)} hrs`
@@ -555,8 +555,8 @@ function TooltipFlip({
     pad: { top: number; right: number; bottom: number; left: number };
     content: React.ReactNode;
 }) {
-    const approxW = 160;
-    const approxH = 56;
+    const approxW = 132;
+    const approxH = 52;
     const xInside = cx - pad.left;
     const usableW = chartW - pad.left - pad.right;
 
@@ -572,7 +572,7 @@ function TooltipFlip({
 
     return (
         <div
-            className="pointer-events-none absolute max-w-[180px] rounded-md border bg-white px-3 py-2 text-xs shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
+            className="pointer-events-none absolute w-max whitespace-nowrap rounded-md border bg-white px-3 py-2 text-xs shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
             style={{ left, top }}
         >
             {content}

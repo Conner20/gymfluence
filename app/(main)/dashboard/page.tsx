@@ -434,12 +434,12 @@ function LiftsChart({
             {hover && tooltipStyles && hoveredValues && (
                 <div
                     ref={tooltipRef}
-                    className="absolute min-w-[190px] rounded-2xl border border-zinc-200 bg-white/95 p-3 text-xs shadow-lg dark:border-white/10 dark:bg-zinc-900/95"
+                    className="absolute min-w-[200px] rounded-2xl border border-zinc-200 bg-white/95 p-3 text-xs shadow-lg dark:border-white/10 dark:bg-zinc-900/95"
                     style={{ left: tooltipStyles.left, top: tooltipStyles.top }}
                     onPointerLeave={handleTooltipLeave}
                 >
                     <div className="mb-2 flex items-center justify-between">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <div className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                             {labels[hover.index]}
                         </div>
                         {deleteSetId && (
@@ -2007,12 +2007,12 @@ function CardioChart({
             {hover && tooltipStyles && hoveredValues && (
                 <div
                     ref={tooltipRef}
-                    className="absolute min-w-[180px] rounded-2xl border border-zinc-200 bg-white/95 p-3 text-xs shadow-lg dark:border-white/10 dark:bg-zinc-900/95"
+                    className="absolute min-w-[190px] rounded-2xl border border-zinc-200 bg-white/95 p-3 text-xs shadow-lg dark:border-white/10 dark:bg-zinc-900/95"
                     style={{ left: tooltipStyles.left, top: tooltipStyles.top }}
                     onPointerLeave={handleTooltipLeave}
                 >
                     <div className="mb-2 flex items-center justify-between">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <div className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                             {labels[hover.index]}
                         </div>
                         {deleteSessionId && (

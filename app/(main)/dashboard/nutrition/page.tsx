@@ -1255,7 +1255,7 @@ function BWChartLiftsStyle({
     const pointerActive = useRef(false);
     const isCoarsePointer = useIsCoarsePointer();
     const tipRef = useRef<HTMLDivElement | null>(null);
-    const [tipW, setTipW] = useState(140);
+    const [tipW, setTipW] = useState(132);
 
     useEffect(() => {
         if (tipRef.current) {
@@ -1579,12 +1579,12 @@ function BWChartLiftsStyle({
                 {hover && labels.length > 0 && (
                     <div
                         ref={tipRef}
-                        className="absolute rounded-lg border bg-white px-3 py-2 text-[12px] shadow dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
+                        className="absolute w-max whitespace-nowrap rounded-lg border bg-white px-3 py-2 text-[12px] shadow dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100"
                         style={{ left: tooltipLeft, top: 120 }}
                         onPointerLeave={handleTooltipLeave}
                     >
                         <div className="mb-1 flex items-center justify-between gap-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            <div className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                                 {labels[hover.i]}
                             </div>
                             {canDelete && hoveredDate && (
