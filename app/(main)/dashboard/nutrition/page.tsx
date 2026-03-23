@@ -811,16 +811,16 @@ function MacrosFlipCard({
     return (
         <div className="rounded-xl border bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none [perspective:1200px] overflow-hidden xl:h-full">
             {/* toolbar */}
-            <div className="flex flex-nowrap items-center gap-3 px-4 pt-4 text-sm overflow-x-auto">
-                <h3 className="whitespace-nowrap font-semibold">Macros</h3>
+            <div className="flex items-center gap-2 overflow-hidden px-4 pt-4 text-sm">
+                <h3 className="shrink-0 font-semibold">Macros</h3>
                 <input
                     type="date"
                     value={dateISO}
                     onChange={(e) => onDateChange(e.target.value)}
-                    className="h-7 w-[130px] flex-shrink-0 rounded-md border px-2 text-xs outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                    className="h-7 min-w-0 w-[132px] whitespace-nowrap rounded-md border px-2 text-[11px] outline-none sm:w-[130px] sm:text-xs dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                     aria-label="Change date"
                 />
-                <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                     <button
                         onClick={onEditGoals}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs hover:bg-zinc-50 dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
@@ -830,14 +830,21 @@ function MacrosFlipCard({
                         <Sliders size={14} />
                     </button>
                     <button
-                        aria-label={flipped ? 'Close add food' : 'Add food'}
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${
+                        aria-label={flipped ? 'Close add food' : 'Add macros'}
+                        className={`inline-flex h-8 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-medium whitespace-nowrap sm:gap-1.5 sm:px-3 sm:text-sm ${
                             flipped ? 'bg-neutral-200 text-black dark:bg-white/20 dark:text-white' : 'bg-black text-white dark:bg-white dark:text-black'
                         } hover:opacity-90`}
                         onClick={() => setFlipped((v) => !v)}
-                        title={flipped ? 'Close' : 'Add food'}
+                        title={flipped ? 'Close' : 'Add macros'}
                     >
-                        {flipped ? <X size={16} /> : <Plus size={16} />}
+                        {flipped ? (
+                            <>
+                                <X size={14} />
+                                <span>Close</span>
+                            </>
+                        ) : (
+                            <span>Add Macros</span>
+                        )}
                     </button>
                 </div>
             </div>
