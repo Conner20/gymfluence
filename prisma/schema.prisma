@@ -125,6 +125,7 @@ model User {
   dashboardSharesGranted  DashboardShare[] @relation("DashboardShareOwner")
   dashboardSharesReceived DashboardShare[] @relation("DashboardShareViewer")
   pageViews              PageView[]
+  notificationDismissals NotificationDismissal[]
 }
 
 model DashboardShare {
@@ -211,6 +212,17 @@ model PageView {
   @@index([visitorId])
 }
 
+model NotificationDismissal {
+  id             String   @id @default(cuid())
+  notificationId String
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+
+  @@unique([userId, notificationId])
+  @@index([userId, createdAt])
+}
+
 model VerificationToken {
   identifier String
   token      String
@@ -236,11 +248,12 @@ model Post {
 }
 
 model Like {
-  id     String @id @default(cuid())
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  postId String
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
 
   @@unique([postId, userId])
 }

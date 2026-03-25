@@ -1,32 +1,52 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, X } from "lucide-react";
+
 import { formatRelativeTime } from "@/lib/utils";
 
 type Notification = {
     id: string;
-    type: "FOLLOW_REQUEST" | "FOLLOWED_YOU" | "REQUEST_ACCEPTED";
+    type:
+        | "FOLLOW_REQUEST"
+        | "FOLLOWED_YOU"
+        | "REQUEST_ACCEPTED"
+        | "MESSAGE"
+        | "LIKE"
+        | "COMMENT"
+        | "RATING"
+        | "DASHBOARD_SHARED";
     isRead: boolean;
     createdAt: string;
+    href: string;
+    body: string;
+    postTitle?: string;
+    postHref?: string;
+    ratingCount?: number;
+    groupedNotificationIds?: string[];
+    actionable?: boolean;
+    followId?: string | null;
     actor: {
         id: string;
         username: string | null;
         name: string | null;
         image?: string | null;
     };
-    followId?: string | null;
 };
 
 export default function NotificationsModal({
     open,
     onClose,
-    onAnyChange, // optional: parent can refresh follow counts or state after accept/decline
+    onAnyChange,
+    seenAt,
 }: {
     open: boolean;
     onClose: () => void;
     onAnyChange?: () => void;
+    seenAt?: number;
 }) {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<Notification[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -37,7 +57,6 @@ export default function NotificationsModal({
         setLoading(true);
         setError(null);
         try {
-            // 🔁 your notifications index route
             const res = await fetch("/api/user/notifications", { cache: "no-store" });
             if (!res.ok) throw new Error("Failed to load notifications");
             const data = await res.json();
@@ -52,7 +71,6 @@ export default function NotificationsModal({
 
     useEffect(() => {
         if (open) load();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     const respond = async (notificationId: string, action: "accept" | "decline") => {
@@ -60,7 +78,6 @@ export default function NotificationsModal({
             setActingId(notificationId);
             setError(null);
 
-            // ✅ hit your dynamic respond route: /api/user/notifications/[id]/respond
             const res = await fetch(`/api/user/notifications/${notificationId}/respond`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -72,9 +89,8 @@ export default function NotificationsModal({
                 throw new Error(txt || "Failed to respond");
             }
 
-            // Optimistic remove from the list
             setItems((prev) => prev.filter((n) => n.id !== notificationId));
-            onAnyChange?.(); // let parent refresh any counters/state if needed
+            onAnyChange?.();
         } catch (e: any) {
             setError(e?.message || "Failed to respond to request");
         } finally {
@@ -82,22 +98,64 @@ export default function NotificationsModal({
         }
     };
 
+    const dismissNotification = async (notificationIds: string[]) => {
+        try {
+            setError(null);
+            await Promise.all(
+                notificationIds.map(async (notificationId) => {
+                    const res = await fetch(`/api/user/notifications/${notificationId}`, {
+                        method: "DELETE",
+                    });
+                    if (!res.ok) {
+                        throw new Error("Failed to dismiss notification");
+                    }
+                }),
+            );
+
+            setItems((prev) => prev.filter((item) => !notificationIds.includes(item.id)));
+            onAnyChange?.();
+        } catch (e: any) {
+            setError(e?.message || "Failed to dismiss notification");
+        }
+    };
+
     if (!open) return null;
 
+    const ratingItems = items.filter((item) => item.type === "RATING");
+    const ratingCount = ratingItems.length;
+    const latestRating = ratingItems
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    const displayItems = items
+        .filter((item) => item.type !== "RATING")
+        .concat(
+            ratingCount > 0 && latestRating
+                ? [
+                      {
+                          ...latestRating,
+                          id: "rating-summary",
+                          ratingCount,
+                          groupedNotificationIds: ratingItems.map((item) => item.id),
+                      },
+                  ]
+                : [],
+        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     return (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center dark:bg-black/70">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-4 dark:bg-neutral-900 dark:text-gray-100 dark:border dark:border-white/10">
-                <div className="flex items-center justify-between mb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 dark:bg-black/70">
+            <div className="max-h-[80vh] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100">
+                <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Notifications</h3>
-                    <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close">
+                    <button className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close">
                         <X size={18} />
                     </button>
                 </div>
 
-                <div className="flex items-center justify-between mb-3">
+                <div className="mb-3 flex items-center justify-between">
                     <button
                         onClick={load}
-                        className="px-3 py-1.5 rounded border bg-white hover:bg-gray-50 text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
+                        className="rounded-full border bg-white px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-transparent dark:text-gray-100 dark:hover:bg-white/10"
                         disabled={loading}
                     >
                         Refresh
@@ -105,72 +163,146 @@ export default function NotificationsModal({
                     {loading && <span className="text-xs text-gray-500 dark:text-gray-400">Loading…</span>}
                 </div>
 
-                {error && <div className="text-sm text-red-500 mb-3">{error}</div>}
+                {error && <div className="mb-3 text-sm text-red-500">{error}</div>}
 
-                {items.length === 0 ? (
+                {displayItems.length === 0 ? (
                     <div className="text-sm text-gray-500 dark:text-gray-400">No notifications.</div>
                 ) : (
-                    <ul className="divide-y dark:divide-white/10">
-                        {items.map((n) => {
+                    <ul className="max-h-[62vh] divide-y overflow-y-auto pr-1 dark:divide-white/10">
+                        {displayItems.map((n) => {
                             const actorName = n.actor?.username || n.actor?.name || "User";
-                            const isFollowRequest = n.type === "FOLLOW_REQUEST";
                             const disabled = actingId === n.id;
+                            const isFollowRequest = n.type === "FOLLOW_REQUEST";
+                            const isMessage = n.type === "MESSAGE";
+                            const isRatingSummary = n.type === "RATING" && typeof n.ratingCount === "number";
+                            const actorHref = n.actor?.username ? `/u/${encodeURIComponent(n.actor.username)}` : n.href;
 
                             return (
-                                <li key={n.id} className="py-3 flex items-center gap-3">
-                                    {n.actor?.image ? (
-                                        <img
-                                            src={n.actor.image}
-                                            alt={actorName}
-                                            className="w-9 h-9 rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs dark:bg-white/10">
-                                            {actorName.slice(0, 2)}
-                                        </div>
-                                    )}
+                                <li key={n.id} className="py-3">
+                                    <div className={isRatingSummary ? "flex items-center" : "flex items-center gap-3"}>
+                                        {!isRatingSummary && n.actor?.image ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={n.actor.image}
+                                                alt={actorName}
+                                                className="h-10 w-10 rounded-full object-cover"
+                                            />
+                                        ) : !isRatingSummary ? (
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xs dark:bg-white/10">
+                                                {actorName.slice(0, 2)}
+                                            </div>
+                                        ) : null}
 
-                                    <div className="flex-1 min-w-0">
-                                        {isFollowRequest ? (
-                                            <div className="text-sm">
-                                                <span className="font-medium">{actorName}</span> requested to follow you.
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-3">
+                                                <div className="min-w-0 flex-1 text-sm text-zinc-900 dark:text-white">
+                                                    {isRatingSummary ? (
+                                                        <span className="text-zinc-600 dark:text-zinc-300">
+                                                            You received{" "}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    onClose();
+                                                                    router.push(n.href);
+                                                                }}
+                                                                className="font-semibold text-zinc-900 hover:underline dark:text-white"
+                                                            >
+                                                                {n.ratingCount}
+                                                            </button>{" "}
+                                                            rating{n.ratingCount === 1 ? "" : "s"}
+                                                        </span>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    onClose();
+                                                                    router.push(actorHref);
+                                                                }}
+                                                                className="font-medium hover:underline"
+                                                            >
+                                                                {actorName}
+                                                            </button>
+                                                            <span className="ml-1 text-zinc-600 dark:text-zinc-300">
+                                                                {isMessage ? "sent you a" : n.body}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                    {isMessage && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                onClose();
+                                                                router.push(n.href);
+                                                            }}
+                                                            className="ml-1 font-semibold hover:underline"
+                                                        >
+                                                            message
+                                                        </button>
+                                                    )}
+                                                    {n.postTitle && n.postHref && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    onClose();
+                                                                    router.push(n.postHref!);
+                                                                }}
+                                                                className="ml-1 font-semibold hover:underline"
+                                                            >
+                                                                {n.postTitle}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    <div
+                                                        className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 sm:text-xs"
+                                                        title={new Date(n.createdAt).toLocaleString()}
+                                                    >
+                                                        {formatRelativeTime(n.createdAt)}
+                                                    </div>
+                                                </div>
+                                                <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
+                                                    {isFollowRequest ? (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => respond(n.id, "accept")}
+                                                                className="rounded-full p-1.5 text-green-600 transition hover:bg-green-50 hover:text-green-700 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-500/10 dark:hover:text-green-300"
+                                                                aria-label="Accept follow request"
+                                                                disabled={disabled}
+                                                            >
+                                                                {disabled ? <span className="px-[3px] text-xs">…</span> : <Check size={15} />}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => respond(n.id, "decline")}
+                                                                className="rounded-full p-1.5 text-red-600 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                                                                aria-label="Decline follow request"
+                                                                disabled={disabled}
+                                                            >
+                                                                {disabled ? <span className="px-[3px] text-xs">…</span> : <X size={15} />}
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                dismissNotification(
+                                                                    n.groupedNotificationIds?.length
+                                                                        ? n.groupedNotificationIds
+                                                                        : [n.id],
+                                                                )
+                                                            }
+                                                            className="shrink-0 rounded-full p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-white"
+                                                            aria-label="Dismiss notification"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                        ) : n.type === "FOLLOWED_YOU" ? (
-                                            <div className="text-sm">
-                                                <span className="font-medium">{actorName}</span> followed you.
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm">
-                                                Your follow request to <span className="font-medium">{actorName}</span> was
-                                                accepted.
-                                            </div>
-                                        )}
-                                        <div
-                                            className="text-xs text-gray-500 dark:text-gray-400"
-                                            title={new Date(n.createdAt).toLocaleString()}
-                                        >
-                                            {formatRelativeTime(n.createdAt)}
                                         </div>
                                     </div>
-
-                                    {isFollowRequest ? (
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => respond(n.id, "accept")}
-                                                className="px-2.5 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 disabled:opacity-50"
-                                                disabled={disabled}
-                                            >
-                                                {disabled ? "…" : "Accept"}
-                                            </button>
-                                            <button
-                                                onClick={() => respond(n.id, "decline")}
-                                                className="px-2.5 py-1 rounded-md bg-gray-200 text-xs hover:bg-gray-300 disabled:opacity-50"
-                                                disabled={disabled}
-                                            >
-                                                {disabled ? "…" : "Decline"}
-                                            </button>
-                                        </div>
-                                    ) : null}
                                 </li>
                             );
                         })}

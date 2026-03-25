@@ -12,9 +12,10 @@ type MobileHeaderProps = {
     href?: string;
     subContent?: React.ReactNode;
     leftAccessory?: React.ReactNode;
+    rightAccessory?: React.ReactNode;
 };
 
-export default function MobileHeader({ title, href = "/", subContent, leftAccessory }: MobileHeaderProps) {
+export default function MobileHeader({ title, href = "/", subContent, leftAccessory, rightAccessory }: MobileHeaderProps) {
     const { data: session } = useSession();
     const [mobileNavOpen, setMobileNavOpen] = useState(true);
 
@@ -57,14 +58,17 @@ export default function MobileHeader({ title, href = "/", subContent, leftAccess
                         )}
                     </Link>
                 </h1>
-                <button
-                    type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full text-green-700 hover:bg-green-50 transition dark:text-white dark:hover:bg-white/10"
-                    onClick={() => persistState(!mobileNavOpen)}
-                    aria-label="Toggle menu"
-                >
-                    {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
-                </button>
+                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                    {rightAccessory}
+                    <button
+                        type="button"
+                        className="rounded-full p-2 text-green-700 transition hover:bg-green-50 dark:text-white dark:hover:bg-white/10"
+                        onClick={() => persistState(!mobileNavOpen)}
+                        aria-label="Toggle menu"
+                    >
+                        {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+                    </button>
+                </div>
             </header>
 
             {subContent && (

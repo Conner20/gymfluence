@@ -100,7 +100,6 @@ function RateGymModal({
       });
       onSuccess?.();
       onClose();
-      alert("Rating submitted and awaiting approval.");
     } catch (e: any) {
       setErr(e.message || "Failed to submit rating");
     } finally {
@@ -183,6 +182,7 @@ function ManageGymRatingsModal({
   const [history, setHistory] = React.useState<HistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
+  const router = useRouter();
 
   const who = (r: { rater?: { username: string | null; name: string | null } | null }) =>
     r?.rater?.username || r?.rater?.name || "Someone";
@@ -309,7 +309,20 @@ function ManageGymRatingsModal({
             {pending.map((r) => (
               <li key={r.id} className="border rounded p-3 dark:border-white/10">
                 <div className="flex items-center justify-between">
-                  <div className="font-medium">{who(r)} left a rating</div>
+                  <div className="font-medium">
+                    {r.rater?.username ? (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/u/${encodeURIComponent(r.rater!.username!)}`)}
+                        className="font-bold hover:underline"
+                      >
+                        {who(r)}
+                      </button>
+                    ) : (
+                      <span>{who(r)}</span>
+                    )}{" "}
+                    left a rating
+                  </div>
                   <div
                     className="text-xs text-neutral-500 dark:text-gray-400"
                     title={new Date(r.createdAt).toLocaleString()}
@@ -342,7 +355,19 @@ function ManageGymRatingsModal({
             {history.map((r) => (
               <li key={r.id} className="border rounded p-3 dark:border-white/10">
                 <div className="flex items-center justify-between">
-                  <div className="font-medium">{who(r)}</div>
+                  <div className="font-medium">
+                    {r.rater?.username ? (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/u/${encodeURIComponent(r.rater!.username!)}`)}
+                        className="font-bold hover:underline"
+                      >
+                        {who(r)}
+                      </button>
+                    ) : (
+                      <span>{who(r)}</span>
+                    )}
+                  </div>
                   <div
                     className="text-xs text-neutral-500 dark:text-gray-400"
                     title={new Date(r.createdAt).toLocaleString()}
@@ -406,6 +431,12 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (isOwnProfile && searchParams?.get("ratings") === "1") {
+      setShowManageRatings(true);
+    }
+  }, [isOwnProfile, searchParams]);
 
   const {
     loading,
@@ -917,7 +948,15 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
       <RateGymModal open={showRate} onClose={() => setShowRate(false)} gymId={gym?.id} />
       <ManageGymRatingsModal
         open={showManageRatings}
-        onClose={() => setShowManageRatings(false)}
+        onClose={() => {
+          setShowManageRatings(false);
+          if (searchParams?.get("ratings") === "1") {
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.delete("ratings");
+            const nextUrl = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+            router.replace(nextUrl, { scroll: false });
+          }
+        }}
         onApproved={({ newAverage, clients }) => {
           setLocalRating(newAverage ?? null);
           setLocalClients(clients ?? 0);

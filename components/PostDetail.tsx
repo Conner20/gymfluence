@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Heart, MessageCircle, Share2, X, Search } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Share2, X, Search } from "lucide-react";
 import clsx from "clsx";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
@@ -82,6 +82,7 @@ export default function PostDetail({
 
     const canShare = useMemo(() => !!session, [session]);
     const viewerUsername = session?.user?.username ?? null;
+    const showBackButton = !flat && !isEmbed;
 
     const fetchPost = async () => {
         setError(null);
@@ -404,6 +405,25 @@ export default function PostDetail({
     return (
         <>
             <div className={outerCls}>
+                {showBackButton && (
+                    <div className="mb-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (window.history.length > 1) {
+                                    router.back();
+                                    return;
+                                }
+                                router.push("/home");
+                            }}
+                            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 dark:border-white/10 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:bg-white/10"
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft size={14} />
+                            Back
+                        </button>
+                    </div>
+                )}
                 <article className={articleCls}>
                     <div className="flex flex-col gap-1 mb-2">
                         {isFlat ? (
