@@ -24,6 +24,7 @@ import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type BasicPost = {
     id: string;
@@ -110,6 +111,8 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     useEffect(() => {
         refreshPosts();
     }, [refreshPosts]);
+
+    useLiveRefresh(refreshPosts, { enabled: canViewPrivate, interval: 5000 });
 
     // When a post is created via CreatePost, refresh this profile
     useEffect(() => {

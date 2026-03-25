@@ -26,6 +26,7 @@ import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 /* --------------------------- helpers & local UI --------------------------- */
 
@@ -192,30 +193,35 @@ function ManageTrainerRatingsModal({
         setTab("pending");
     }, [open]);
 
+    const loadRatings = useCallback(async (silent = false) => {
+        if (!open) return;
+        if (!silent) setLoading(true);
+        setErr(null);
+        try {
+            if (tab === "pending") {
+                const rows: PendingLite[] = await fetch("/api/ratings?pendingFor=trainer", {
+                    cache: "no-store",
+                }).then((r) => r.json());
+                setPending(rows || []);
+            } else {
+                const rows: HistoryRow[] = await fetch("/api/ratings?historyFor=trainer", {
+                    cache: "no-store",
+                }).then((r) => r.json());
+                setHistory(rows || []);
+            }
+        } catch (e: any) {
+            setErr(e.message || "Failed to load");
+        } finally {
+            if (!silent) setLoading(false);
+        }
+    }, [open, tab]);
+
     useEffect(() => {
         if (!open) return;
-        (async () => {
-            setLoading(true);
-            setErr(null);
-            try {
-                if (tab === "pending") {
-                    const rows: PendingLite[] = await fetch("/api/ratings?pendingFor=trainer", {
-                        cache: "no-store",
-                    }).then((r) => r.json());
-                    setPending(rows || []);
-                } else {
-                    const rows: HistoryRow[] = await fetch("/api/ratings?historyFor=trainer", {
-                        cache: "no-store",
-                    }).then((r) => r.json());
-                    setHistory(rows || []);
-                }
-            } catch (e: any) {
-                setErr(e.message || "Failed to load");
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [open, tab]);
+        void loadRatings();
+    }, [open, tab, loadRatings]);
+
+    useLiveRefresh(() => loadRatings(true), { enabled: open, interval: 5000 });
 
     async function act(id: string, action: "APPROVE" | "DECLINE") {
         try {
@@ -493,6 +499,8 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
     useEffect(() => {
         refreshPosts();
     }, [refreshPosts]);
+
+    useLiveRefresh(refreshPosts, { enabled: canViewPrivate, interval: 5000 });
 
     useEffect(() => {
         if (!isOwnProfile) return;

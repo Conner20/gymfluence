@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type FollowState = {
     followers: number;
@@ -50,6 +51,8 @@ export function useFollow(targetUserId: string) {
             mounted.current = false;
         };
     }, [fetchState]);
+
+    useLiveRefresh(fetchState, { enabled: !!targetUserId, interval: 5000 });
 
     const refreshCounts = useCallback(() => fetchState(), [fetchState]);
 

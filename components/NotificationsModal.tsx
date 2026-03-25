@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 
 import { formatRelativeTime } from "@/lib/utils";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type Notification = {
     id: string;
@@ -52,9 +53,9 @@ export default function NotificationsModal({
     const [error, setError] = useState<string | null>(null);
     const [actingId, setActingId] = useState<string | null>(null);
 
-    const load = async () => {
+    const load = async (silent = false) => {
         if (!open) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
         setError(null);
         try {
             const res = await fetch("/api/user/notifications", { cache: "no-store" });
@@ -65,13 +66,15 @@ export default function NotificationsModal({
             setError(e?.message || "Failed to fetch notifications");
             setItems([]);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
     useEffect(() => {
         if (open) load();
     }, [open]);
+
+    useLiveRefresh(() => load(true), { enabled: open, interval: 5000 });
 
     const respond = async (notificationId: string, action: "accept" | "decline") => {
         try {
@@ -154,7 +157,7 @@ export default function NotificationsModal({
 
                 <div className="mb-3 flex items-center justify-between">
                     <button
-                        onClick={load}
+                        onClick={() => load()}
                         className="rounded-full border bg-white px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-transparent dark:text-gray-100 dark:hover:bg-white/10"
                         disabled={loading}
                     >
@@ -242,13 +245,14 @@ export default function NotificationsModal({
                                                     )}
                                                     {n.postTitle && n.postHref && (
                                                         <>
+                                                            <span className="text-zinc-600 dark:text-zinc-300"> </span>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
                                                                     onClose();
                                                                     router.push(n.postHref!);
                                                                 }}
-                                                                className="ml-1 font-semibold hover:underline"
+                                                                className="font-semibold hover:underline"
                                                             >
                                                                 {n.postTitle}
                                                             </button>

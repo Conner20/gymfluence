@@ -8,6 +8,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import NotificationsModal from "@/components/NotificationsModal";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type HomePageShellProps = {
     posts: any;
@@ -46,9 +47,9 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
     useEffect(() => {
         if (!seenKey) return;
         refreshNotificationCount();
-        const intervalId = window.setInterval(refreshNotificationCount, 30000);
-        return () => window.clearInterval(intervalId);
     }, [seenKey]);
+
+    useLiveRefresh(refreshNotificationCount, { enabled: !!seenKey, interval: 5000 });
 
     const openNotifications = () => {
         setNotificationsOpen(true);

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type LiteUser = {
     id: string;
@@ -98,6 +99,22 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
             fetchInitialPosts();
         }
     }, [initialPosts, fetchInitialPosts]);
+
+    const refreshVisiblePosts = useCallback(async () => {
+        try {
+            const res = await fetch("/api/posts", { cache: "no-store" });
+            if (!res.ok) return;
+            const latest: Post[] = await res.json();
+            setPosts((prev) => {
+                const remaining = prev.filter((post) => !latest.some((fresh) => fresh.id === post.id));
+                return [...latest, ...remaining];
+            });
+        } catch {
+            // ignore transient live refresh issues
+        }
+    }, []);
+
+    useLiveRefresh(refreshVisiblePosts, { enabled: true, interval: 5000 });
 
     // -------- Auto-refresh when a post is created --------
     useEffect(() => {

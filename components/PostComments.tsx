@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CornerDownRight, Trash2 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type Comment = {
     id: string;
@@ -30,8 +31,8 @@ export function PostComments({
     const [content, setContent] = useState("");
     const [loading, setLoading] = useState(true);
 
-    const fetchComments = async () => {
-        setLoading(true);
+    const fetchComments = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const res = await fetch(`/api/posts/${postId}/comments`, { cache: "no-store" });
             if (!res.ok) throw new Error();
@@ -53,6 +54,8 @@ export function PostComments({
         fetchComments();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [postId]);
+
+    useLiveRefresh(() => fetchComments(true), { enabled: true, interval: 5000 });
 
     const handleAdd = async (content: string, parentId?: string) => {
         if (!content.trim()) return;

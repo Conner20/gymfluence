@@ -8,6 +8,7 @@ import { ArrowLeft, Heart, MessageCircle, Share2, X, Search } from "lucide-react
 import clsx from "clsx";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
+import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type LiteUser = {
     id: string;
@@ -84,9 +85,9 @@ export default function PostDetail({
     const viewerUsername = session?.user?.username ?? null;
     const showBackButton = !flat && !isEmbed;
 
-    const fetchPost = async () => {
+    const fetchPost = async (silent = false) => {
         setError(null);
-        setLoading(true);
+        if (!silent) setLoading(true);
         try {
             const res = await fetch(
                 `/api/posts/${encodeURIComponent(postId)}`,
@@ -111,6 +112,8 @@ export default function PostDetail({
         fetchPost();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [postId]);
+
+    useLiveRefresh(() => fetchPost(true), { enabled: !!postId, interval: 5000 });
 
     // Auto-size when embedded in iframe (Messenger preview)
     useEffect(() => {
