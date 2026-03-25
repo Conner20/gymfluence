@@ -951,9 +951,10 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
         onClose={() => {
           setShowManageRatings(false);
           if (searchParams?.get("ratings") === "1") {
+            const currentPath = pathname ?? "/profile";
             const nextParams = new URLSearchParams(searchParams.toString());
             nextParams.delete("ratings");
-            const nextUrl = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+            const nextUrl = nextParams.toString() ? `${currentPath}?${nextParams.toString()}` : currentPath;
             router.replace(nextUrl, { scroll: false });
           }
         }}
