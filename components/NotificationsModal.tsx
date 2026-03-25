@@ -171,7 +171,7 @@ export default function NotificationsModal({
                 {displayItems.length === 0 ? (
                     <div className="text-sm text-gray-500 dark:text-gray-400">No notifications.</div>
                 ) : (
-                    <ul className="max-h-[62vh] divide-y overflow-y-auto pr-1 dark:divide-white/10">
+                    <ul className="scrollbar-slim max-h-[62vh] divide-y overflow-y-auto pr-1 dark:divide-white/10">
                         {displayItems.map((n) => {
                             const actorName = n.actor?.username || n.actor?.name || "User";
                             const disabled = actingId === n.id;
