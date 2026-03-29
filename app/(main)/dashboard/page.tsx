@@ -486,11 +486,7 @@ function LiftsChart({
                                     {label}
                                 </span>
                                 <span>
-                                    {key === 'time'
-                                        ? formatCardioMinutes(Number.isFinite(value) ? value : 0)
-                                        : value
-                                          ? `${value}${suffix}`
-                                          : '—'}
+                                    {value ? `${value}${suffix}` : '—'}
                                 </span>
                             </div>
                         ))}
@@ -1061,18 +1057,19 @@ function DashboardContent() {
             time: !cardioForm.time.trim(),
             distance: !cardioForm.distance.trim(),
         };
-        const timeMinutes = parseCardioDurationToMinutes(cardioForm.time);
-        if (!timeMinutes) {
+        const parsedTimeMinutes = parseCardioDurationToMinutes(cardioForm.time);
+        if (parsedTimeMinutes === null) {
             nextErrors.time = true;
         }
         const distanceValue = cardioForm.distance.trim() !== '' ? Number(cardioForm.distance) : undefined;
         if (distanceValue === undefined || !Number.isFinite(distanceValue) || distanceValue <= 0) {
             nextErrors.distance = true;
         }
-        if (nextErrors.time || nextErrors.distance) {
+        if (nextErrors.time || nextErrors.distance || parsedTimeMinutes === null) {
             setCardioFieldErrors(nextErrors);
             return;
         }
+        const timeMinutes = parsedTimeMinutes;
         const activityName = cardioForm.activity?.trim();
         if (!activityName) {
             alert('Please select or add an activity first.');
