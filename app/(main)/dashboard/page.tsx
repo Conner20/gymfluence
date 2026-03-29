@@ -114,6 +114,31 @@ function addDaysStr(dateStr: string, n: number) {
     return fmtDate(d);
 }
 
+function normalizeCardioDurationInput(value: string) {
+    const digits = value.replace(/\D/g, '').slice(-6);
+    const padded = digits.padStart(6, '0');
+    return `${padded.slice(0, 2)}:${padded.slice(2, 4)}:${padded.slice(4)}`;
+}
+
+function parseCardioDurationToMinutes(value: string) {
+    const normalized = value.trim();
+    const longMatch = normalized.match(/^(\d{2}):([0-5]\d):([0-5]\d)$/);
+    if (!longMatch) return null;
+    const hours = Number(longMatch[1]);
+    const minutes = Number(longMatch[2]);
+    const seconds = Number(longMatch[3]);
+    const totalMinutes = Math.round((hours * 3600 + minutes * 60 + seconds) / 60);
+    return totalMinutes > 0 ? totalMinutes : null;
+}
+
+function formatCardioMinutes(value: number) {
+    if (!Number.isFinite(value) || value <= 0) return '00:00';
+    const totalMinutes = Math.max(0, Math.round(value));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 function buildCardioSeries(
     sessions: CardioSessionEntry[],
     mode: CardioMode,
@@ -460,7 +485,13 @@ function LiftsChart({
                                     <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />
                                     {label}
                                 </span>
-                                <span>{value ? `${value}${suffix}` : '—'}</span>
+                                <span>
+                                    {key === 'time'
+                                        ? formatCardioMinutes(Number.isFinite(value) ? value : 0)
+                                        : value
+                                          ? `${value}${suffix}`
+                                          : '—'}
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -591,6 +622,10 @@ function DashboardContent() {
     const [cardioRange, setCardioRange] = useState<RangeKey>('1W');
     const [cardioDistanceUnit, setCardioDistanceUnit] = useState<DistanceUnit>('mi');
     const [cardioActivities, setCardioActivities] = useState<string[]>(DEFAULT_CARDIO_ACTIVITIES);
+    const [cardioFieldErrors, setCardioFieldErrors] = useState<CardioFieldErrors>({
+        time: false,
+        distance: false,
+    });
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [shareLoading, setShareLoading] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
@@ -640,6 +675,14 @@ function DashboardContent() {
     useEffect(() => {
         setSelectedViewUser(viewParam && viewParam.length ? viewParam : null);
     }, [viewParam]);
+
+    useEffect(() => {
+        if (!cardioFieldErrors.time && !cardioFieldErrors.distance) return;
+        const timeoutId = window.setTimeout(() => {
+            setCardioFieldErrors({ time: false, distance: false });
+        }, 1200);
+        return () => window.clearTimeout(timeoutId);
+    }, [cardioFieldErrors]);
 
     // timer (smooth)
     // Load from server (Prisma) on mount
@@ -1014,8 +1057,20 @@ function DashboardContent() {
 
     const handleCardioSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const timeMinutes = Number(cardioForm.time);
-        if (!Number.isFinite(timeMinutes) || timeMinutes <= 0) {
+        const nextErrors: CardioFieldErrors = {
+            time: !cardioForm.time.trim(),
+            distance: !cardioForm.distance.trim(),
+        };
+        const timeMinutes = parseCardioDurationToMinutes(cardioForm.time);
+        if (!timeMinutes) {
+            nextErrors.time = true;
+        }
+        const distanceValue = cardioForm.distance.trim() !== '' ? Number(cardioForm.distance) : undefined;
+        if (distanceValue === undefined || !Number.isFinite(distanceValue) || distanceValue <= 0) {
+            nextErrors.distance = true;
+        }
+        if (nextErrors.time || nextErrors.distance) {
+            setCardioFieldErrors(nextErrors);
             return;
         }
         const activityName = cardioForm.activity?.trim();
@@ -1023,7 +1078,6 @@ function DashboardContent() {
             alert('Please select or add an activity first.');
             return;
         }
-        const distanceValue = cardioForm.distance.trim() !== '' ? Number(cardioForm.distance) : undefined;
         const caloriesValue = cardioForm.calories.trim() !== '' ? Number(cardioForm.calories) : undefined;
 
         try {
@@ -1037,6 +1091,7 @@ function DashboardContent() {
             });
             setCardioSessions((prev) => [created, ...prev]);
             setCardioForm((prev) => ({ ...prev, time: '', distance: '', calories: '' }));
+            setCardioFieldErrors({ time: false, distance: false });
         } catch (error) {
             console.error(error);
         }
@@ -1262,6 +1317,7 @@ function DashboardContent() {
             <CardioForm
                 form={cardioForm}
                 setForm={setCardioForm}
+                errors={cardioFieldErrors}
                 onSubmit={handleCardioSubmit}
                 distanceUnit={cardioDistanceUnit}
                 setDistanceUnit={setCardioDistanceUnit}
@@ -1571,9 +1627,15 @@ type CardioFormState = {
     date: string;
 };
 
+type CardioFieldErrors = {
+    time: boolean;
+    distance: boolean;
+};
+
 type CardioFormProps = {
     form: CardioFormState;
     setForm: React.Dispatch<React.SetStateAction<CardioFormState>>;
+    errors: CardioFieldErrors;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     distanceUnit: DistanceUnit;
     setDistanceUnit: React.Dispatch<React.SetStateAction<DistanceUnit>>;
@@ -1586,6 +1648,7 @@ type CardioFormProps = {
 function CardioForm({
     form,
     setForm,
+    errors,
     onSubmit,
     distanceUnit,
     setDistanceUnit,
@@ -1594,7 +1657,8 @@ function CardioForm({
     removeActivity,
     onActivityChange,
 }: CardioFormProps) {
-    const update = (field: keyof CardioFormState) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
+    const update = (field: keyof CardioFormState) => (value: string) =>
+        setForm((prev) => ({ ...prev, [field]: value }));
     const hasActivities = activities.length > 0;
 
     return (
@@ -1648,15 +1712,20 @@ function CardioForm({
                 </div>
                 <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
                     <div className="flex items-center justify-between">
-                        <span>Time (min)</span>
+                        <span>Time</span>
                         <span className="h-5 w-16" />
                     </div>
                     <input
                         value={form.time}
-                        onChange={(e) => update('time')(e.target.value)}
-                        placeholder="30"
-                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
-                        required
+                        onChange={(e) => update('time')(normalizeCardioDurationInput(e.target.value))}
+                        placeholder="HH:MM:SS"
+                        inputMode="numeric"
+                        pattern="[0-9]{2}:[0-5][0-9]:[0-5][0-9]"
+                        className={`rounded-xl border bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:bg-white/5 dark:text-white ${
+                            errors.time
+                                ? 'border-red-500 dark:border-red-400'
+                                : 'border-zinc-200 dark:border-white/15'
+                        }`}
                     />
                 </label>
                 <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
@@ -1679,7 +1748,11 @@ function CardioForm({
                         value={form.distance}
                         onChange={(e) => update('distance')(e.target.value)}
                         placeholder={distanceUnit === 'km' ? '7.2' : '4.5'}
-                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white"
+                        className={`rounded-xl border bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-green-600 focus:outline-none dark:bg-white/5 dark:text-white ${
+                            errors.distance
+                                ? 'border-red-500 dark:border-red-400'
+                                : 'border-zinc-200 dark:border-white/15'
+                        }`}
                     />
                 </label>
                 <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-300">
