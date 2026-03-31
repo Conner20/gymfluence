@@ -183,6 +183,7 @@ model GymProfile {
   address String
   phone   String
   website String
+  showWebsiteButton Boolean @default(false)
   fee     Float
 
   city      String?

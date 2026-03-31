@@ -26,7 +26,10 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
     const [profileError, setProfileError] = useState<string | null>(null);
+    const [websiteToggleSaving, setWebsiteToggleSaving] = useState(false);
     const [accountEmail, setAccountEmail] = useState("");
+    const [role, setRole] = useState("");
+    const [showWebsiteButton, setShowWebsiteButton] = useState(false);
 
     // Profile text fields
     const [name, setName] = useState("");
@@ -114,6 +117,8 @@ export default function SettingsPage() {
                 setImageUrl(me.image || null);
                 setHasPassword(Boolean(me.hasPassword));
                 setAccountEmail(me.email || "");
+                setRole(me.role || "");
+                setShowWebsiteButton(Boolean(me.showWebsiteButton));
 
                 setCity(me.city || "");
                 setStateRegion(me.state || "");
@@ -177,6 +182,9 @@ export default function SettingsPage() {
             form.append("country", country);
             if (lat != null) form.append("lat", String(lat));
             if (lng != null) form.append("lng", String(lng));
+            if (role === "GYM") {
+                form.append("showWebsiteButton", String(showWebsiteButton));
+            }
 
             if (file) form.append("image", file);
 
@@ -210,6 +218,33 @@ export default function SettingsPage() {
             setTimeout(() => setProfileSaveState("idle"), 2000);
         } catch {
             setProfileSaveState("idle");
+        }
+    };
+
+    const handleWebsiteToggle = async () => {
+        if (websiteToggleSaving) return;
+
+        const nextValue = !showWebsiteButton;
+        setShowWebsiteButton(nextValue);
+        setWebsiteToggleSaving(true);
+        setProfileError(null);
+
+        try {
+            const res = await fetch("/api/user/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ showWebsiteButton: nextValue }),
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to save website button setting.");
+            }
+        } catch (error) {
+            console.error(error);
+            setShowWebsiteButton(!nextValue);
+            setProfileError("Failed to save website button setting.");
+        } finally {
+            setWebsiteToggleSaving(false);
         }
     };
 
@@ -391,6 +426,33 @@ export default function SettingsPage() {
                                         onChange={(e) => setBio(e.target.value)}
                                     />
                                 </div>
+
+                                {role === "GYM" && (
+                                    <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 dark:border-white/10">
+                                        <div className="pr-4">
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Show website button on profile</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                Display a website link icon on your gym profile next to the profile actions.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={showWebsiteButton}
+                                            onClick={handleWebsiteToggle}
+                                            disabled={websiteToggleSaving}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                                                showWebsiteButton ? "bg-green-600" : "bg-gray-300 dark:bg-neutral-700"
+                                            } ${websiteToggleSaving ? "cursor-not-allowed opacity-60" : ""}`}
+                                        >
+                                            <span
+                                                className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                                                    showWebsiteButton ? "translate-x-5" : "translate-x-1"
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <button

@@ -16,14 +16,16 @@ const OPTIONS = [
     "flexibility & mobility", "sport performance", "injury recovery"
 ];
 
-// TOP: update GymFormSchema so fee is a number (coerced from input)
-// in user-onboarding/page.tsx
 const GymFormSchema = z.object({
-    name: z.string().min(1),
-    address: z.string().min(1),
-    phone: z.string().min(1),
-    website: z.string().min(1),
-    fee: z.coerce.number().positive("Fee must be a positive number"),
+    name: z.string().trim().min(1, "Organization name is required"),
+    address: z.string().trim().min(1, "Address is required"),
+    phone: z.string().trim().min(1, "Phone number is required"),
+    website: z
+        .string()
+        .trim()
+        .optional()
+        .or(z.literal("")),
+    fee: z.coerce.number().positive("Monthly membership fee is required"),
 });
 type GymFormValues = z.infer<typeof GymFormSchema>;
 
@@ -40,6 +42,15 @@ const LOCKED_CARD_CLASS = "w-full max-w-sm space-y-6 rounded-3xl border border-z
 const LOCKED_INPUT_CLASS = "bg-white text-zinc-900 border border-zinc-200 placeholder:text-zinc-500 focus-visible:border-emerald-600 focus-visible:ring-emerald-600/20 dark:bg-white dark:text-zinc-900 dark:border-zinc-200 dark:placeholder:text-zinc-500 dark:focus-visible:border-emerald-600 dark:focus-visible:ring-emerald-600/20";
 const LOCKED_PRIMARY_BUTTON = "rounded-2xl bg-green-700 text-white hover:bg-black";
 const LOCKED_TEXT_BUTTON = "text-sm text-zinc-500 transition hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-800";
+
+const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+
+    if (digits.length === 0) return '';
+    if (digits.length < 4) return `(${digits}`;
+    if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
 
 
 
@@ -77,7 +88,7 @@ function UserOnboardingContent() {
             address: "",
             phone: "",
             website: "",
-            fee: 0,
+            fee: undefined,
         },
     });
 
@@ -162,12 +173,12 @@ function UserOnboardingContent() {
                         <p className="text-sm text-zinc-500">Share the essentials so members can find you faster.</p>
                     </div>
                     <Form {...gymFormHook}>
-                        <form onSubmit={handleGymProfileSubmit} className="w-full space-y-5">
+                        <form onSubmit={handleGymProfileSubmit} className="w-full space-y-3.5">
                             <FormField
                                 control={gymFormHook.control}
                                 name="name"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Organization name
                                         </FormLabel>
@@ -186,7 +197,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="address"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Address
                                         </FormLabel>
@@ -205,7 +216,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="phone"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Phone number
                                         </FormLabel>
@@ -214,6 +225,7 @@ function UserOnboardingContent() {
                                                 placeholder="(555) 123-4567"
                                                 className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
+                                                onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -224,7 +236,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="website"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Website
                                         </FormLabel>
@@ -243,7 +255,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="fee"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Monthly membership fee
                                         </FormLabel>
@@ -270,7 +282,7 @@ function UserOnboardingContent() {
                                     </FormItem>
                                 )}
                             />
-                            <div className="space-y-3">
+                            <div className="space-y-2.5 pt-1">
                                 <Button className={`w-full ${LOCKED_PRIMARY_BUTTON}`} type="submit">Publish profile</Button>
                                 <button
                                     type="button"
@@ -422,12 +434,12 @@ function UserOnboardingContent() {
                             <p className="text-sm text-zinc-500">Share the essentials so members can find you faster.</p>
                         </div>
                     <Form {...gymFormHook}>
-                        <form onSubmit={handleGymProfileSubmit} className="w-full space-y-5">
+                        <form onSubmit={handleGymProfileSubmit} className="w-full space-y-3.5">
                             <FormField
                                 control={gymFormHook.control}
                                 name="name"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Organization name
                                         </FormLabel>
@@ -446,7 +458,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="address"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Address
                                         </FormLabel>
@@ -465,7 +477,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="phone"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Phone number
                                         </FormLabel>
@@ -474,6 +486,7 @@ function UserOnboardingContent() {
                                                 placeholder="(555) 123-4567"
                                                 className={`${LOCKED_INPUT_CLASS} rounded-2xl px-4 py-2 text-sm`}
                                                 {...field}
+                                                onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -484,7 +497,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="website"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Website
                                         </FormLabel>
@@ -503,7 +516,7 @@ function UserOnboardingContent() {
                                 control={gymFormHook.control}
                                 name="fee"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="space-y-1">
                                         <FormLabel className="mb-1 text-sm font-medium text-zinc-800">
                                             Monthly membership fee
                                         </FormLabel>
@@ -530,7 +543,7 @@ function UserOnboardingContent() {
                                     </FormItem>
                                 )}
                             />
-                            <Button className={`w-full mt-6 ${LOCKED_PRIMARY_BUTTON}`} type="submit">Publish profile</Button>
+                            <Button className={`mt-4 w-full ${LOCKED_PRIMARY_BUTTON}`} type="submit">Publish profile</Button>
                         </form>
                     </Form>
                     </div>

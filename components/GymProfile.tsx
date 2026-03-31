@@ -9,6 +9,7 @@ import {
   UserMinus,
   MessageSquare,
   Share2,
+  Link as LinkIcon,
   Lock,
   ArrowLeft,
   Heart,
@@ -426,6 +427,7 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
 
   const isOwnProfile = pathname === "/profile" || session?.user?.id === user.id;
   const gym = user.gymProfile;
+  const gymWebsite = typeof gym?.website === "string" ? gym.website.trim() : "";
 
   // keep local rating/clients in sync after approvals
   const [localRating, setLocalRating] = useState<number | null>(gym?.rating ?? null);
@@ -608,8 +610,15 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
   const [showNotifications, setShowNotifications] = useState(false);
 
   const [viewMode, setViewMode] = useState<"grid" | "scroll">("grid");
+  const showWebsiteAction = Boolean(gym?.showWebsiteButton && gymWebsite);
 
   const requested = user.isPrivate ? isPending || optimisticRequested : false;
+
+  const handleWebsiteClick = () => {
+    if (!gymWebsite) return;
+    const href = /^https?:\/\//i.test(gymWebsite) ? gymWebsite : `https://${gymWebsite}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col lg:flex-row gap-6 lg:gap-0 bg-[#f8f8f8] dark:bg-[#050505] dark:text-gray-100">
@@ -766,18 +775,23 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                     </span>
                   )}
                 </button>
-                <div className="flex gap-2">
+                <div
+                  className={clsx(
+                    "grid gap-2",
+                    showWebsiteAction ? "grid-cols-4" : "grid-cols-3"
+                  )}
+                >
                   <button
                     onClick={handleMessage}
-                    className="flex-1 py-1.5 rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                    className="h-9 w-full rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                    title="Message"
                   >
                     <MessageSquare size={16} />
-                    <span>Message</span>
                   </button>
                   <button
                     onClick={handleShare}
                     className={clsx(
-                      "w-9 h-9 shrink-0 rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 dark:bg-transparent dark:hover:bg-white/10",
+                      "h-9 w-full rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 dark:bg-transparent dark:hover:bg-white/10",
                       shareActive
                         ? "text-green-500 border-green-500 dark:text-green-400 dark:border-green-500"
                         : "text-zinc-700 border-gray-200 dark:text-gray-100 dark:border-white/20"
@@ -786,9 +800,18 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
                   >
                     <Share2 size={16} />
                   </button>
+                  {showWebsiteAction && (
+                    <button
+                      onClick={handleWebsiteClick}
+                      className="h-9 w-full rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 text-zinc-700 border-gray-200 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                      title="Visit website"
+                    >
+                      <LinkIcon size={16} />
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowRate(true)}
-                    className="w-9 h-9 rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center dark:bg-transparent dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
+                    className="h-9 w-full rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center dark:bg-transparent dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                     title="Rate this gym"
                   >
                     <Star size={16} />
@@ -803,6 +826,15 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
               </>
             ) : (
               <>
+                {showWebsiteAction && (
+                  <button
+                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10 inline-flex items-center justify-center gap-2"
+                    onClick={handleWebsiteClick}
+                  >
+                    <LinkIcon size={16} />
+                    <span>Website</span>
+                  </button>
+                )}
                 <button
                   className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
                   onClick={() => setShowNotifications(true)}

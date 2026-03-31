@@ -29,7 +29,7 @@ export async function GET() {
                 select: { bio: true, city: true, state: true, country: true, lat: true, lng: true },
             },
             gymProfile: {
-                select: { bio: true, city: true, state: true, country: true, lat: true, lng: true },
+                select: { bio: true, city: true, state: true, country: true, lat: true, lng: true, website: true, showWebsiteButton: true },
             },
         },
     });
@@ -63,6 +63,8 @@ export async function GET() {
         country: profile?.country ?? null,
         lat: profile?.lat ?? null,
         lng: profile?.lng ?? null,
+        website: me.gymProfile?.website ?? null,
+        showWebsiteButton: me.gymProfile?.showWebsiteButton ?? false,
     });
 }
 
@@ -98,6 +100,7 @@ export async function PATCH(req: Request) {
     let country: string | undefined;
     let lat: number | undefined;
     let lng: number | undefined;
+    let showWebsiteButton: boolean | undefined;
 
     if (ct.includes("multipart/form-data")) {
         const form = await req.formData();
@@ -112,11 +115,15 @@ export async function PATCH(req: Request) {
 
         const latStr = (form.get("lat") as string | null) || "";
         const lngStr = (form.get("lng") as string | null) || "";
+        const showWebsiteButtonValue = form.get("showWebsiteButton");
         const latNum = latStr ? Number(latStr) : NaN;
         const lngNum = lngStr ? Number(lngStr) : NaN;
         if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
             lat = latNum;
             lng = lngNum;
+        }
+        if (showWebsiteButtonValue !== null) {
+            showWebsiteButton = String(showWebsiteButtonValue) === "true";
         }
 
         const file = form.get("image");
@@ -160,6 +167,9 @@ export async function PATCH(req: Request) {
             lat = body.lat;
             lng = body.lng;
         }
+        if (typeof body?.showWebsiteButton === "boolean") {
+            showWebsiteButton = body.showWebsiteButton;
+        }
     }
 
     // Update base User fields
@@ -182,7 +192,8 @@ export async function PATCH(req: Request) {
         state !== undefined ||
         country !== undefined ||
         lat !== undefined ||
-        lng !== undefined;
+        lng !== undefined ||
+        showWebsiteButton !== undefined;
 
     if (hasGeoUpdate) {
         const geoData = {
@@ -191,6 +202,7 @@ export async function PATCH(req: Request) {
             ...(country !== undefined ? { country } : {}),
             ...(lat !== undefined ? { lat } : {}),
             ...(lng !== undefined ? { lng } : {}),
+            ...(showWebsiteButton !== undefined ? { showWebsiteButton } : {}),
         };
 
         if (me.role === "TRAINEE" && me.traineeProfile) {
@@ -225,7 +237,7 @@ export async function PATCH(req: Request) {
             role: true,
             traineeProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true } },
             trainerProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true } },
-            gymProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true } },
+            gymProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true, website: true, showWebsiteButton: true } },
         },
     });
 
@@ -254,5 +266,7 @@ export async function PATCH(req: Request) {
         country: profile?.country ?? null,
         lat: profile?.lat ?? null,
         lng: profile?.lng ?? null,
+        website: out?.gymProfile?.website ?? null,
+        showWebsiteButton: out?.gymProfile?.showWebsiteButton ?? false,
     });
 }
