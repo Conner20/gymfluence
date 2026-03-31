@@ -204,12 +204,14 @@ model GymProfile {
 model PageView {
   id        String   @id @default(cuid())
   path      String
+  origin    String?
   visitorId String?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String?
 
   @@index([path])
+  @@index([origin])
   @@index([createdAt])
   @@index([visitorId])
 }

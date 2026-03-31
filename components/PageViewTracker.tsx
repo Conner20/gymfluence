@@ -28,7 +28,11 @@ export default function PageViewTracker() {
         if (!pathname || pathname === lastPathRef.current) return;
         lastPathRef.current = pathname;
 
-        const body = JSON.stringify({ path: pathname, visitorId: getVisitorId() });
+        const body = JSON.stringify({
+            path: pathname,
+            visitorId: getVisitorId(),
+            origin: typeof window !== 'undefined' ? window.location.origin : null,
+        });
 
         if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
             const blob = new Blob([body], { type: 'application/json' });

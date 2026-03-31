@@ -16,6 +16,7 @@ type ChartPoint = {
 
 type SimplePageView = {
     path: string;
+    origin: string | null;
     createdAt: Date;
     userId: string | null;
     visitorId: string | null;
@@ -23,6 +24,8 @@ type SimplePageView = {
 
 const CHART_WINDOW_DAYS = 30;
 const ACTIVE_WINDOW_DAYS = 7;
+const PRODUCTION_ORIGIN = "https://fittingin.co";
+const LANDING_METRICS_RESET_AT = new Date("2026-03-31T00:00:00-04:00");
 
 function formatNumber(value: number) {
     return new Intl.NumberFormat("en-US").format(value);
@@ -99,6 +102,7 @@ export default async function AdminMetricsPage() {
             },
             select: {
                 path: true,
+                origin: true,
                 createdAt: true,
                 userId: true,
                 visitorId: true,
@@ -109,9 +113,13 @@ export default async function AdminMetricsPage() {
             by: ["visitorId"],
             where: {
                 path: "/",
+                origin: PRODUCTION_ORIGIN,
                 userId: null,
                 visitorId: {
                     not: null,
+                },
+                createdAt: {
+                    gte: LANDING_METRICS_RESET_AT,
                 },
             },
             _min: {
@@ -128,19 +136,21 @@ export default async function AdminMetricsPage() {
     const nonAdminUsers = users.filter((user) => !adminUserIds.has(user.id));
     const nonAdminPageViews = pageViews.filter((view) => !view.userId || !adminUserIds.has(view.userId));
 
-    const viewsInWindow = nonAdminPageViews.filter((view) => view.createdAt >= chartStart);
-    const userActivityViews = viewsInWindow.filter(
+    const productionViewsInWindow = nonAdminPageViews.filter(
+        (view) => view.createdAt >= chartStart && view.origin === PRODUCTION_ORIGIN,
+    );
+    const userActivityViews = productionViewsInWindow.filter(
         (view) => Boolean(view.userId) && isUserActivityPath(view.path),
     );
     const recentActiveViews = nonAdminPageViews.filter(
         (view) => Boolean(view.userId) && isUserActivityPath(view.path) && view.createdAt >= weekAgo,
     );
     const totalUsers = users.length;
-    const newUsersInWindow = nonAdminUsers.filter((user) => user.createdAt >= chartStart).length;
+    const newUsersInWindow = nonAdminUsers.filter((user) => user.createdAt >= LANDING_METRICS_RESET_AT).length;
     const activeUsers = getDistinctCount(recentActiveViews.map((view) => view.userId));
     const uniqueLandingVisitors = firstTimeLandingVisitors.filter((visitor) => {
         const firstSeenAt = visitor._min.createdAt;
-        return firstSeenAt && firstSeenAt >= chartStart;
+        return firstSeenAt && firstSeenAt >= LANDING_METRICS_RESET_AT;
     }).length;
     const conversionBase = Math.max(uniqueLandingVisitors, newUsersInWindow);
     const conversionRate = conversionBase > 0 ? newUsersInWindow / conversionBase : 0;
@@ -255,14 +265,14 @@ export default async function AdminMetricsPage() {
                         </p>
                     </div>
                     <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-                        <p className="text-sm text-zinc-500 dark:text-white/60">Landing visitors (30d)</p>
+                        <p className="text-sm text-zinc-500 dark:text-white/60">Landing visitors</p>
                         <p className="mt-2 text-3xl font-semibold">{formatNumber(uniqueLandingVisitors)}</p>
-                        <p className="text-xs text-zinc-500 dark:text-white/60">Unique non-users first seen on `/`</p>
+                        <p className="text-xs text-zinc-500 dark:text-white/60">Unique non-users first seen on `https://fittingin.co/` since Mar 31, 2026</p>
                     </div>
                     <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-                        <p className="text-sm text-zinc-500 dark:text-white/60">Conversion rate (30d)</p>
+                        <p className="text-sm text-zinc-500 dark:text-white/60">Conversion rate</p>
                         <p className="mt-2 text-3xl font-semibold">{formatPercent(conversionRate)}</p>
-                        <p className="text-xs text-zinc-500 dark:text-white/60">New users / unique landing visitors</p>
+                        <p className="text-xs text-zinc-500 dark:text-white/60">Signups since Mar 31, 2026 / production landing visitors</p>
                     </div>
                 </div>
 
@@ -299,7 +309,7 @@ export default async function AdminMetricsPage() {
                         </div>
                         <div className="mt-4 space-y-3">
                             {topPages.length === 0 && (
-                                <p className="text-sm text-zinc-500 dark:text-white/60">No signed-in page activity yet.</p>
+                                <p className="text-sm text-zinc-500 dark:text-white/60">No production signed-in page activity yet.</p>
                             )}
                             {topPages.map((page) => (
                                 <div
