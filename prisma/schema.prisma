@@ -184,6 +184,7 @@ model GymProfile {
   phone   String
   website String
   showWebsiteButton Boolean @default(false)
+  isVerified Boolean @default(false)
   fee     Float
 
   city      String?

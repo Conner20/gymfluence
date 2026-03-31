@@ -52,6 +52,14 @@ export async function GET(req: Request) {
             followers: number;
             following: number;
         };
+        gymProfile: {
+            name: string;
+            address: string;
+            phone: string;
+            website: string;
+            fee: number;
+            isVerified: boolean;
+        } | null;
     }> = [];
 
     try {
@@ -74,6 +82,16 @@ export async function GET(req: Request) {
                         comments: true,
                         followers: true,
                         following: true,
+                    },
+                },
+                gymProfile: {
+                    select: {
+                        name: true,
+                        address: true,
+                        phone: true,
+                        website: true,
+                        fee: true,
+                        isVerified: true,
                     },
                 },
             },
@@ -101,6 +119,16 @@ export async function GET(req: Request) {
                         comments: true,
                         followers: true,
                         following: true,
+                    },
+                },
+                gymProfile: {
+                    select: {
+                        name: true,
+                        address: true,
+                        phone: true,
+                        website: true,
+                        fee: true,
+                        isVerified: true,
                     },
                 },
             },

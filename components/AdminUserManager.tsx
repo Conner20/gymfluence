@@ -19,6 +19,14 @@ type AdminUser = {
     hasAdminAccess: boolean;
     isPrivate: boolean;
     lastActiveAt: string | null;
+    gymProfile: {
+        name: string;
+        address: string;
+        phone: string;
+        website: string;
+        fee: number;
+        isVerified: boolean;
+    } | null;
     _count: {
         post: number;
         likes: number;
@@ -101,6 +109,7 @@ export default function AdminUserManager() {
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [updatingPrivileges, setUpdatingPrivileges] = useState(false);
+    const [verifyingGym, setVerifyingGym] = useState(false);
     const [posts, setPosts] = useState<AdminPost[]>([]);
     const [comments, setComments] = useState<AdminComment[]>([]);
     const [activity, setActivity] = useState<AdminActivityEntry[]>([]);
@@ -382,6 +391,45 @@ export default function AdminUserManager() {
         }
     };
 
+    const verifyGym = async () => {
+        if (!activeUser || activeUser.role !== "GYM" || activeUser.gymProfile?.isVerified || !requirePassword()) return;
+        setVerifyingGym(true);
+        setMessage(null);
+        try {
+            const res = await fetch(`/api/admin/users/${activeUser.id}/verify`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.message || "Failed to verify gym.");
+            }
+
+            setUsers((prev) =>
+                prev.map((user) =>
+                    user.id === activeUser.id
+                        ? {
+                              ...user,
+                              gymProfile: user.gymProfile
+                                  ? { ...user.gymProfile, isVerified: true }
+                                  : user.gymProfile,
+                          }
+                        : user
+                )
+            );
+            setMessage({ type: "success", text: data?.message || "Gym verified." });
+        } catch (err) {
+            console.error(err);
+            setMessage({
+                type: "error",
+                text: err instanceof Error ? err.message : "Failed to verify gym.",
+            });
+        } finally {
+            setVerifyingGym(false);
+        }
+    };
+
     return (
         <div className="w-full max-w-5xl space-y-6">
             <section className="rounded-2xl border border-black/5 bg-white p-6 shadow-lg shadow-black/10 dark:border-white/10 dark:bg-neutral-900/80 dark:shadow-black/20">
@@ -418,6 +466,7 @@ export default function AdminUserManager() {
                             {users.map((user) => {
                                 const isSelected = selectedIds.includes(user.id);
                                 const activityParts = getRelativeActivityParts(user.lastActiveAt);
+                                const isUnverifiedGym = user.role === "GYM" && !user.gymProfile?.isVerified;
                                 return (
                                     <li key={user.id}>
                                         <button
@@ -426,7 +475,9 @@ export default function AdminUserManager() {
                                             className={`group flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left transition sm:items-center sm:justify-between ${
                                                 isSelected
                                                     ? "border-black/40 bg-white dark:bg-white/10"
-                                                    : "border-transparent bg-white hover:border-black/10 dark:bg-white/5 dark:hover:border-white/20 dark:border-transparent"
+                                                    : isUnverifiedGym
+                                                        ? "border-red-200 bg-red-50 hover:border-red-300 dark:border-red-500/30 dark:bg-red-500/10 dark:hover:border-red-400/40"
+                                                        : "border-transparent bg-white hover:border-black/10 dark:bg-white/5 dark:hover:border-white/20 dark:border-transparent"
                                             }`}
                                         >
                                             <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -447,6 +498,11 @@ export default function AdminUserManager() {
                                                     <p className="truncate text-xs text-zinc-500 dark:text-white/60">
                                                         {user.email ?? "No email"} · {user.role ?? "No role"}
                                                     </p>
+                                                    {isUnverifiedGym && (
+                                                        <p className="mt-0.5 text-[11px] font-medium text-red-600 dark:text-red-300">
+                                                            Unverified gym
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="hidden w-full shrink-0 text-right sm:block sm:w-auto">
@@ -486,9 +542,77 @@ export default function AdminUserManager() {
                                             <p className="mt-1 text-xs text-zinc-500 dark:text-white/60">
                                                 Last active {formatRelativeActivity(selectedUsers[0].lastActiveAt)}
                                             </p>
+                                            {selectedUsers[0].role === "GYM" && (
+                                                <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                                                    selectedUsers[0].gymProfile?.isVerified
+                                                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                                        : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300"
+                                                }`}>
+                                                    {selectedUsers[0].gymProfile?.isVerified ? "Verified gym" : "Unverified gym"}
+                                                </p>
+                                            )}
                                         </>
                                     )}
                                 </div>
+
+                                {activeUser && (
+                                    activeUser.role === "GYM" && activeUser.gymProfile ? (
+                                        <div className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="text-sm font-medium text-black dark:text-white">Gym onboarding details</p>
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-white/60">
+                                                        Organization details submitted during gym onboarding.
+                                                    </p>
+                                                </div>
+                                                {!activeUser.gymProfile.isVerified && (
+                                                    <Button
+                                                        type="button"
+                                                        className="shrink-0 bg-green-700 text-white hover:bg-green-800"
+                                                        disabled={verifyingGym || !password}
+                                                        onClick={verifyGym}
+                                                    >
+                                                        {verifyingGym ? (
+                                                            <>
+                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                Verifying…
+                                                            </>
+                                                        ) : (
+                                                            "Verify"
+                                                        )}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {!activeUser.gymProfile.isVerified && (
+                                                <p className="mt-2 text-xs text-zinc-500 dark:text-white/60">
+                                                    Verify this gym to remove the red highlight from the directory.
+                                                </p>
+                                            )}
+                                            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                                                <div className="rounded-lg border border-black/5 bg-white p-3 dark:border-white/10 dark:bg-black/40">
+                                                    <dt className="text-xs uppercase tracking-wide text-zinc-500 dark:text-white/60">Organization name</dt>
+                                                    <dd className="mt-1 text-sm font-medium text-black dark:text-white">{activeUser.gymProfile.name}</dd>
+                                                </div>
+                                                <div className="rounded-lg border border-black/5 bg-white p-3 dark:border-white/10 dark:bg-black/40">
+                                                    <dt className="text-xs uppercase tracking-wide text-zinc-500 dark:text-white/60">Monthly membership fee</dt>
+                                                    <dd className="mt-1 text-sm font-medium text-black dark:text-white">${activeUser.gymProfile.fee}/mo</dd>
+                                                </div>
+                                                <div className="rounded-lg border border-black/5 bg-white p-3 dark:border-white/10 dark:bg-black/40 sm:col-span-2">
+                                                    <dt className="text-xs uppercase tracking-wide text-zinc-500 dark:text-white/60">Address</dt>
+                                                    <dd className="mt-1 text-sm font-medium text-black dark:text-white">{activeUser.gymProfile.address}</dd>
+                                                </div>
+                                                <div className="rounded-lg border border-black/5 bg-white p-3 dark:border-white/10 dark:bg-black/40">
+                                                    <dt className="text-xs uppercase tracking-wide text-zinc-500 dark:text-white/60">Phone</dt>
+                                                    <dd className="mt-1 text-sm font-medium text-black dark:text-white">{activeUser.gymProfile.phone}</dd>
+                                                </div>
+                                                <div className="rounded-lg border border-black/5 bg-white p-3 dark:border-white/10 dark:bg-black/40">
+                                                    <dt className="text-xs uppercase tracking-wide text-zinc-500 dark:text-white/60">Website</dt>
+                                                    <dd className="mt-1 min-w-0 text-sm font-medium text-black dark:text-white break-all">{activeUser.gymProfile.website}</dd>
+                                                </div>
+                                            </dl>
+                                        </div>
+                                    ) : null
+                                )}
 
                                 {activeUser && (
                                     <div className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
