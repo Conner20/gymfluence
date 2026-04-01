@@ -27,8 +27,9 @@ export default function LandingPage() {
               Find your fit
             </p>
 
-            <h1 className="mt-4 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-7xl">
-              The fitness marketplace built to help you grow
+            <h1 className="mt-4 text-3xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-6xl">
+              <span className="block whitespace-nowrap">The fitness marketplace</span>
+              <span className="block">built to help you grow</span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-3xl px-1 text-base text-neutral-700 dark:text-neutral-300 sm:text-lg md:text-xl">
