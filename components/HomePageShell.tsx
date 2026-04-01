@@ -6,13 +6,17 @@ import MobileHeader from "@/components/MobileHeader";
 import HomePosts from "@/components/HomePosts";
 import { useTheme } from "@/components/ThemeProvider";
 import NotificationsModal from "@/components/NotificationsModal";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type HomePageShellProps = {
     posts: any;
     isAdmin?: boolean;
+};
+
+type NotificationListItem = {
+    createdAt: string;
 };
 
 export default function HomePageShell({ posts, isAdmin = false }: HomePageShellProps) {
@@ -22,22 +26,18 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const [notificationCount, setNotificationCount] = useState(0);
     const [lastNotificationsSeenAt, setLastNotificationsSeenAt] = useState(0);
-
-    const seenKey = useMemo(
-        () => (session?.user?.id ? `fi_notifications_seen_${session.user.id}` : null),
-        [session?.user?.id],
-    );
+    const isSignedIn = Boolean(session?.user?.id);
 
     const refreshNotificationCount = async () => {
-        if (!seenKey || typeof window === "undefined") return;
+        if (!isSignedIn) return;
         try {
             const res = await fetch("/api/user/notifications", { cache: "no-store" });
             if (!res.ok) return;
-            const items = await res.json();
-            const seenAt = Number(window.localStorage.getItem(seenKey) || "0");
-            const unread = Array.isArray(items)
-                ? items.filter((item) => new Date(item.createdAt).getTime() > seenAt).length
-                : 0;
+            const data = await res.json();
+            const items: NotificationListItem[] = Array.isArray(data?.items) ? data.items : [];
+            const seenAt = data?.seenAt ? new Date(data.seenAt).getTime() : 0;
+            setLastNotificationsSeenAt(seenAt);
+            const unread = items.filter((item) => new Date(item.createdAt).getTime() > seenAt).length;
             setNotificationCount(unread);
         } catch {
             // ignore transient notification fetch issues
@@ -45,18 +45,30 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
     };
 
     useEffect(() => {
-        if (!seenKey) return;
+        if (!isSignedIn) return;
         refreshNotificationCount();
-    }, [seenKey]);
+    }, [isSignedIn]);
 
-    useLiveRefresh(refreshNotificationCount, { enabled: !!seenKey, interval: 5000 });
+    useLiveRefresh(refreshNotificationCount, { enabled: isSignedIn, interval: 5000 });
 
-    const openNotifications = () => {
+    const openNotifications = async () => {
         setNotificationsOpen(true);
-        if (seenKey && typeof window !== "undefined") {
-            const previousSeenAt = Number(window.localStorage.getItem(seenKey) || "0");
-            setLastNotificationsSeenAt(previousSeenAt);
-            window.localStorage.setItem(seenKey, String(Date.now()));
+        if (isSignedIn) {
+            try {
+                const res = await fetch("/api/user/notifications", { cache: "no-store" });
+                if (res.ok) {
+                    const data = await res.json();
+                    const previousSeenAt = data?.seenAt ? new Date(data.seenAt).getTime() : 0;
+                    setLastNotificationsSeenAt(previousSeenAt);
+                }
+            } catch {
+                // ignore
+            }
+            try {
+                await fetch("/api/user/notifications", { method: "POST" });
+            } catch {
+                // ignore
+            }
         }
         setNotificationCount(0);
     };

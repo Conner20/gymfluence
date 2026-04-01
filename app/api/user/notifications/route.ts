@@ -44,7 +44,7 @@ export async function GET() {
 
     const me = await db.user.findUnique({
         where: { email: session.user.email.toLowerCase() },
-        select: { id: true, role: true },
+        select: { id: true, role: true, notificationsSeenAt: true },
     });
     if (!me) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
@@ -323,5 +323,26 @@ export async function GET() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 50);
 
-    return NextResponse.json(items);
+    return NextResponse.json({
+        items,
+        seenAt: me.notificationsSeenAt?.toISOString() ?? null,
+    });
+}
+
+export async function POST() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const now = new Date();
+    const me = await db.user.update({
+        where: { email: session.user.email.toLowerCase() },
+        data: { notificationsSeenAt: now },
+        select: { notificationsSeenAt: true },
+    });
+
+    return NextResponse.json({
+        seenAt: me.notificationsSeenAt?.toISOString() ?? now.toISOString(),
+    });
 }

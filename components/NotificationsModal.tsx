@@ -61,7 +61,7 @@ export default function NotificationsModal({
             const res = await fetch("/api/user/notifications", { cache: "no-store" });
             if (!res.ok) throw new Error("Failed to load notifications");
             const data = await res.json();
-            setItems(Array.isArray(data) ? data : []);
+            setItems(Array.isArray(data?.items) ? data.items : []);
         } catch (e: any) {
             setError(e?.message || "Failed to fetch notifications");
             setItems([]);
