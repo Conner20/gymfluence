@@ -6,7 +6,7 @@ import MobileHeader from "@/components/MobileHeader";
 import HomePosts from "@/components/HomePosts";
 import { useTheme } from "@/components/ThemeProvider";
 import NotificationsModal from "@/components/NotificationsModal";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
@@ -26,7 +26,23 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const [notificationCount, setNotificationCount] = useState(0);
     const [lastNotificationsSeenAt, setLastNotificationsSeenAt] = useState(0);
+    const [feedRefreshToken, setFeedRefreshToken] = useState(0);
+    const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
+    const [pullDistance, setPullDistance] = useState(0);
     const isSignedIn = Boolean(session?.user?.id);
+    const touchStartYRef = useRef<number | null>(null);
+    const pullActiveRef = useRef(false);
+    const PULL_THRESHOLD = 72;
+
+    const refreshHomeFeed = async () => {
+        if (isRefreshingFeed) return;
+        setIsRefreshingFeed(true);
+        setFeedRefreshToken((prev) => prev + 1);
+        window.setTimeout(() => {
+            setIsRefreshingFeed(false);
+            setPullDistance(0);
+        }, 700);
+    };
 
     const refreshNotificationCount = async () => {
         if (!isSignedIn) return;
@@ -132,6 +148,43 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
         </div>
     );
 
+    const handleTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+        if (window.innerWidth >= 1024 || window.scrollY > 0 || isRefreshingFeed) return;
+        touchStartYRef.current = event.touches[0]?.clientY ?? null;
+        pullActiveRef.current = true;
+    };
+
+    const handleTouchMove = (event: React.TouchEvent<HTMLElement>) => {
+        if (!pullActiveRef.current || touchStartYRef.current === null) return;
+        const currentY = event.touches[0]?.clientY ?? touchStartYRef.current;
+        const nextDistance = Math.max(0, currentY - touchStartYRef.current);
+        if (window.scrollY <= 0 && nextDistance > 0) {
+            setPullDistance(Math.min(nextDistance, 96));
+        } else {
+            pullActiveRef.current = false;
+            touchStartYRef.current = null;
+            setPullDistance(0);
+        }
+    };
+
+    const handleTouchEnd = async () => {
+        if (!pullActiveRef.current) {
+            setPullDistance(0);
+            return;
+        }
+
+        const shouldRefresh = pullDistance >= PULL_THRESHOLD;
+        pullActiveRef.current = false;
+        touchStartYRef.current = null;
+
+        if (shouldRefresh) {
+            await refreshHomeFeed();
+            return;
+        }
+
+        setPullDistance(0);
+    };
+
     return (
         <>
             <div className="relative flex min-h-screen flex-col bg-[#f8f8f8] text-black transition-colors dark:bg-[#050505] dark:text-white">
@@ -153,9 +206,29 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
                     </Link>
                 </header>
 
-                <main className="flex w-full flex-1 justify-center px-4 sm:px-6">
+                <main
+                    className="flex w-full flex-1 justify-center px-4 sm:px-6"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                >
                     <div className="w-full max-w-3xl">
-                        <HomePosts initialPosts={posts} />
+                        <div className="lg:hidden">
+                            <div
+                                className="flex items-center justify-center overflow-hidden transition-all"
+                                style={{ height: isRefreshingFeed ? 40 : Math.min(pullDistance * 0.55, 40) }}
+                            >
+                                {(isRefreshingFeed || pullDistance > 0) && (
+                                    <span
+                                        className={`h-5 w-5 rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent ${
+                                            isRefreshingFeed || pullDistance >= PULL_THRESHOLD ? "animate-spin" : ""
+                                        }`}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                        <HomePosts initialPosts={posts} refreshToken={feedRefreshToken} />
                     </div>
                 </main>
             </div>

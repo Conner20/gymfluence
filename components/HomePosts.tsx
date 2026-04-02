@@ -9,7 +9,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
-import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type LiteUser = {
     id: string;
@@ -47,7 +46,13 @@ type Post = {
     comments?: any[];
 };
 
-export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
+export default function HomePosts({
+    initialPosts,
+    refreshToken = 0,
+}: {
+    initialPosts?: Post[];
+    refreshToken?: number;
+}) {
     const router = useRouter();
     const { data: session } = useSession();
     const username = session?.user?.username;
@@ -100,26 +105,14 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
         }
     }, [initialPosts, fetchInitialPosts]);
 
-    const refreshVisiblePosts = useCallback(async () => {
-        try {
-            const res = await fetch("/api/posts", { cache: "no-store" });
-            if (!res.ok) return;
-            const latest: Post[] = await res.json();
-            setPosts((prev) => {
-                const remaining = prev.filter((post) => !latest.some((fresh) => fresh.id === post.id));
-                return [...latest, ...remaining];
-            });
-        } catch {
-            // ignore transient live refresh issues
-        }
-    }, []);
+    useEffect(() => {
+        if (refreshToken <= 0) return;
+        void fetchInitialPosts();
+    }, [refreshToken, fetchInitialPosts]);
 
-    useLiveRefresh(refreshVisiblePosts, { enabled: true, interval: 5000 });
-
-    // -------- Auto-refresh when a post is created --------
+    // -------- Manual refresh when a post is created locally --------
     useEffect(() => {
         const handlePostCreated = () => {
-            // Re-fetch first page so new post appears at the top
             fetchInitialPosts();
         };
 
@@ -579,11 +572,11 @@ export default function HomePosts({ initialPosts }: { initialPosts?: Post[] }) {
                             ref={loadMoreRef}
                             className="py-6 text-center text-xs text-gray-400 dark:text-gray-300"
                         >
-                            {isLoadingMore
-                                ? "Loading more posts..."
-                                : hasMore
-                                    ? "Scroll to load more"
-                                    : "No more posts"}
+                            {isLoadingMore ? (
+                                <div className="flex items-center justify-center">
+                                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
+                                </div>
+                            ) : hasMore ? null : "No more posts"}
                         </div>
                     )}
                 </div>
