@@ -721,7 +721,7 @@ export default function AdminUserManager() {
                                                     <p className="text-xs text-zinc-500 dark:text-white/60">No activity found.</p>
                                                 )}
                                                 {activity.length > 0 && (
-                                                    <div className="max-h-[320px] overflow-y-auto rounded-lg border border-black/5 bg-[#fcfcfc] p-3 font-mono text-xs text-zinc-700 dark:border-white/10 dark:bg-[#060606] dark:text-white/75">
+                                                    <div className="scrollbar-slim max-h-[320px] overflow-y-auto rounded-lg border border-black/5 bg-[#fcfcfc] p-3 font-mono text-xs text-zinc-700 dark:border-white/10 dark:bg-[#060606] dark:text-white/75">
                                                         {activity.map((entry) => (
                                                             <div
                                                                 key={entry.id}

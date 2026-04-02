@@ -1,7 +1,7 @@
 'use client';
 
 import { X, Image as ImageIcon, Trash2 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export default function CreatePost({
     onClose,
@@ -14,6 +14,10 @@ export default function CreatePost({
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{ title: boolean; content: boolean }>({
+        title: false,
+        content: false,
+    });
 
     const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -52,12 +56,25 @@ export default function CreatePost({
         if (inputRef.current) inputRef.current.value = "";
     };
 
+    useEffect(() => {
+        if (!fieldErrors.title && !fieldErrors.content) return;
+        const timeout = window.setTimeout(() => {
+            setFieldErrors({ title: false, content: false });
+        }, 1200);
+
+        return () => window.clearTimeout(timeout);
+    }, [fieldErrors]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        const nextFieldErrors = {
+            title: !title.trim(),
+            content: !content.trim(),
+        };
 
-        if (!title.trim() || !content.trim()) {
-            setError("Title and content are required.");
+        if (nextFieldErrors.title || nextFieldErrors.content) {
+            setFieldErrors(nextFieldErrors);
             return;
         }
 
@@ -111,22 +128,28 @@ export default function CreatePost({
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <input
-                        className="border rounded-lg px-3 py-2 dark:bg-transparent dark:border-white/20 dark:text-gray-100"
+                        className={`border rounded-lg px-3 py-2 dark:bg-transparent dark:text-gray-100 ${
+                            fieldErrors.title
+                                ? "border-red-500 dark:border-red-400"
+                                : "dark:border-white/20"
+                        }`}
                         type="text"
                         placeholder="Title"
                         value={title}
                         onChange={e => setTitle(e.target.value)}
                         disabled={loading}
-                        required
                     />
 
                     <textarea
-                        className="border rounded-lg px-3 py-2 resize-none min-h-[80px] dark:bg-transparent dark:border-white/20 dark:text-gray-100"
+                        className={`border rounded-lg px-3 py-2 resize-none min-h-[80px] dark:bg-transparent dark:text-gray-100 ${
+                            fieldErrors.content
+                                ? "border-red-500 dark:border-red-400"
+                                : "dark:border-white/20"
+                        }`}
                         placeholder="What's on your mind?"
                         value={content}
                         onChange={e => setContent(e.target.value)}
                         disabled={loading}
-                        required
                     />
 
                     {/* Image picker + preview */}

@@ -8,6 +8,7 @@ import clsx from "clsx";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatRelativeTime } from "@/lib/utils";
 
 type LiteUser = {
@@ -74,6 +75,7 @@ export default function HomePosts({
     const [shareQuery, setShareQuery] = useState("");
     const [shareResults, setShareResults] = useState<LiteUser[]>([]);
     const [shareSearching, setShareSearching] = useState(false);
+    const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
 
     const hasSession = !!session;
 
@@ -458,7 +460,7 @@ export default function HomePosts({
                             >
                             {post.author?.username === username && (
                                 <button
-                                    onClick={() => handleDelete(post.id)}
+                                    onClick={() => setPendingDeletePostId(post.id)}
                                 className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
                                     title="Delete post"
                                 >
@@ -716,6 +718,19 @@ export default function HomePosts({
                     </div>
                 </div>
             )}
+            <ConfirmDialog
+                open={pendingDeletePostId !== null}
+                title="Delete post"
+                message="Are you sure you want to delete this?"
+                destructive
+                onCancel={() => setPendingDeletePostId(null)}
+                onConfirm={() => {
+                    if (!pendingDeletePostId) return;
+                    const postId = pendingDeletePostId;
+                    setPendingDeletePostId(null);
+                    void handleDelete(postId);
+                }}
+            />
         </>
     );
 }

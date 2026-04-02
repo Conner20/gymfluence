@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CornerDownRight, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
@@ -171,6 +172,7 @@ export function PostComments({
     const [loading, setLoading] = useState(true);
     const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
     const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+    const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
 
     const fetchComments = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -298,10 +300,23 @@ export function PostComments({
                             });
                             setActiveReplyId(null);
                         }}
-                        onDelete={handleDelete}
+                        onDelete={(commentId) => setPendingDeleteCommentId(commentId)}
                     />
                 ))
             )}
+            <ConfirmDialog
+                open={pendingDeleteCommentId !== null}
+                title="Delete comment"
+                message="Are you sure you want to delete this?"
+                destructive
+                onCancel={() => setPendingDeleteCommentId(null)}
+                onConfirm={() => {
+                    if (!pendingDeleteCommentId) return;
+                    const commentId = pendingDeleteCommentId;
+                    setPendingDeleteCommentId(null);
+                    void handleDelete(commentId);
+                }}
+            />
         </div>
     );
 }
