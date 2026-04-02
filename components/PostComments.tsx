@@ -105,7 +105,7 @@ function CommentNode({
                         )}
                     </div>
 
-                    <div className="mt-1 mb-1 text-sm text-gray-800 break-words break-all dark:text-gray-100">
+                    <div className="mt-1 mb-1 text-sm whitespace-pre-wrap break-normal text-gray-800 dark:text-gray-100">
                         {comment.content}
                     </div>
 
