@@ -6,15 +6,6 @@ import { getBaseUrl } from "@/lib/base-url";
 import { generateRawToken } from "@/lib/token";
 import { sendEmailVerificationEmail } from "@/lib/mail";
 
-const DEFAULT_CUSTOM_FOOD = {
-    name: "White rice (1 cup)",
-    grams: 158,
-    kcal: 205,
-    p: 4.3,
-    c: 44.5,
-    f: 0.4,
-};
-
 // Define a schema for input validation
 
 const userSchema = z.object({
@@ -48,25 +39,13 @@ export async function POST(req: Request) {
         }
 
         const hashedPassword = await hash(password, 10);
-        const newUser = await db.$transaction(async (tx) => {
-            const createdUser = await tx.user.create({
-                data: {
-                    username: normalizedUsername,
-                    email: normalizedEmail,
-                    password: hashedPassword,
-                    location,
-                    seededDefaultNutritionFood: true,
-                }
-            });
-
-            await tx.nutritionCustomFood.create({
-                data: {
-                    userId: createdUser.id,
-                    ...DEFAULT_CUSTOM_FOOD,
-                },
-            });
-
-            return createdUser;
+        const newUser = await db.user.create({
+            data: {
+                username: normalizedUsername,
+                email: normalizedEmail,
+                password: hashedPassword,
+                location,
+            }
         });
 
         await db.verificationToken.deleteMany({ where: { identifier: normalizedEmail } });
