@@ -80,6 +80,7 @@ model User {
   updatedAt     DateTime  @default(now()) @updatedAt
   lastLoginAt   DateTime?
   notificationsSeenAt DateTime?
+  seededDefaultNutritionFood Boolean @default(false)
 
   post           Post[]
   accounts       Account[]

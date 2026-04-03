@@ -91,6 +91,48 @@ function sanitizeGoals(goals: MacroGoalsDTO): MacroGoalsDTO {
     };
 }
 
+const DEFAULT_CUSTOM_FOOD = {
+    name: 'White rice (1 cup)',
+    grams: 158,
+    kcal: 205,
+    p: 4.3,
+    c: 44.5,
+    f: 0.4,
+};
+
+async function ensureDefaultNutritionFood(userId: string) {
+    const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { seededDefaultNutritionFood: true },
+    });
+
+    if (user?.seededDefaultNutritionFood) return;
+
+    const existing = await db.nutritionCustomFood.findFirst({
+        where: {
+            userId,
+            name: DEFAULT_CUSTOM_FOOD.name,
+        },
+        select: { id: true },
+    });
+
+    await db.$transaction(async (tx) => {
+        if (!existing) {
+            await tx.nutritionCustomFood.create({
+                data: {
+                    userId,
+                    ...DEFAULT_CUSTOM_FOOD,
+                },
+            });
+        }
+
+        await tx.user.update({
+            where: { id: userId },
+            data: { seededDefaultNutritionFood: true },
+        });
+    });
+}
+
 function encodeHeatmapLevels(levels: HeatmapLevelsDTO): Record<HMMetric, (number | null)[]> {
     const next: Record<HMMetric, (number | null)[]> = { kcal: [], f: [], c: [], p: [] } as any;
     (['kcal', 'f', 'c', 'p'] as HMMetric[]).forEach((key) => {
@@ -188,6 +230,8 @@ export async function fetchAllNutritionData(
         targetUserId = requestedView;
         viewingUser = share.owner;
     }
+
+    await ensureDefaultNutritionFood(targetUserId);
 
     const [entries, bodyweights, customFoods, settings] = await Promise.all([
         db.nutritionEntry.findMany({

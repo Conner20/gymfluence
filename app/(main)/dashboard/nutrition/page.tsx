@@ -84,6 +84,9 @@ type ShareIncomingEntry = { owner: ShareUserInfo; workouts: boolean; wellness: b
 const shareDisplayName = (user: ShareUserInfo) =>
     (user.name && user.name.trim()) || (user.username && user.username.trim()) || 'User';
 
+const formatCustomFoodName = (food: CustomFoodDTO) =>
+    food.name.includes('(') ? food.name : `${food.name} (${food.grams}g)`;
+
 /** Demo foods (static baseline options) */
 const FOOD_DB: Food[] = [
     { id: '1', name: 'Grilled chicken (100g)', macros: { kcal: 165, p: 31, f: 3.6, c: 0 } },
@@ -172,7 +175,7 @@ function NutritionContent() {
         const payload = {
             date: dateISO,
             meal: targetMeal as Meal,
-            foodName: maybeCF ? `${maybeCF.name} (${maybeCF.grams}g)` : food.name,
+            foodName: maybeCF ? formatCustomFoodName(maybeCF) : food.name,
             servings: s,
             kcal: maybeCF ? maybeCF.kcal : food.macros.kcal,
             p: maybeCF ? maybeCF.p : food.macros.p,
@@ -964,7 +967,7 @@ function AddFoodPanel({
 
     const customFoodAsFood: Food[] = customFoods.map((cf) => ({
         id: cf.id,
-        name: `${cf.name} (${cf.grams}g)`,
+        name: formatCustomFoodName(cf),
         macros: { kcal: cf.kcal, p: cf.p, c: cf.c, f: cf.f },
     }));
 
