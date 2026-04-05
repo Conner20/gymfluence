@@ -2,13 +2,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Trash2, Heart, MessageCircle, Share2, X, Search } from "lucide-react";
+import { Trash2, Heart, MessageCircle, Share2, X, Search, Pencil } from "lucide-react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EditPostDialog } from "@/components/ui/edit-content-dialog";
 import { formatRelativeTime } from "@/lib/utils";
 import { getPostImageUrls } from "@/lib/postImages";
 import PostImageCarousel from "@/components/PostImageCarousel";
@@ -79,6 +80,8 @@ export default function HomePosts({
     const [shareResults, setShareResults] = useState<LiteUser[]>([]);
     const [shareSearching, setShareSearching] = useState(false);
     const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
+    const [editingPostLoading, setEditingPostLoading] = useState(false);
 
     const hasSession = !!session;
 
@@ -117,17 +120,19 @@ export default function HomePosts({
 
     // -------- Manual refresh when a post is created locally --------
     useEffect(() => {
-        const handlePostCreated = () => {
+        const handlePostRefresh = () => {
             fetchInitialPosts();
         };
 
         if (typeof window !== "undefined") {
-            window.addEventListener("post-created", handlePostCreated);
+            window.addEventListener("post-created", handlePostRefresh);
+            window.addEventListener("post-updated", handlePostRefresh);
         }
 
         return () => {
             if (typeof window !== "undefined") {
-                window.removeEventListener("post-created", handlePostCreated);
+                window.removeEventListener("post-created", handlePostRefresh);
+                window.removeEventListener("post-updated", handlePostRefresh);
             }
         };
     }, [fetchInitialPosts]);
@@ -209,6 +214,46 @@ export default function HomePosts({
             setPosts((p) => p.filter((post) => post.id !== id));
         } catch {
             alert("Failed to delete post.");
+        }
+    };
+
+    const handleEditPost = async (values: { title: string; content: string }) => {
+        if (!editingPost) return;
+        const title = values.title.trim();
+        const content = values.content.trim();
+        if (!title || !content) return;
+
+        try {
+            setEditingPostLoading(true);
+            const res = await fetch(`/api/posts/${editingPost.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, content }),
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json().catch(() => ({}));
+            const updated = data?.post;
+            setPosts((prev) =>
+                prev.map((post) =>
+                    post.id === editingPost.id
+                        ? {
+                            ...post,
+                            title: updated?.title ?? title,
+                            content: updated?.content ?? content,
+                            imageUrl: updated?.imageUrl ?? null,
+                            imageUrls: Array.isArray(updated?.imageUrls) ? updated.imageUrls : [],
+                        }
+                        : post
+                )
+            );
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new Event("post-updated"));
+            }
+            setEditingPost(null);
+        } catch {
+            alert("Failed to update post.");
+        } finally {
+            setEditingPostLoading(false);
         }
     };
 
@@ -462,13 +507,22 @@ export default function HomePosts({
                                 className="relative rounded-2xl bg-white px-6 py-5 shadow-lg dark:border dark:border-white/10 dark:bg-neutral-900 dark:shadow-none"
                             >
                             {post.author?.username === username && (
-                                <button
-                                    onClick={() => setPendingDeletePostId(post.id)}
-                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
-                                    title="Delete post"
-                                >
-                                    <Trash2 size={20} />
-                                </button>
+                                <div className="absolute right-4 top-4 flex items-center gap-2">
+                                    <button
+                                        onClick={() => setEditingPost(post)}
+                                        className="text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                        title="Edit post"
+                                    >
+                                        <Pencil size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => setPendingDeletePostId(post.id)}
+                                        className="text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
+                                        title="Delete post"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
+                                </div>
                             )}
 
                             <div className="flex flex-col gap-1 mb-2">
@@ -731,6 +785,17 @@ export default function HomePosts({
                     setPendingDeletePostId(null);
                     void handleDelete(postId);
                 }}
+            />
+            <EditPostDialog
+                open={editingPost !== null}
+                initialTitle={editingPost?.title ?? ""}
+                initialContent={editingPost?.content ?? ""}
+                loading={editingPostLoading}
+                onCancel={() => {
+                    if (editingPostLoading) return;
+                    setEditingPost(null);
+                }}
+                onSave={(values) => void handleEditPost(values)}
             />
         </>
     );

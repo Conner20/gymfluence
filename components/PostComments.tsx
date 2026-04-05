@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { CornerDownRight, Trash2 } from "lucide-react";
+import { CornerDownRight, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EditCommentDialog } from "@/components/ui/edit-content-dialog";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
@@ -29,6 +30,7 @@ function CommentNode({
     onToggleReply,
     onReplyDraftChange,
     onSubmitReply,
+    onEdit,
     onDelete,
 }: {
     comment: Comment;
@@ -39,6 +41,7 @@ function CommentNode({
     onToggleReply: (commentId: string) => void;
     onReplyDraftChange: (commentId: string, value: string) => void;
     onSubmitReply: (commentId: string, value: string) => void | Promise<void>;
+    onEdit: (comment: Comment) => void;
     onDelete: (commentId: string) => void | Promise<void>;
 }) {
     const isMine = !!sessionEmail && comment.author?.email === sessionEmail;
@@ -94,14 +97,22 @@ function CommentNode({
                         </span>
 
                         {isMine && (
-                            <button
-                                className="ml-2 flex items-center gap-1 text-[11px] text-red-500 hover:text-red-600 dark:hover:text-red-400 sm:text-[11px]"
-                                onClick={() => onDelete(comment.id)}
-                                title="Delete comment"
-                            >
-                                <Trash2 size={12} className="sm:h-3 sm:w-3" />
-                                <span className="hidden sm:inline">Delete</span>
-                            </button>
+                            <div className="ml-2 flex items-center gap-2">
+                                <button
+                                    className="text-zinc-400 transition hover:text-zinc-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                    onClick={() => onEdit(comment)}
+                                    title="Edit comment"
+                                >
+                                    <Pencil size={12} className="sm:h-3 sm:w-3" />
+                                </button>
+                                <button
+                                    className="text-red-500 hover:text-red-600 dark:hover:text-red-400"
+                                    onClick={() => onDelete(comment.id)}
+                                    title="Delete comment"
+                                >
+                                    <Trash2 size={12} className="sm:h-3 sm:w-3" />
+                                </button>
+                            </div>
                         )}
                     </div>
 
@@ -148,6 +159,7 @@ function CommentNode({
                                     onToggleReply={onToggleReply}
                                     onReplyDraftChange={onReplyDraftChange}
                                     onSubmitReply={onSubmitReply}
+                                    onEdit={onEdit}
                                     onDelete={onDelete}
                                 />
                             ))}
@@ -173,6 +185,8 @@ export function PostComments({
     const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
     const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
     const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
+    const [editingComment, setEditingComment] = useState<Comment | null>(null);
+    const [editingCommentLoading, setEditingCommentLoading] = useState(false);
 
     const fetchComments = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -241,6 +255,28 @@ export function PostComments({
         }
     };
 
+    const handleEdit = async (content: string) => {
+        if (!editingComment) return;
+        const nextContent = content.trim();
+        if (!nextContent) return;
+
+        try {
+            setEditingCommentLoading(true);
+            const res = await fetch(`/api/comments/${editingComment.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: nextContent }),
+            });
+            if (!res.ok) throw new Error();
+            await fetchComments(true);
+            setEditingComment(null);
+        } catch {
+            alert("Failed to update comment.");
+        } finally {
+            setEditingCommentLoading(false);
+        }
+    };
+
     return (
         <div className="bg-white rounded-xl p-3 mt-4 dark:bg-neutral-900 dark:border dark:border-white/10">
             <h4 className="font-bold mb-2 text-gray-700 dark:text-gray-100">Comments</h4>
@@ -300,6 +336,7 @@ export function PostComments({
                             });
                             setActiveReplyId(null);
                         }}
+                        onEdit={(comment) => setEditingComment(comment)}
                         onDelete={(commentId) => setPendingDeleteCommentId(commentId)}
                     />
                 ))
@@ -316,6 +353,16 @@ export function PostComments({
                     setPendingDeleteCommentId(null);
                     void handleDelete(commentId);
                 }}
+            />
+            <EditCommentDialog
+                open={editingComment !== null}
+                initialContent={editingComment?.content ?? ""}
+                loading={editingCommentLoading}
+                onCancel={() => {
+                    if (editingCommentLoading) return;
+                    setEditingComment(null);
+                }}
+                onSave={(value) => void handleEdit(value)}
             />
         </div>
     );

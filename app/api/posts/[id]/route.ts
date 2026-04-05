@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { deleteStoredFile, storeImageFile } from "@/lib/storage";
 
 export async function GET(
     _req: Request,
@@ -113,4 +114,138 @@ export async function GET(
     };
 
     return NextResponse.json(payload);
+}
+
+export async function PATCH(
+    req: Request,
+    context: { params: Promise<{ id: string }> }
+) {
+    const { id } = await context.params;
+
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await db.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+    });
+    if (!user) {
+        return NextResponse.json({ message: "User not found." }, { status: 404 });
+    }
+
+    const post = await db.post.findUnique({
+        where: { id },
+        select: { id: true, authorId: true, imageUrl: true, imageUrls: true },
+    });
+    if (!post) {
+        return NextResponse.json({ message: "Post not found." }, { status: 404 });
+    }
+    if (post.authorId !== user.id) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const contentType = req.headers.get("content-type") || "";
+    let title = "";
+    let content = "";
+    let nextImageUrls: string[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+        const form = await req.formData();
+        title = String(form.get("title") || "").trim();
+        content = String(form.get("content") || "").trim();
+
+        const retainedValue = String(form.get("retainedImageUrls") || "[]");
+        let retainedImageUrls: string[] = [];
+        try {
+            const parsed = JSON.parse(retainedValue);
+            if (Array.isArray(parsed)) {
+                retainedImageUrls = parsed.map(String).filter(Boolean);
+            }
+        } catch {
+            retainedImageUrls = [];
+        }
+
+        const allowedExisting = new Set(post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : []);
+        retainedImageUrls = retainedImageUrls.filter((url) => allowedExisting.has(url));
+
+        const files = form
+            .getAll("images")
+            .filter((file): file is File => file instanceof File && file.size > 0);
+
+        if (retainedImageUrls.length + files.length > 5) {
+            return NextResponse.json({ message: "You can upload up to 5 images per post." }, { status: 400 });
+        }
+
+        for (const file of files) {
+            const maxBytes = 8 * 1024 * 1024;
+            if (file.size > maxBytes) {
+                return NextResponse.json({ message: "Image too large (max 8MB)." }, { status: 400 });
+            }
+            const mime = file.type || "application/octet-stream";
+            if (!mime.startsWith("image/")) {
+                return NextResponse.json({ message: "Only image uploads are allowed." }, { status: 400 });
+            }
+        }
+
+        const uploadedUrls: string[] = [];
+        try {
+            for (const file of files) {
+                const uploaded = await storeImageFile(file, {
+                    folder: "posts",
+                    prefix: `post-${user.id}`,
+                });
+                uploadedUrls.push(uploaded.url);
+            }
+        } catch (err: any) {
+            const msg =
+                typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
+                    ? err.message
+                    : "Failed to upload image";
+            return NextResponse.json({ message: msg }, { status: 503 });
+        }
+
+        nextImageUrls = [...retainedImageUrls, ...uploadedUrls];
+    } else {
+        const body = await req.json().catch(() => ({}));
+        title = String(body?.title || "").trim();
+        content = String(body?.content || "").trim();
+        nextImageUrls = Array.isArray(body?.imageUrls)
+            ? body.imageUrls.map(String).filter(Boolean).slice(0, 5)
+            : post.imageUrls ?? [];
+    }
+
+    if (!title || !content) {
+        return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
+    }
+
+    const previousUrls = Array.from(
+        new Set([post.imageUrl, ...(post.imageUrls ?? [])].filter((url): url is string => !!url))
+    );
+    const removedUrls = previousUrls.filter((url) => !nextImageUrls.includes(url));
+
+    const updated = await db.post.update({
+        where: { id },
+        data: {
+            title,
+            content,
+            imageUrl: nextImageUrls[0] ?? null,
+            imageUrls: nextImageUrls,
+        },
+        select: {
+            id: true,
+            title: true,
+            content: true,
+            imageUrl: true,
+            imageUrls: true,
+            createdAt: true,
+        },
+    });
+
+    for (const url of removedUrls) {
+        await deleteStoredFile(url);
+    }
+
+    return NextResponse.json({ post: updated });
 }

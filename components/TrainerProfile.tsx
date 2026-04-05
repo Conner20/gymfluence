@@ -13,6 +13,7 @@ import {
     ArrowLeft,
     Heart,
     MessageCircle,
+    Pencil,
     Star,
     X,
     Trash2,
@@ -25,6 +26,7 @@ import CreatePost from "@/components/CreatePost";
 import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
+import { EditPostDialog } from "@/components/ui/edit-content-dialog";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 import { getPostImageUrls } from "@/lib/postImages";
@@ -476,6 +478,8 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const [fullPosts, setFullPosts] = useState<FullPost[] | null>(null);
     const [postsLoading, setPostsLoading] = useState(false);
     const [focusPostId, setFocusPostId] = useState<string | null>(null);
+    const [editingPost, setEditingPost] = useState<FullPost | null>(null);
+    const [editingPostLoading, setEditingPostLoading] = useState(false);
 
     const refreshPosts = useCallback(async () => {
         if (!canViewPrivate) return;
@@ -512,7 +516,11 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
             refreshPosts();
         };
         window.addEventListener("post-created", handler);
-        return () => window.removeEventListener("post-created", handler);
+        window.addEventListener("post-updated", handler);
+        return () => {
+            window.removeEventListener("post-created", handler);
+            window.removeEventListener("post-updated", handler);
+        };
     }, [isOwnProfile, refreshPosts]);
 
     const handleDeletePost = async (postId: string) => {
@@ -537,6 +545,32 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
             if (focusPostId === postId) setFocusPostId(null);
         } catch {
             alert("Failed to delete post.");
+        }
+    };
+
+    const handleEditPost = async (values: { title: string; content: string }) => {
+        if (!editingPost) return;
+        const title = values.title.trim();
+        const content = values.content.trim();
+        if (!title || !content) return;
+
+        try {
+            setEditingPostLoading(true);
+            const res = await fetch(`/api/posts/${editingPost.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, content }),
+            });
+            if (!res.ok) throw new Error();
+            await refreshPosts();
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new Event("post-updated"));
+            }
+            setEditingPost(null);
+        } catch {
+            alert("Failed to update post.");
+        } finally {
+            setEditingPostLoading(false);
         }
     };
 
@@ -885,6 +919,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             <ScrollFeed
                                 posts={fullPosts ?? []}
                                 canDelete={isOwnProfile}
+                                onEdit={(post) => setEditingPost(post)}
                                 onDelete={handleDeletePost}
                                 onOpen={(id) => setFocusPostId(id)}
                                 onLike={async (id) => {
@@ -914,13 +949,25 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                                 Back
                                             </button>
                                             {isOwnProfile && (
-                                                <button
-                                                    className="p-2 rounded-full text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
-                                                    title="Delete post"
-                                                    onClick={() => handleDeletePost(focusPostId)}
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        className="p-2 rounded-full text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                                        title="Edit post"
+                                                        onClick={() => {
+                                                            const target = fullPosts?.find((post) => post.id === focusPostId) ?? null;
+                                                            if (target) setEditingPost(target);
+                                                        }}
+                                                    >
+                                                        <Pencil size={18} />
+                                                    </button>
+                                                    <button
+                                                        className="p-2 rounded-full text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
+                                                        title="Delete post"
+                                                        onClick={() => handleDeletePost(focusPostId)}
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="px-3 sm:px-6 pb-6">
@@ -977,6 +1024,17 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
             />
 
             {showCreatePost && <CreatePost onClose={() => setShowCreatePost(false)} />}
+            <EditPostDialog
+                open={editingPost !== null}
+                initialTitle={editingPost?.title ?? ""}
+                initialContent={editingPost?.content ?? ""}
+                loading={editingPostLoading}
+                onCancel={() => {
+                    if (editingPostLoading) return;
+                    setEditingPost(null);
+                }}
+                onSave={(values) => void handleEditPost(values)}
+            />
         </div>
     );
 }
@@ -1023,12 +1081,14 @@ function ScrollFeed({
     onOpen,
     onLike,
     canDelete,
+    onEdit,
     onDelete,
 }: {
     posts: FullPost[];
     onOpen: (id: string) => void;
     onLike: (id: string) => void | Promise<void>;
     canDelete: boolean;
+    onEdit: (post: FullPost) => void;
     onDelete: (id: string) => void | Promise<void>;
 }) {
     const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
@@ -1137,13 +1197,22 @@ function ScrollFeed({
                         className="relative bg-white rounded-2xl shadow-lg px-6 py-5 text-gray-900 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none dark:text-gray-100"
                     >
                         {canDelete && (
-                            <button
-                                className="absolute right-4 top-4 text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
-                                title="Delete post"
-                                onClick={() => onDelete(p.id)}
-                            >
-                                <Trash2 size={20} />
-                            </button>
+                            <div className="absolute right-4 top-4 flex items-center gap-2">
+                                <button
+                                    className="text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                    title="Edit post"
+                                    onClick={() => onEdit(p)}
+                                >
+                                    <Pencil size={18} />
+                                </button>
+                                <button
+                                    className="text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
+                                    title="Delete post"
+                                    onClick={() => onDelete(p.id)}
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
                         )}
 
                         <div className="flex flex-col gap-1 mb-2">
