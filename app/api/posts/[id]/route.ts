@@ -146,6 +146,12 @@ export async function PATCH(
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    const existingImageUrls = post.imageUrls?.length
+        ? post.imageUrls
+        : post.imageUrl
+            ? [post.imageUrl]
+            : [];
+
     const contentType = req.headers.get("content-type") || "";
     let title = "";
     let content = "";
@@ -167,7 +173,7 @@ export async function PATCH(
             retainedImageUrls = [];
         }
 
-        const allowedExisting = new Set(post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : []);
+        const allowedExisting = new Set(existingImageUrls);
         retainedImageUrls = retainedImageUrls.filter((url) => allowedExisting.has(url));
 
         const files = form
@@ -213,16 +219,14 @@ export async function PATCH(
         content = String(body?.content || "").trim();
         nextImageUrls = Array.isArray(body?.imageUrls)
             ? body.imageUrls.map(String).filter(Boolean).slice(0, 5)
-            : post.imageUrls ?? [];
+            : existingImageUrls;
     }
 
     if (!title || !content) {
         return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
     }
 
-    const previousUrls = Array.from(
-        new Set([post.imageUrl, ...(post.imageUrls ?? [])].filter((url): url is string => !!url))
-    );
+    const previousUrls = Array.from(new Set(existingImageUrls));
     const removedUrls = previousUrls.filter((url) => !nextImageUrls.includes(url));
 
     const updated = await db.post.update({
