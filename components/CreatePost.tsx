@@ -3,6 +3,12 @@
 import { X, Image as ImageIcon, Trash2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
+type SelectedImage = {
+    id: string;
+    file: File;
+    previewUrl: string;
+};
+
 export default function CreatePost({
     onClose,
 }: {
@@ -10,8 +16,7 @@ export default function CreatePost({
 }) {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [file, setFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [images, setImages] = useState<SelectedImage[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ title: boolean; content: boolean }>({
@@ -20,41 +25,77 @@ export default function CreatePost({
     });
 
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const imagesRef = useRef<SelectedImage[]>([]);
 
     const onPickFile = () => inputRef.current?.click();
 
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const f = e.target.files?.[0] || null;
-        if (!f) {
-            setFile(null);
-            setPreviewUrl(null);
+        const files = Array.from(e.target.files ?? []);
+        if (!files.length) {
             return;
         }
 
-        // Basic guardrails
         const maxBytes = 8 * 1024 * 1024; // 8MB
-        if (f.size > maxBytes) {
-            setError("Image too large (max 8MB).");
-            e.target.value = "";
-            return;
+        const nextImages: SelectedImage[] = [];
+        for (const file of files) {
+            if (file.size > maxBytes) {
+                setError("Each image must be 8MB or smaller.");
+                continue;
+            }
+            if (!file.type.startsWith("image/")) {
+                setError("Only image files are allowed.");
+                continue;
+            }
+            nextImages.push({
+                id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+                file,
+                previewUrl: URL.createObjectURL(file),
+            });
         }
-        if (!f.type.startsWith("image/")) {
-            setError("Only image files are allowed.");
+
+        if (!nextImages.length) {
             e.target.value = "";
             return;
         }
 
-        setError(null);
-        setFile(f);
-        setPreviewUrl(URL.createObjectURL(f));
+        setImages((current) => {
+            const combined = [...current, ...nextImages];
+            if (combined.length <= 5) {
+                setError(null);
+                return combined;
+            }
+
+            combined.slice(5).forEach((image) => URL.revokeObjectURL(image.previewUrl));
+            setError("You can upload up to 5 images per post.");
+            return combined.slice(0, 5);
+        });
+        e.target.value = "";
     };
 
-    const clearImage = () => {
-        setFile(null);
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
+    const removeImage = (id: string) => {
+        setImages((current) => {
+            const target = current.find((image) => image.id === id);
+            if (target) URL.revokeObjectURL(target.previewUrl);
+            return current.filter((image) => image.id !== id);
+        });
         if (inputRef.current) inputRef.current.value = "";
     };
+
+    const clearImages = () => {
+        images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        setImages([]);
+        if (inputRef.current) inputRef.current.value = "";
+    };
+
+    useEffect(() => {
+        imagesRef.current = images;
+    }, [images]);
+
+    useEffect(() => {
+        return () => {
+            imagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        };
+    }, []);
 
     useEffect(() => {
         if (!fieldErrors.title && !fieldErrors.content) return;
@@ -83,7 +124,7 @@ export default function CreatePost({
             const form = new FormData();
             form.append("title", title);
             form.append("content", content);
-            if (file) form.append("image", file);
+            images.forEach((image) => form.append("images", image.file));
 
             const res = await fetch("/api/posts", {
                 method: "POST",
@@ -102,7 +143,7 @@ export default function CreatePost({
                 // reset
                 setTitle('');
                 setContent('');
-                clearImage();
+                clearImages();
                 onClose();
             }
         } catch {
@@ -155,23 +196,23 @@ export default function CreatePost({
                     {/* Image picker + preview */}
                     <div>
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium">Attach image (optional)</label>
-                            {file && (
+                            <label className="text-sm font-medium">Attach up to 5 photos (optional)</label>
+                            {images.length > 0 && (
                                 <button
                                     type="button"
-                                    onClick={clearImage}
+                                    onClick={clearImages}
                                     className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
-                                    title="Remove image"
+                                    title="Remove all images"
                                     disabled={loading}
                                 >
                                     <Trash2 size={14} />
-                                    Remove
+                                    Clear all
                                 </button>
                             )}
                         </div>
 
                         <div className="mt-2">
-                            {!previewUrl ? (
+                            {images.length === 0 ? (
                                 <button
                                     type="button"
                                     onClick={onPickFile}
@@ -179,19 +220,43 @@ export default function CreatePost({
                                     disabled={loading}
                                 >
                                     <ImageIcon size={22} className="mb-1" />
-                                    <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose an image</span>
+                                    <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 5 images</span>
                                     <span className="text-[11px] text-zinc-400 mt-1 dark:text-gray-400">
-                                        PNG, JPG, WEBP, GIF · up to 8MB
+                                        PNG, JPG, WEBP, GIF · up to 8MB each
                                     </span>
                                 </button>
                             ) : (
-                                <div className="rounded-lg border p-2 dark:border-white/20">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={previewUrl}
-                                        alt="Preview"
-                                        className="max-h-64 w-full object-contain rounded-md"
-                                    />
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {images.map((image) => (
+                                            <div key={image.id} className="relative rounded-lg border p-1 dark:border-white/20">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={image.previewUrl}
+                                                    alt="Preview"
+                                                    className="h-36 w-full rounded-md object-cover"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeImage(image.id)}
+                                                    className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white"
+                                                    aria-label="Remove image"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {images.length < 5 && (
+                                        <button
+                                            type="button"
+                                            onClick={onPickFile}
+                                            className="w-full rounded-lg border border-dashed px-3 py-3 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5"
+                                            disabled={loading}
+                                        >
+                                            Add another image ({images.length}/5)
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -201,6 +266,7 @@ export default function CreatePost({
                             type="file"
                             accept="image/*"
                             className="hidden"
+                            multiple
                             onChange={onFileChange}
                             disabled={loading}
                         />

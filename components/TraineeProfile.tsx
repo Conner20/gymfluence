@@ -25,11 +25,14 @@ import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
+import { getPostImageUrls } from "@/lib/postImages";
+import PostImageCarousel from "@/components/PostImageCarousel";
 
 type BasicPost = {
     id: string;
     title: string;
     imageUrl?: string | null;
+    imageUrls?: string[];
 };
 
 type FullPost = {
@@ -37,6 +40,7 @@ type FullPost = {
     title: string;
     content: string;
     imageUrl?: string | null;
+    imageUrls?: string[];
     createdAt: string;
     author: { id: string; username: string | null; name: string | null } | null;
     likeCount: number;
@@ -101,6 +105,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                     id: p.id,
                     title: p.title,
                     imageUrl: p.imageUrl ?? null,
+                    imageUrls: p.imageUrls ?? [],
                 }))
             );
         } finally {
@@ -746,14 +751,13 @@ function ScrollFeed({
                             <div className="text-zinc-800 mt-3 whitespace-pre-wrap dark:text-gray-200">{p.content}</div>
                         )}
 
-                        {p.imageUrl && (
+                        {getPostImageUrls(p).length > 0 && (
                             <div className="mt-3">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={p.imageUrl}
-                                    alt=""
-                                    className="w-full max-h-[540px] object-contain rounded-xl border cursor-pointer dark:border-white/10"
-                                    onClick={() => onOpen(p.id)}
+                                <PostImageCarousel
+                                    imageUrls={getPostImageUrls(p)}
+                                    alt={p.title}
+                                    onOpen={() => onOpen(p.id)}
+                                    imageClassName="w-full max-h-[540px] object-contain"
                                 />
                             </div>
                         )}

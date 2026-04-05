@@ -247,6 +247,7 @@ model Post {
   likes    Like[]
   comments Comment[]
   imageUrl String?
+  imageUrls String[] @default([])
 
   // Inverse side of Message.sharedPost
   sharedInMessages Message[] @relation("SharedPost")

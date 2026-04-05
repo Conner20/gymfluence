@@ -5,6 +5,7 @@ import { compare } from "bcrypt";
 import { authOptions } from "@/lib/auth";
 import { hasAdminAccessByEmail } from "@/lib/admin";
 import { db } from "@/prisma/client";
+import { deleteStoredFile } from "@/lib/storage";
 
 type Params = {
     params: Promise<{ id: string }>;
@@ -30,6 +31,7 @@ export async function GET(_: Request, { params }: Params) {
             content: true,
             createdAt: true,
             imageUrl: true,
+            imageUrls: true,
         },
     });
 
@@ -70,7 +72,7 @@ export async function DELETE(req: Request, { params }: Params) {
     const { id } = await params;
     const post = await db.post.findFirst({
         where: { id: postId, authorId: id },
-        select: { id: true },
+        select: { id: true, imageUrl: true, imageUrls: true },
     });
 
     if (!post) {
@@ -78,6 +80,12 @@ export async function DELETE(req: Request, { params }: Params) {
     }
 
     await db.post.delete({ where: { id: post.id } });
+    const urlsToDelete = Array.from(
+        new Set([post.imageUrl, ...(post.imageUrls ?? [])].filter((url): url is string => !!url))
+    );
+    for (const url of urlsToDelete) {
+        await deleteStoredFile(url);
+    }
 
     return NextResponse.json({ message: "Post deleted." });
 }

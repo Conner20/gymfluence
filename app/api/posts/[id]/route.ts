@@ -75,6 +75,7 @@ export async function GET(
         title: post.title,
         content: post.content,
         imageUrl: post.imageUrl ?? null,
+        imageUrls: post.imageUrls ?? [],
         createdAt: post.createdAt,
         author: {
             id: post.author.id,

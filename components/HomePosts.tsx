@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatRelativeTime } from "@/lib/utils";
+import { getPostImageUrls } from "@/lib/postImages";
+import PostImageCarousel from "@/components/PostImageCarousel";
 
 type LiteUser = {
     id: string;
@@ -39,6 +41,7 @@ type Post = {
     title: string;
     content: string;
     imageUrl?: string | null;
+    imageUrls?: string[];
     createdAt: string;
     author: { username: string | null; email: string | null } | null;
     likeCount?: number;
@@ -538,13 +541,11 @@ export default function HomePosts({
                             )}
 
                             {/* Image (optional) */}
-                            {post.imageUrl && (
+                            {getPostImageUrls(post).length > 0 && (
                                 <div className="mt-3">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={post.imageUrl}
+                                    <PostImageCarousel
+                                        imageUrls={getPostImageUrls(post)}
                                         alt={post.title}
-                                        className="w-full max-h-[540px] object-contain rounded-xl border"
                                     />
                                 </div>
                             )}

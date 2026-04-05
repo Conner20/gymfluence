@@ -30,16 +30,29 @@ export async function POST(req: Request) {
     try {
         let title = "";
         let content = "";
-        let imageUrl: string | null = null;
+        let imageUrls: string[] = [];
 
         if (contentType.includes("multipart/form-data")) {
-            // Handle form-data with optional file
             const form = await req.formData();
             title = String(form.get("title") || "").trim();
             content = String(form.get("content") || "").trim();
 
-            const file = form.get("image");
-            if (file && file instanceof File && file.size > 0) {
+            const files = form
+                .getAll("images")
+                .filter((file): file is File => file instanceof File && file.size > 0);
+            const legacyFile = form.get("image");
+            if (files.length === 0 && legacyFile instanceof File && legacyFile.size > 0) {
+                files.push(legacyFile);
+            }
+
+            if (files.length > 5) {
+                return NextResponse.json(
+                    { message: "You can upload up to 5 images per post." },
+                    { status: 400 }
+                );
+            }
+
+            for (const file of files) {
                 const maxBytes = 8 * 1024 * 1024; // 8MB
                 if (file.size > maxBytes) {
                     return NextResponse.json(
@@ -54,30 +67,35 @@ export async function POST(req: Request) {
                         { status: 400 }
                     );
                 }
+            }
 
-                try {
+            try {
+                for (const file of files) {
                     const uploaded = await storeImageFile(file, {
                         folder: "posts",
                         prefix: `post-${user.id}`,
                     });
-                    imageUrl = uploaded.url;
-                } catch (err: any) {
-                    const msg =
-                        typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
-                            ? err.message
-                            : "Failed to upload image";
-                    return NextResponse.json(
-                        { message: msg },
-                        { status: 503 }
-                    );
+                    imageUrls.push(uploaded.url);
                 }
+            } catch (err: any) {
+                const msg =
+                    typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
+                        ? err.message
+                        : "Failed to upload image";
+                return NextResponse.json(
+                    { message: msg },
+                    { status: 503 }
+                );
             }
         } else {
-            // Back-compat: JSON body (no file)
             const body = await req.json();
             title = String(body.title || "").trim();
             content = String(body.content || "").trim();
-            imageUrl = body.imageUrl ? String(body.imageUrl) : null; // in case you pre-upload elsewhere (S3/Cloudinary)
+            imageUrls = Array.isArray(body.imageUrls)
+                ? body.imageUrls.map(String).filter(Boolean).slice(0, 5)
+                : body.imageUrl
+                    ? [String(body.imageUrl)]
+                    : [];
         }
 
         if (!title || !content) {
@@ -91,7 +109,8 @@ export async function POST(req: Request) {
             data: {
                 title,
                 content,
-                imageUrl,
+                imageUrl: imageUrls[0] ?? null,
+                imageUrls,
                 authorId: user.id,
             },
         });
@@ -148,6 +167,7 @@ export async function GET(req: Request) {
             title: p.title,
             content: p.content,
             imageUrl: p.imageUrl ?? null,
+            imageUrls: p.imageUrls ?? [],
             createdAt: p.createdAt,
             author: p.author
                 ? {
@@ -340,8 +360,11 @@ export async function DELETE(req: Request) {
     }
 
     await db.post.delete({ where: { id } });
-    if (post.imageUrl) {
-        await deleteStoredFile(post.imageUrl);
+    const urlsToDelete = Array.from(
+        new Set([post.imageUrl, ...(post.imageUrls ?? [])].filter((url): url is string => !!url))
+    );
+    for (const url of urlsToDelete) {
+        await deleteStoredFile(url);
     }
 
     revalidateTag("posts");

@@ -42,7 +42,7 @@ export async function GET(
     const posts = await db.post.findMany({
         where: { authorId: userId },
         orderBy: { createdAt: "desc" },
-        select: { id: true, title: true, imageUrl: true },
+        select: { id: true, title: true, imageUrl: true, imageUrls: true },
     });
 
     return NextResponse.json(posts);

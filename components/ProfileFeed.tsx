@@ -8,12 +8,15 @@ import clsx from "clsx";
 import Link from "next/link";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
+import { getPostImageUrls } from "@/lib/postImages";
+import PostImageCarousel from "@/components/PostImageCarousel";
 
 type Post = {
     id: string;
     title: string;
     content: string;
     imageUrl?: string | null;
+    imageUrls?: string[];
     createdAt: string;
     author: { id: string; username: string | null; name: string | null } | null;
     likeCount: number;
@@ -139,13 +142,11 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
                         <div className="text-gray-700 mt-2 whitespace-pre-wrap">{post.content}</div>
                     )}
 
-                    {post.imageUrl && (
+                    {getPostImageUrls(post).length > 0 && (
                         <div className="mt-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={post.imageUrl}
+                            <PostImageCarousel
+                                imageUrls={getPostImageUrls(post)}
                                 alt={post.title}
-                                className="w-full max-h-[540px] object-contain rounded-xl border"
                             />
                         </div>
                     )}

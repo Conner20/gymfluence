@@ -9,6 +9,8 @@ import clsx from "clsx";
 import { PostComments } from "@/components/PostComments";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
+import { getPostImageUrls } from "@/lib/postImages";
+import PostImageCarousel from "@/components/PostImageCarousel";
 
 type LiteUser = {
     id: string;
@@ -46,6 +48,7 @@ type Post = {
     title: string;
     content: string;
     imageUrl?: string | null;
+    imageUrls?: string[];
     createdAt: string;
     author: { id: string; username: string | null; name: string | null } | null;
     likeCount?: number;            // <- optional
@@ -401,8 +404,8 @@ export default function PostDetail({
         : "font-bold text-2xl text-gray-900 dark:text-white";
     const textCls = "text-gray-700 mt-2 whitespace-pre-wrap dark:text-gray-200";
     const imageCls = isFlat
-        ? "w-full max-h-[540px] object-contain rounded-xl border dark:border-white/10"
-        : "w-full max-h-[640px] object-contain rounded-xl border dark:border-white/10";
+        ? "w-full max-h-[540px] object-contain"
+        : "w-full max-h-[640px] object-contain";
     const commentsWrapperCls = isFlat ? "mt-3" : "mt-6";
 
     return (
@@ -450,10 +453,13 @@ export default function PostDetail({
 
                     {post.content && <div className={textCls}>{post.content}</div>}
 
-                    {post.imageUrl && (
+                    {getPostImageUrls(post).length > 0 && (
                         <div className="mt-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={post.imageUrl} alt={post.title} className={imageCls} />
+                            <PostImageCarousel
+                                imageUrls={getPostImageUrls(post)}
+                                alt={post.title}
+                                imageClassName={imageCls}
+                            />
                         </div>
                     )}
 
