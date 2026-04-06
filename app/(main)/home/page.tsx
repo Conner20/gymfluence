@@ -8,6 +8,15 @@ import { hasAdminAccessByEmail } from "@/lib/admin";
 
 export const revalidate = 0; // always fresh server render
 
+type HomeAnnouncement = {
+    id: string;
+    title: string;
+    content: string;
+    imageUrl: string | null;
+    imageUrls: string[];
+    createdAt: string;
+} | null;
+
 export default async function Home() {
     const session = await getServerSession(authOptions);
 
@@ -99,7 +108,20 @@ export default async function Home() {
         };
     });
 
+    const announcement = await db.announcement.findFirst({
+        where: { active: true },
+        orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            title: true,
+            content: true,
+            imageUrl: true,
+            imageUrls: true,
+            createdAt: true,
+        },
+    });
+
     const isAdmin = await hasAdminAccessByEmail(session.user.email);
 
-    return <HomePageShell posts={formatted as any} isAdmin={isAdmin} />;
+    return <HomePageShell posts={formatted as any} announcement={announcement as HomeAnnouncement} isAdmin={isAdmin} />;
 }

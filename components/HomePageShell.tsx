@@ -3,6 +3,7 @@
 import { Bell, BriefcaseBusiness, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import MobileHeader from "@/components/MobileHeader";
+import HomeAnnouncement from "@/components/HomeAnnouncement";
 import HomePosts from "@/components/HomePosts";
 import { useTheme } from "@/components/ThemeProvider";
 import NotificationsModal from "@/components/NotificationsModal";
@@ -12,6 +13,14 @@ import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
 type HomePageShellProps = {
     posts: any;
+    announcement?: {
+        id: string;
+        title: string;
+        content: string;
+        imageUrl?: string | null;
+        imageUrls?: string[];
+        createdAt: string;
+    } | null;
     isAdmin?: boolean;
 };
 
@@ -19,7 +28,7 @@ type NotificationListItem = {
     createdAt: string;
 };
 
-export default function HomePageShell({ posts, isAdmin = false }: HomePageShellProps) {
+export default function HomePageShell({ posts, announcement = null, isAdmin = false }: HomePageShellProps) {
     const { theme, toggleTheme } = useTheme();
     const { data: session } = useSession();
     const darkMode = theme === "dark";
@@ -28,6 +37,8 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
     const [lastNotificationsSeenAt, setLastNotificationsSeenAt] = useState(0);
     const [feedRefreshToken, setFeedRefreshToken] = useState(0);
     const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
+    const [currentAnnouncement, setCurrentAnnouncement] = useState(announcement);
+    const [isDeletingAnnouncement, setIsDeletingAnnouncement] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
     const isSignedIn = Boolean(session?.user?.id);
     const touchStartYRef = useRef<number | null>(null);
@@ -65,7 +76,27 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
         refreshNotificationCount();
     }, [isSignedIn]);
 
+    useEffect(() => {
+        setCurrentAnnouncement(announcement);
+    }, [announcement]);
+
     useLiveRefresh(refreshNotificationCount, { enabled: isSignedIn, interval: 5000 });
+
+    const handleDeleteAnnouncement = async () => {
+        if (!isAdmin || isDeletingAnnouncement) return;
+
+        try {
+            setIsDeletingAnnouncement(true);
+            const res = await fetch("/api/admin/announcement", { method: "DELETE" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.message || "Failed to delete announcement.");
+            setCurrentAnnouncement(null);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : "Failed to delete announcement.");
+        } finally {
+            setIsDeletingAnnouncement(false);
+        }
+    };
 
     const openNotifications = async () => {
         setNotificationsOpen(true);
@@ -228,6 +259,14 @@ export default function HomePageShell({ posts, isAdmin = false }: HomePageShellP
                                 )}
                             </div>
                         </div>
+                        {currentAnnouncement && (
+                            <HomeAnnouncement
+                                announcement={currentAnnouncement}
+                                isAdmin={isAdmin}
+                                deleting={isDeletingAnnouncement}
+                                onDelete={() => void handleDeleteAnnouncement()}
+                            />
+                        )}
                         <HomePosts initialPosts={posts} refreshToken={feedRefreshToken} />
                     </div>
                 </main>

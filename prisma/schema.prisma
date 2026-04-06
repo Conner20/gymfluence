@@ -127,6 +127,22 @@ model User {
   dashboardSharesReceived DashboardShare[] @relation("DashboardShareViewer")
   pageViews              PageView[]
   notificationDismissals NotificationDismissal[]
+  announcementsCreated   Announcement[] @relation("AnnouncementCreator")
+}
+
+model Announcement {
+  id         String   @id @default(cuid())
+  title      String
+  content    String
+  imageUrl   String?
+  imageUrls  String[] @default([])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+  createdBy  User?    @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@index([active, createdAt])
 }
 
 model DashboardShare {

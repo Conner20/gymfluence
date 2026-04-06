@@ -232,6 +232,12 @@ export default async function AdminMetricsPage() {
                     >
                         Metrics
                     </Link>
+                    <Link
+                        href="/admin/announcement"
+                        className="rounded-full border border-transparent px-4 py-1 hover:border-black/10 dark:hover:border-white/20"
+                    >
+                        Announcement
+                    </Link>
                 </nav>
             </header>
 
@@ -248,6 +254,12 @@ export default async function AdminMetricsPage() {
                         className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black dark:border-white/20 dark:bg-white/10 dark:text-white"
                     >
                         Metrics
+                    </Link>
+                    <Link
+                        href="/admin/announcement"
+                        className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-zinc-600 dark:border-white/20 dark:text-white/70"
+                    >
+                        Announcement
                     </Link>
                 </nav>
 
