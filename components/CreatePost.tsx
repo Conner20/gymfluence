@@ -10,9 +10,9 @@ type SelectedImage = {
 };
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_TOTAL_UPLOAD_BYTES = 18 * 1024 * 1024;
-const MAX_IMAGE_DIMENSION = 1600;
-const TARGET_IMAGE_BYTES = 2.5 * 1024 * 1024;
+const MAX_TOTAL_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1280;
+const TARGET_IMAGE_BYTES = 1.2 * 1024 * 1024;
 
 const loadImageElement = (file: File) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
@@ -56,6 +56,18 @@ const canvasToFile = (canvas: HTMLCanvasElement, type: string, quality?: number)
         }, type, quality);
     });
 
+const drawImageToCanvas = (image: HTMLImageElement, width: number, height: number) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width));
+    canvas.height = Math.max(1, Math.round(height));
+    const context = canvas.getContext("2d");
+    if (!context) {
+        return null;
+    }
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas;
+};
+
 async function optimizeImageForPost(file: File) {
     if (!file.type.startsWith("image/")) {
         throw new Error("Only image files are allowed.");
@@ -66,30 +78,38 @@ async function optimizeImageForPost(file: File) {
     }
 
     const image = await loadImageElement(file);
-    const width = image.naturalWidth || image.width;
-    const height = image.naturalHeight || image.height;
-    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-
-    const context = canvas.getContext("2d");
-    if (!context) {
-        return file;
-    }
-
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
+    const originalWidth = image.naturalWidth || image.width;
+    const originalHeight = image.naturalHeight || image.height;
+    const initialScale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(originalWidth, originalHeight));
+    let width = Math.max(1, Math.round(originalWidth * initialScale));
+    let height = Math.max(1, Math.round(originalHeight * initialScale));
     const outputType = file.type === "image/png" ? "image/png" : "image/webp";
-    const qualities = outputType === "image/png" ? [undefined] : [0.82, 0.72, 0.62, 0.5];
     let candidate = file;
 
-    for (const quality of qualities) {
-        const nextFile = await canvasToFile(canvas, outputType, quality);
-        candidate = nextFile;
-        if (candidate.size <= TARGET_IMAGE_BYTES) {
+    for (let resizeStep = 0; resizeStep < 4; resizeStep += 1) {
+        const canvas = drawImageToCanvas(image, width, height);
+        if (!canvas) {
+            return file;
+        }
+
+        const qualities = outputType === "image/png" ? [undefined] : [0.78, 0.66, 0.54, 0.42];
+        for (const quality of qualities) {
+            const nextFile = await canvasToFile(canvas, outputType, quality);
+            candidate = nextFile;
+            if (candidate.size <= TARGET_IMAGE_BYTES) {
+                return candidate.size < file.size ? candidate : file;
+            }
+        }
+
+        width = Math.max(720, Math.round(width * 0.82));
+        height = Math.max(720, Math.round(height * 0.82));
+        if (width === canvas.width && height === canvas.height) {
             break;
         }
+    }
+
+    if (candidate.size > MAX_IMAGE_BYTES) {
+        return file;
     }
 
     return candidate.size < file.size ? candidate : file;
