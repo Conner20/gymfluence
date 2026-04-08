@@ -13,6 +13,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_UPLOAD_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 1280;
 const TARGET_IMAGE_BYTES = 1.2 * 1024 * 1024;
+const MAX_POST_IMAGES = 3;
 
 const loadImageElement = (file: File) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
@@ -172,7 +173,7 @@ export default function CreatePost({
 
         setImages((current) => {
             const combined = [...current, ...nextImages];
-            if (combined.length <= 5) {
+            if (combined.length <= MAX_POST_IMAGES) {
                 const totalBytes = combined.reduce((sum, image) => sum + image.file.size, 0);
                 if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
                     nextImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
@@ -184,9 +185,9 @@ export default function CreatePost({
                 return combined;
             }
 
-            combined.slice(5).forEach((image) => URL.revokeObjectURL(image.previewUrl));
-            setError("You can upload up to 5 images per post.");
-            return combined.slice(0, 5);
+            combined.slice(MAX_POST_IMAGES).forEach((image) => URL.revokeObjectURL(image.previewUrl));
+            setError("You can upload up to 3 images per post.");
+            return combined.slice(0, MAX_POST_IMAGES);
         });
         e.target.value = "";
     };
@@ -330,7 +331,7 @@ export default function CreatePost({
                     {/* Image picker + preview */}
                     <div>
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium">Attach up to 5 photos (optional)</label>
+                            <label className="text-sm font-medium">Attach up to 3 photos (optional)</label>
                             {images.length > 0 && (
                                 <button
                                     type="button"
@@ -354,7 +355,7 @@ export default function CreatePost({
                                     disabled={loading || processingImages}
                                 >
                                     <ImageIcon size={22} className="mb-1" />
-                                    <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 5 images</span>
+                                    <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 3 images</span>
                                     <span className="text-[11px] text-zinc-400 mt-1 dark:text-gray-400">
                                         PNG, JPG, WEBP, GIF · up to 8MB each
                                     </span>
@@ -381,14 +382,14 @@ export default function CreatePost({
                                             </div>
                                         ))}
                                     </div>
-                                    {images.length < 5 && (
+                                    {images.length < MAX_POST_IMAGES && (
                                         <button
                                             type="button"
                                             onClick={onPickFile}
                                             className="w-full rounded-lg border border-dashed px-3 py-3 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5"
                                             disabled={loading || processingImages}
                                         >
-                                            Add another image ({images.length}/5)
+                                            Add another image ({images.length}/{MAX_POST_IMAGES})
                                         </button>
                                     )}
                                 </div>

@@ -6,6 +6,8 @@ import { hasAdminAccessByEmail } from "@/lib/admin";
 import { db } from "@/prisma/client";
 import { deleteStoredFile, storeImageFile } from "@/lib/storage";
 
+const MAX_ANNOUNCEMENT_IMAGES = 3;
+
 async function getAdminUser() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email || !(await hasAdminAccessByEmail(session.user.email))) {
@@ -70,8 +72,8 @@ export async function POST(req: Request) {
         .getAll("images")
         .filter((file): file is File => file instanceof File && file.size > 0);
 
-    if (files.length > 5) {
-        return NextResponse.json({ message: "You can upload up to 5 images." }, { status: 400 });
+    if (files.length > MAX_ANNOUNCEMENT_IMAGES) {
+        return NextResponse.json({ message: "You can upload up to 3 images." }, { status: 400 });
     }
 
     for (const file of files) {
@@ -189,8 +191,8 @@ export async function PATCH(req: Request) {
             .getAll("images")
             .filter((file): file is File => file instanceof File && file.size > 0);
 
-        if (retainedImageUrls.length + files.length > 5) {
-            return NextResponse.json({ message: "You can upload up to 5 images." }, { status: 400 });
+        if (retainedImageUrls.length + files.length > MAX_ANNOUNCEMENT_IMAGES) {
+            return NextResponse.json({ message: "You can upload up to 3 images." }, { status: 400 });
         }
 
         for (const file of files) {

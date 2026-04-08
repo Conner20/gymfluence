@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { deleteStoredFile, storeImageFile } from "@/lib/storage";
 
+const MAX_POST_IMAGES = 3;
+
 export async function GET(
     _req: Request,
     context: { params: Promise<{ id: string }> }
@@ -180,8 +182,8 @@ export async function PATCH(
             .getAll("images")
             .filter((file): file is File => file instanceof File && file.size > 0);
 
-        if (retainedImageUrls.length + files.length > 5) {
-            return NextResponse.json({ message: "You can upload up to 5 images per post." }, { status: 400 });
+        if (retainedImageUrls.length + files.length > MAX_POST_IMAGES) {
+            return NextResponse.json({ message: "You can upload up to 3 images per post." }, { status: 400 });
         }
 
         for (const file of files) {
@@ -218,7 +220,7 @@ export async function PATCH(
         title = String(body?.title || "").trim();
         content = String(body?.content || "").trim();
         nextImageUrls = Array.isArray(body?.imageUrls)
-            ? body.imageUrls.map(String).filter(Boolean).slice(0, 5)
+            ? body.imageUrls.map(String).filter(Boolean).slice(0, MAX_POST_IMAGES)
             : existingImageUrls;
     }
 

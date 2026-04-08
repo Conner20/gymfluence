@@ -20,6 +20,8 @@ type SelectedImage = {
     previewUrl: string;
 };
 
+const MAX_ANNOUNCEMENT_IMAGES = 3;
+
 const normalizeImageUrls = (announcement: Announcement | null) =>
     announcement?.imageUrls?.length
         ? announcement.imageUrls
@@ -105,9 +107,9 @@ export default function AdminAnnouncementManager() {
             return;
         }
 
-        if (currentCount + nextImages.length > 5) {
+        if (currentCount + nextImages.length > MAX_ANNOUNCEMENT_IMAGES) {
             nextImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
-            setError("You can upload up to 5 images.");
+            setError("You can upload up to 3 images.");
             event.target.value = "";
             return;
         }
@@ -246,7 +248,7 @@ export default function AdminAnnouncementManager() {
 
                     <div>
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium text-zinc-700 dark:text-gray-200">Photos (optional, up to 5)</label>
+                            <label className="text-sm font-medium text-zinc-700 dark:text-gray-200">Photos (optional, up to 3)</label>
                             {(existingImageUrls.length > 0 || newImages.length > 0) && (
                                 <button
                                     type="button"
@@ -302,14 +304,14 @@ export default function AdminAnnouncementManager() {
                                             </div>
                                         ))}
                                     </div>
-                                    {existingImageUrls.length + newImages.length < 5 && (
+                                    {existingImageUrls.length + newImages.length < MAX_ANNOUNCEMENT_IMAGES && (
                                         <button
                                             type="button"
                                             onClick={onPickFile}
                                             className="w-full rounded-2xl border border-dashed border-black/10 px-4 py-3 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-white/15 dark:text-gray-200 dark:hover:bg-white/5"
                                             disabled={loading || saving}
                                         >
-                                            Add another photo ({existingImageUrls.length + newImages.length}/5)
+                                            Add another photo ({existingImageUrls.length + newImages.length}/{MAX_ANNOUNCEMENT_IMAGES})
                                         </button>
                                     )}
                                 </div>
