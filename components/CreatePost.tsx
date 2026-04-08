@@ -9,6 +9,92 @@ type SelectedImage = {
     previewUrl: string;
 };
 
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_TOTAL_UPLOAD_BYTES = 18 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1600;
+const TARGET_IMAGE_BYTES = 2.5 * 1024 * 1024;
+
+const loadImageElement = (file: File) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const image = new Image();
+
+        image.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(image);
+        };
+
+        image.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error("Failed to read image."));
+        };
+
+        image.src = objectUrl;
+    });
+
+const canvasToFile = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
+    new Promise<File>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error("Failed to process image."));
+                return;
+            }
+
+            const extension =
+                type === "image/webp"
+                    ? "webp"
+                    : type === "image/png"
+                        ? "png"
+                        : "jpg";
+
+            resolve(
+                new File([blob], `post-image.${extension}`, {
+                    type,
+                    lastModified: Date.now(),
+                })
+            );
+        }, type, quality);
+    });
+
+async function optimizeImageForPost(file: File) {
+    if (!file.type.startsWith("image/")) {
+        throw new Error("Only image files are allowed.");
+    }
+
+    if (file.type === "image/gif") {
+        return file;
+    }
+
+    const image = await loadImageElement(file);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+        return file;
+    }
+
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const outputType = file.type === "image/png" ? "image/png" : "image/webp";
+    const qualities = outputType === "image/png" ? [undefined] : [0.82, 0.72, 0.62, 0.5];
+    let candidate = file;
+
+    for (const quality of qualities) {
+        const nextFile = await canvasToFile(canvas, outputType, quality);
+        candidate = nextFile;
+        if (candidate.size <= TARGET_IMAGE_BYTES) {
+            break;
+        }
+    }
+
+    return candidate.size < file.size ? candidate : file;
+}
+
 export default function CreatePost({
     onClose,
 }: {
@@ -18,6 +104,7 @@ export default function CreatePost({
     const [content, setContent] = useState('');
     const [images, setImages] = useState<SelectedImage[]>([]);
     const [loading, setLoading] = useState(false);
+    const [processingImages, setProcessingImages] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ title: boolean; content: boolean }>({
         title: false,
@@ -29,28 +116,33 @@ export default function CreatePost({
 
     const onPickFile = () => inputRef.current?.click();
 
-    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
         if (!files.length) {
             return;
         }
 
-        const maxBytes = 8 * 1024 * 1024; // 8MB
+        setProcessingImages(true);
+        setError(null);
         const nextImages: SelectedImage[] = [];
-        for (const file of files) {
-            if (file.size > maxBytes) {
-                setError("Each image must be 8MB or smaller.");
-                continue;
+        try {
+            for (const file of files) {
+                const optimized = await optimizeImageForPost(file);
+                if (optimized.size > MAX_IMAGE_BYTES) {
+                    setError("Each image must be 8MB or smaller.");
+                    continue;
+                }
+
+                nextImages.push({
+                    id: `${optimized.name}-${optimized.size}-${optimized.lastModified}-${Math.random().toString(36).slice(2)}`,
+                    file: optimized,
+                    previewUrl: URL.createObjectURL(optimized),
+                });
             }
-            if (!file.type.startsWith("image/")) {
-                setError("Only image files are allowed.");
-                continue;
-            }
-            nextImages.push({
-                id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
-                file,
-                previewUrl: URL.createObjectURL(file),
-            });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to process image.");
+        } finally {
+            setProcessingImages(false);
         }
 
         if (!nextImages.length) {
@@ -61,6 +153,13 @@ export default function CreatePost({
         setImages((current) => {
             const combined = [...current, ...nextImages];
             if (combined.length <= 5) {
+                const totalBytes = combined.reduce((sum, image) => sum + image.file.size, 0);
+                if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+                    nextImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+                    setError("Selected photos are too large together. Try fewer photos or smaller ones.");
+                    return current;
+                }
+
                 setError(null);
                 return combined;
             }
@@ -119,6 +218,12 @@ export default function CreatePost({
             return;
         }
 
+        const totalBytes = images.reduce((sum, image) => sum + image.file.size, 0);
+        if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+            setError("Selected photos are too large together. Try fewer photos or smaller ones.");
+            return;
+        }
+
         setLoading(true);
         try {
             const form = new FormData();
@@ -132,8 +237,17 @@ export default function CreatePost({
             });
 
             if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                setError(data.message || "Failed to create post.");
+                const responseText = await res.text().catch(() => "");
+                let message = "Failed to create post.";
+                try {
+                    const data = responseText ? JSON.parse(responseText) : {};
+                    message = data?.message || message;
+                } catch {
+                    if (res.status === 413) {
+                        message = "Selected photos are too large together. Try fewer photos or smaller ones.";
+                    }
+                }
+                setError(message);
             } else {
                 // ✅ tell any listeners (like TraineeProfile) to refresh posts
                 if (typeof window !== "undefined") {
@@ -178,7 +292,7 @@ export default function CreatePost({
                         placeholder="Title"
                         value={title}
                         onChange={e => setTitle(e.target.value)}
-                        disabled={loading}
+                        disabled={loading || processingImages}
                     />
 
                     <textarea
@@ -190,7 +304,7 @@ export default function CreatePost({
                         placeholder="What's on your mind?"
                         value={content}
                         onChange={e => setContent(e.target.value)}
-                        disabled={loading}
+                        disabled={loading || processingImages}
                     />
 
                     {/* Image picker + preview */}
@@ -203,7 +317,7 @@ export default function CreatePost({
                                     onClick={clearImages}
                                     className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
                                     title="Remove all images"
-                                    disabled={loading}
+                                    disabled={loading || processingImages}
                                 >
                                     <Trash2 size={14} />
                                     Clear all
@@ -217,7 +331,7 @@ export default function CreatePost({
                                     type="button"
                                     onClick={onPickFile}
                                     className="w-full border border-dashed rounded-lg py-6 flex flex-col items-center justify-center hover:bg-zinc-50 transition dark:border-white/20 dark:hover:bg-white/5"
-                                    disabled={loading}
+                                    disabled={loading || processingImages}
                                 >
                                     <ImageIcon size={22} className="mb-1" />
                                     <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 5 images</span>
@@ -252,7 +366,7 @@ export default function CreatePost({
                                             type="button"
                                             onClick={onPickFile}
                                             className="w-full rounded-lg border border-dashed px-3 py-3 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5"
-                                            disabled={loading}
+                                            disabled={loading || processingImages}
                                         >
                                             Add another image ({images.length}/5)
                                         </button>
@@ -268,16 +382,17 @@ export default function CreatePost({
                             className="hidden"
                             multiple
                             onChange={onFileChange}
-                            disabled={loading}
+                            disabled={loading || processingImages}
                         />
                     </div>
 
                     {error && <div className="text-red-500 text-sm">{error}</div>}
+                    {processingImages && <div className="text-sm text-zinc-500 dark:text-gray-400">Optimizing photos...</div>}
 
                     <button
                         className="bg-green-600 text-white rounded-lg py-2 font-semibold mt-2 hover:bg-green-700 transition disabled:opacity-60 dark:bg-green-600 dark:hover:bg-green-500"
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || processingImages}
                     >
                         {loading ? "Posting..." : "Post"}
                     </button>
