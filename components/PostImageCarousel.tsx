@@ -21,18 +21,18 @@ export default function PostImageCarousel({
     const [index, setIndex] = useState(0);
     const [controlsVisible, setControlsVisible] = useState(true);
     const [frameHeight, setFrameHeight] = useState<number | null>(null);
+    const imageSignature = imageUrls.join("|");
     const touchStartX = useRef<number | null>(null);
     const touchEndX = useRef<number | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        setIndex(0);
-        setControlsVisible(true);
-    }, [imageUrls]);
+        setIndex((prev) => Math.min(prev, Math.max(imageUrls.length - 1, 0)));
+    }, [imageSignature, imageUrls.length]);
 
     useEffect(() => {
         setFrameHeight(null);
-    }, [imageUrls]);
+    }, [imageSignature]);
 
     if (!imageUrls.length) return null;
 
@@ -86,7 +86,7 @@ export default function PostImageCarousel({
             cancelled = true;
             observer.disconnect();
         };
-    }, [imageUrls, isMulti]);
+    }, [imageSignature, imageUrls, isMulti]);
 
     const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
         touchStartX.current = event.touches[0]?.clientX ?? null;

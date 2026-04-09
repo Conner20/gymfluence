@@ -51,6 +51,24 @@ type Post = {
     comments?: any[];
 };
 
+function RelativeTimeLabel({ iso }: { iso: string }) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    return (
+        <span
+            className="text-xs text-gray-400 dark:text-gray-300"
+            title={new Date(iso).toLocaleString()}
+            suppressHydrationWarning
+        >
+            {mounted ? formatRelativeTime(iso) : ""}
+        </span>
+    );
+}
+
 export default function HomePosts({
     initialPosts,
     refreshToken = 0,
@@ -558,12 +576,7 @@ export default function HomePosts({
                                                     <span className="font-semibold">Unknown</span>
                                                 )}
                                             </span>
-                                            <span
-                                                className="text-xs text-gray-400 dark:text-gray-300"
-                                                title={new Date(post.createdAt).toLocaleString()}
-                                            >
-                                                {formatRelativeTime(post.createdAt)}
-                                            </span>
+                                            <RelativeTimeLabel iso={post.createdAt} />
                                         </>
                                     );
 

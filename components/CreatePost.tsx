@@ -2,6 +2,9 @@
 
 import { X, Image as ImageIcon, Trash2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
+import { genUploader } from "uploadthing/client";
+
+import type { UploadRouter } from "@/app/api/uploadthing/core";
 
 type SelectedImage = {
     id: string;
@@ -9,8 +12,9 @@ type SelectedImage = {
     previewUrl: string;
 };
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
 const MAX_POST_IMAGES = 3;
+const { uploadFiles } = genUploader<UploadRouter>();
 
 export default function CreatePost({
     onClose,
@@ -123,19 +127,44 @@ export default function CreatePost({
 
         setLoading(true);
         try {
-            const form = new FormData();
-            form.append("title", title);
-            form.append("content", content);
-            images.forEach((image) => form.append("images", image.file));
+            const uploadedFiles = images.length
+                ? await uploadFiles("postMedia", {
+                    files: images.map((image) => image.file),
+                })
+                : [];
+
+            const imageUrls = uploadedFiles
+                .map((file) => file.serverData?.url || file.ufsUrl || file.url)
+                .filter(Boolean);
 
             const res = await fetch("/api/posts", {
                 method: "POST",
-                body: form, // <-- multipart/form-data; do NOT set Content-Type manually
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    title,
+                    content,
+                    imageUrls,
+                }),
             });
 
             if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                setError(data.message || "Failed to create post.");
+                const responseText = await res.text().catch(() => "");
+                let message = "Failed to create post.";
+
+                try {
+                    const data = responseText ? JSON.parse(responseText) : {};
+                    message = data?.message || message;
+                } catch {
+                    if (res.status === 413) {
+                        message = "Your selected files are too large to upload. Try smaller files.";
+                    } else if (res.status >= 500) {
+                        message = "Unable to create post right now. Please try again.";
+                    }
+                }
+
+                setError(message);
             } else {
                 // ✅ tell any listeners (like TraineeProfile) to refresh posts
                 if (typeof window !== "undefined") {
@@ -148,8 +177,24 @@ export default function CreatePost({
                 clearImages();
                 onClose();
             }
-        } catch {
-            setError("Something went wrong.");
+        } catch (err: any) {
+            const rawMessage =
+                typeof err?.message === "string"
+                    ? err.message
+                    : typeof err?.cause?.message === "string"
+                        ? err.cause.message
+                        : "";
+
+            const lowerMessage = rawMessage.toLowerCase();
+            if (lowerMessage.includes("file") && lowerMessage.includes("size")) {
+                setError(rawMessage);
+            } else if (lowerMessage.includes("unauthorized")) {
+                setError("You need to be signed in to post.");
+            } else if (rawMessage) {
+                setError(rawMessage);
+            } else {
+                setError("Unable to upload files right now. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -224,7 +269,7 @@ export default function CreatePost({
                                     <ImageIcon size={22} className="mb-1" />
                                     <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 3 images</span>
                                     <span className="text-[11px] text-zinc-400 mt-1 dark:text-gray-400">
-                                        PNG, JPG, WEBP, GIF · up to 8MB each
+                                        PNG, JPG, WEBP, GIF · up to 16MB each
                                     </span>
                                 </button>
                             ) : (
