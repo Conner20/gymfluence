@@ -7,14 +7,17 @@ import { useSession } from "next-auth/react";
 import {
   UserPlus,
   UserMinus,
+  UserSearch,
   MessageSquare,
   Share2,
+  Bell,
   Link as LinkIcon,
   Lock,
   ArrowLeft,
   Heart,
   MessageCircle,
   Pencil,
+  UserPen,
   Star,
   X,
   Trash2,
@@ -706,8 +709,24 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
             </div>
           )}
 
+          {gym?.hiringTrainers && (
+            <div className="w-full text-center">
+              <p className="inline-flex max-w-full items-center justify-center gap-1 text-center text-xs text-gray-600 dark:text-gray-300">
+                <UserSearch size={12} className="shrink-0" />
+                <span>Hiring trainers</span>
+              </p>
+            </div>
+          )}
+
+          {/* Bio */}
+          {gym?.bio && (
+            <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
+              {gym.bio}
+            </p>
+          )}
+
           {/* Rating / fee / clients + Followers / Following / Posts */}
-          <div className="w-full mt-2 space-y-3">
+          <div className="w-full mt-2 rounded-2xl border border-gray-200 px-4 py-3 space-y-3 dark:border-white/10">
             <ProfileStat
               label="rating"
               value={localRating != null ? localRating.toFixed(1) : "N/A"}
@@ -763,13 +782,6 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
               </div>
             </div>
           </div>
-
-          {/* Bio */}
-          {gym?.bio && (
-            <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
-              {gym.bio}
-            </p>
-          )}
 
           {/* Actions */}
           <div className="w-full mt-4 space-y-2">
@@ -864,33 +876,89 @@ export function GymProfile({ user, posts }: { user: any; posts?: BasicPost[] }) 
               </>
             ) : (
               <>
-                {showWebsiteAction && (
+                <div
+                  className={clsx(
+                    "mx-auto grid w-full max-w-[312px] gap-2 sm:hidden",
+                    showWebsiteAction ? "grid-cols-4" : "grid-cols-3"
+                  )}
+                >
+                  {showWebsiteAction && (
+                    <button
+                      className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                      onClick={handleWebsiteClick}
+                      aria-label="Website"
+                      title="Website"
+                    >
+                      <LinkIcon size={16} className="shrink-0" />
+                      <span className="max-w-full text-center">Website</span>
+                    </button>
+                  )}
                   <button
-                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10 inline-flex items-center justify-center gap-2"
-                    onClick={handleWebsiteClick}
+                    className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                    onClick={() => router.push("/settings")}
+                    aria-label="Edit profile"
+                    title="Edit profile"
                   >
-                    <LinkIcon size={16} />
-                    <span>Website</span>
+                    <UserPen size={16} className="shrink-0" />
+                    <span className="max-w-full text-center">Edit Profile</span>
                   </button>
-                )}
-                <button
-                  className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                  onClick={() => setShowNotifications(true)}
-                >
-                  View notifications
-                </button>
-                <button
-                  className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                  onClick={() => setShowManageRatings(true)}
-                >
-                  Manage ratings
-                </button>
-                <button
-                  className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                  onClick={() => router.push("/settings")}
-                >
-                  Edit profile
-                </button>
+                  <button
+                    className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                    onClick={() => setShowManageRatings(true)}
+                    aria-label="Ratings"
+                    title="Ratings"
+                  >
+                    <Star size={16} className="shrink-0" />
+                    <span className="max-w-full text-center">Ratings</span>
+                  </button>
+                  <button
+                    className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                    onClick={() => setShowNotifications(true)}
+                    aria-label="Notifications"
+                    title="Notifications"
+                  >
+                    <Bell size={16} className="shrink-0" />
+                    <span className="max-w-full text-center">Notifications</span>
+                  </button>
+                </div>
+                <div className="mx-auto hidden w-full max-w-[312px] space-y-2 sm:block">
+                  {showWebsiteAction && (
+                    <button
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                      onClick={handleWebsiteClick}
+                    >
+                      <LinkIcon size={16} className="shrink-0" />
+                      <span>Website</span>
+                    </button>
+                  )}
+                  <div className="grid w-full grid-cols-[0.96fr_1.04fr] gap-2">
+                    <button
+                      className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                      onClick={() => router.push("/settings")}
+                      aria-label="Edit profile"
+                      title="Edit profile"
+                    >
+                      <UserPen size={16} className="shrink-0" />
+                      <span className="whitespace-nowrap">Edit Profile</span>
+                    </button>
+                    <button
+                      className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                      onClick={() => setShowManageRatings(true)}
+                      aria-label="Ratings"
+                      title="Ratings"
+                    >
+                      <Star size={16} className="shrink-0" />
+                      <span>Ratings</span>
+                    </button>
+                  </div>
+                  <button
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                    onClick={() => setShowNotifications(true)}
+                  >
+                    <Bell size={16} className="shrink-0" />
+                    <span>Notifications</span>
+                  </button>
+                </div>
               </>
             )}
           </div>

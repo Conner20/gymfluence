@@ -32,7 +32,13 @@ export default async function UserProfilePage({
     const user = await db.user.findUnique({
         where: { username: decoded },
         include: {
-            traineeProfile: true,
+            traineeProfile: {
+                include: {
+                    associatedTrainer: {
+                        select: { id: true, username: true, name: true },
+                    },
+                },
+            },
             trainerProfile: true,
             gymProfile: true,
         },

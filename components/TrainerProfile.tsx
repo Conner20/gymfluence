@@ -9,15 +9,19 @@ import {
     UserMinus,
     MessageSquare,
     Share2,
+    Bell,
+    Link as LinkIcon,
     Lock,
     ArrowLeft,
     Heart,
     MessageCircle,
     Pencil,
+    UserPen,
     Star,
     X,
     Trash2,
     MapPin,
+    Search,
 } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
@@ -429,6 +433,7 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
     const isOwnProfile = pathname === "/profile" || session?.user?.id === user.id;
     const trainer = user.trainerProfile;
+    const trainerWebsite = typeof trainer?.website === "string" ? trainer.website.trim() : "";
 
     // keep local rating/clients in sync after approvals
     const [localRating, setLocalRating] = useState<number | null>(trainer?.rating ?? null);
@@ -644,8 +649,15 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const [showNotifications, setShowNotifications] = useState(false);
 
     const [viewMode, setViewMode] = useState<"grid" | "scroll">("grid");
+    const showWebsiteAction = Boolean(trainer?.showWebsiteButton && trainerWebsite);
 
     const requested = user.isPrivate ? isPending || optimisticRequested : false;
+
+    const handleWebsiteClick = () => {
+        if (!trainerWebsite) return;
+        const href = /^https?:\/\//i.test(trainerWebsite) ? trainerWebsite : `https://${trainerWebsite}`;
+        window.open(href, "_blank", "noopener,noreferrer");
+    };
 
     return (
         <div className="flex min-h-screen w-full flex-col lg:flex-row gap-6 lg:gap-0 bg-[#f8f8f8] dark:bg-[#050505] dark:text-gray-100">
@@ -695,8 +707,34 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         </div>
                     )}
 
+                    {trainer?.gymStatus && (
+                        <div className="flex w-full flex-col items-center gap-1 text-center">
+                            {trainer.gymStatus === "LOOKING" && (
+                                <p className="inline-flex max-w-full items-center justify-center gap-1 text-center text-xs text-gray-600 dark:text-gray-300">
+                                    <Search size={12} className="shrink-0" />
+                                    <span>Looking for a gym</span>
+                                </p>
+                            )}
+                            {trainer.gymStatus === "TRAINER" && trainer.gymName && (
+                                <p className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 text-center text-xs text-zinc-900 dark:text-white">
+                                    Trainer @{" "}
+                                    <span className="font-normal text-zinc-900 dark:text-white">
+                                        {trainer.gymName}
+                                    </span>
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Bio */}
+                    {trainer?.bio && (
+                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
+                            {trainer.bio}
+                        </p>
+                    )}
+
                     {/* Rating / clients + Followers / Following / Posts */}
-                    <div className="w-full mt-2 space-y-3">
+                    <div className="w-full mt-2 rounded-2xl border border-gray-200 px-4 py-3 space-y-3 dark:border-white/10">
                         <ProfileStat
                             label="rating"
                             value={localRating != null ? localRating.toFixed(1) : "N/A"}
@@ -749,13 +787,6 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         </div>
                     </div>
 
-                    {/* Bio */}
-                    {trainer?.bio && (
-                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
-                            {trainer.bio}
-                        </p>
-                    )}
-
                     {/* Actions */}
                     <div className="w-full mt-4 space-y-2">
                         {!isOwnProfile ? (
@@ -800,18 +831,23 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 </button>
 
 
-                                <div className="flex gap-2">
+                                <div
+                                    className={clsx(
+                                        "grid gap-2",
+                                        showWebsiteAction ? "grid-cols-4" : "grid-cols-3"
+                                    )}
+                                >
                                     <button
                                         onClick={handleMessage}
-                                        className="flex-1 py-1.5 rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        className="h-9 w-full rounded-full border text-xs text-zinc-700 bg-white hover:bg-gray-50 transition flex items-center justify-center gap-1 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        title="Message"
                                     >
                                         <MessageSquare size={16} />
-                                        <span>Message</span>
                                     </button>
                                     <button
                                         onClick={handleShare}
                                         className={clsx(
-                                            "w-9 h-9 shrink-0 rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 dark:bg-transparent dark:hover:bg-white/10",
+                                            "h-9 w-full rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 dark:bg-transparent dark:hover:bg-white/10",
                                             shareActive
                                                 ? "text-green-500 border-green-500 dark:text-green-400 dark:border-green-500"
                                                 : "text-zinc-700 border-gray-200 dark:text-gray-100 dark:border-white/20"
@@ -820,9 +856,18 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                     >
                                         <Share2 size={16} />
                                     </button>
+                                    {showWebsiteAction && (
+                                        <button
+                                            onClick={handleWebsiteClick}
+                                            className="h-9 w-full rounded-full border bg-white hover:bg-gray-50 transition inline-flex items-center justify-center p-0 text-zinc-700 border-gray-200 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                            title="Visit website"
+                                        >
+                                            <LinkIcon size={16} />
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setShowRate(true)}
-                                        className="w-9 h-9 rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center dark:bg-transparent dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
+                                        className="h-9 w-full rounded-full border bg-white hover:bg-gray-50 transition flex items-center justify-center dark:bg-transparent dark:border-white/20 dark:text-gray-100 dark:hover:bg-white/10"
                                         title="Rate this trainer"
                                     >
                                         <Star size={16} />
@@ -837,24 +882,89 @@ export function TrainerProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             </>
                         ) : (
                             <>
-                                <button
-                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                    onClick={() => setShowNotifications(true)}
+                                <div
+                                    className={clsx(
+                                        "mx-auto grid w-full max-w-[312px] gap-2 sm:hidden",
+                                        showWebsiteAction ? "grid-cols-4" : "grid-cols-3"
+                                    )}
                                 >
-                                    View notifications
-                                </button>
-                                <button
-                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                    onClick={() => setShowManageRatings(true)}
-                                >
-                                    Manage ratings
-                                </button>
-                                <button
-                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                    onClick={() => router.push("/settings")}
-                                >
-                                    Edit profile
-                                </button>
+                                    {showWebsiteAction && (
+                                        <button
+                                            className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                            onClick={handleWebsiteClick}
+                                            aria-label="Website"
+                                            title="Website"
+                                        >
+                                            <LinkIcon size={16} className="shrink-0" />
+                                            <span className="max-w-full text-center">Website</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        onClick={() => router.push("/settings")}
+                                        aria-label="Edit profile"
+                                        title="Edit profile"
+                                    >
+                                        <UserPen size={16} className="shrink-0" />
+                                        <span className="max-w-full text-center">Edit Profile</span>
+                                    </button>
+                                    <button
+                                        className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        onClick={() => setShowManageRatings(true)}
+                                        aria-label="Ratings"
+                                        title="Ratings"
+                                    >
+                                        <Star size={16} className="shrink-0" />
+                                        <span className="max-w-full text-center">Ratings</span>
+                                    </button>
+                                    <button
+                                        className="inline-flex min-h-[44px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 py-2 text-[9px] leading-tight text-zinc-700 transition hover:bg-gray-50 dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        onClick={() => setShowNotifications(true)}
+                                        aria-label="Notifications"
+                                        title="Notifications"
+                                    >
+                                        <Bell size={16} className="shrink-0" />
+                                        <span className="max-w-full text-center">Notifications</span>
+                                    </button>
+                                </div>
+                                <div className="mx-auto hidden w-full max-w-[312px] space-y-2 sm:block">
+                                    {showWebsiteAction && (
+                                        <button
+                                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                            onClick={handleWebsiteClick}
+                                        >
+                                            <LinkIcon size={16} className="shrink-0" />
+                                            <span>Website</span>
+                                        </button>
+                                    )}
+                                    <div className="grid w-full grid-cols-[0.96fr_1.04fr] gap-2">
+                                        <button
+                                            className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                            onClick={() => router.push("/settings")}
+                                            aria-label="Edit profile"
+                                            title="Edit profile"
+                                        >
+                                            <UserPen size={16} className="shrink-0" />
+                                            <span className="whitespace-nowrap">Edit Profile</span>
+                                        </button>
+                                        <button
+                                            className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                            onClick={() => setShowManageRatings(true)}
+                                            aria-label="Ratings"
+                                            title="Ratings"
+                                        >
+                                            <Star size={16} className="shrink-0" />
+                                            <span>Ratings</span>
+                                        </button>
+                                    </div>
+                                    <button
+                                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        onClick={() => setShowNotifications(true)}
+                                    >
+                                        <Bell size={16} className="shrink-0" />
+                                        <span>Notifications</span>
+                                    </button>
+                                </div>
                             </>
                         )}
                     </div>

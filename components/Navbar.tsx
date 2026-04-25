@@ -34,18 +34,6 @@ const navItems = [
         )
     },
     {
-        label: "Create Post",
-        href: "#",
-        icon: (active: boolean) => (
-            <PlusCircle
-                size={32}
-                strokeWidth={active ? 2.5 : 1.5}
-                className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
-            />
-        ),
-        type: "modal"
-    },
-    {
         label: "Dashboard",
         href: "/dashboard",
         icon: (active: boolean) => (
@@ -55,6 +43,18 @@ const navItems = [
                 className={active ? "text-black dark:text-white" : "text-zinc-800 dark:text-zinc-200"}
             />
         )
+    },
+    {
+        label: "Create Post",
+        href: "#",
+        icon: (active: boolean) => (
+            <PlusCircle
+                size={32}
+                strokeWidth={active ? 2.5 : 1.5}
+                className={active ? "text-green-700 dark:text-green-400" : "text-green-700 dark:text-green-400"}
+            />
+        ),
+        type: "modal"
     },
     {
         label: "Messages",

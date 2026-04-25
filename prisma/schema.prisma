@@ -63,6 +63,21 @@ enum DistanceUnit {
   km
 }
 
+enum TraineeTrainerStatus {
+  LOOKING
+  TRAINING_WITH
+}
+
+enum TraineeGymStatus {
+  LOOKING
+  MEMBER
+}
+
+enum TrainerGymStatus {
+  LOOKING
+  TRAINER
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String?   @unique
@@ -128,6 +143,7 @@ model User {
   pageViews              PageView[]
   notificationDismissals NotificationDismissal[]
   announcementsCreated   Announcement[] @relation("AnnouncementCreator")
+  traineesTrainingWith   TraineeProfile[] @relation("TraineeAssociatedTrainer")
 }
 
 model Announcement {
@@ -165,6 +181,13 @@ model TraineeProfile {
   userId String   @unique
   goals  String[] // Array of selected goals
 
+  trainerStatus       TraineeTrainerStatus?
+  associatedTrainerId String?
+  associatedTrainer   User?                 @relation("TraineeAssociatedTrainer", fields: [associatedTrainerId], references: [id], onDelete: SetNull)
+  gymStatus           TraineeGymStatus?
+  gymName             String?
+  gymPlaceId          String?
+
   city    String?
   state   String?
   country String?
@@ -178,6 +201,13 @@ model TrainerProfile {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId   String   @unique
   services String[] // Array of offered services
+
+  website          String?
+  showWebsiteButton Boolean @default(false)
+
+  gymStatus  TrainerGymStatus?
+  gymName    String?
+  gymPlaceId String?
 
   city       String?
   state      String?
@@ -201,6 +231,7 @@ model GymProfile {
   phone   String
   website String
   showWebsiteButton Boolean @default(false)
+  hiringTrainers   Boolean @default(false)
   isVerified Boolean @default(false)
   fee     Float
 

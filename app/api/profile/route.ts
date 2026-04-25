@@ -13,7 +13,13 @@ export async function GET(req: Request) {
     const user = await db.user.findUnique({
         where: { email: email.toLowerCase() },
         include: {
-            traineeProfile: true,
+            traineeProfile: {
+                include: {
+                    associatedTrainer: {
+                        select: { id: true, username: true, name: true },
+                    },
+                },
+            },
             trainerProfile: true,
             gymProfile: true,
         }

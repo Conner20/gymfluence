@@ -23,13 +23,49 @@ export async function GET() {
             role: true,
             password: true,
             traineeProfile: {
-                select: { bio: true, city: true, state: true, country: true, lat: true, lng: true },
+                select: {
+                    bio: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    trainerStatus: true,
+                    gymStatus: true,
+                    gymName: true,
+                    gymPlaceId: true,
+                    associatedTrainer: {
+                        select: { id: true, username: true, name: true },
+                    },
+                },
             },
             trainerProfile: {
-                select: { bio: true, city: true, state: true, country: true, lat: true, lng: true },
+                select: {
+                    bio: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    website: true,
+                    showWebsiteButton: true,
+                    gymStatus: true,
+                    gymName: true,
+                    gymPlaceId: true,
+                },
             },
             gymProfile: {
-                select: { bio: true, city: true, state: true, country: true, lat: true, lng: true, website: true, showWebsiteButton: true },
+                select: {
+                    bio: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    website: true,
+                    showWebsiteButton: true,
+                    hiringTrainers: true,
+                },
             },
         },
     });
@@ -63,8 +99,17 @@ export async function GET() {
         country: profile?.country ?? null,
         lat: profile?.lat ?? null,
         lng: profile?.lng ?? null,
-        website: me.gymProfile?.website ?? null,
-        showWebsiteButton: me.gymProfile?.showWebsiteButton ?? false,
+        website: me.gymProfile?.website ?? me.trainerProfile?.website ?? null,
+        showWebsiteButton: me.gymProfile?.showWebsiteButton ?? me.trainerProfile?.showWebsiteButton ?? false,
+        hiringTrainers: me.gymProfile?.hiringTrainers ?? false,
+        traineeTrainerStatus: me.traineeProfile?.trainerStatus ?? null,
+        traineeGymStatus: me.traineeProfile?.gymStatus ?? null,
+        traineeGymName: me.traineeProfile?.gymName ?? null,
+        traineeGymPlaceId: me.traineeProfile?.gymPlaceId ?? null,
+        associatedTrainer: me.traineeProfile?.associatedTrainer ?? null,
+        trainerGymStatus: me.trainerProfile?.gymStatus ?? null,
+        trainerGymName: me.trainerProfile?.gymName ?? null,
+        trainerGymPlaceId: me.trainerProfile?.gymPlaceId ?? null,
     });
 }
 
@@ -100,7 +145,15 @@ export async function PATCH(req: Request) {
     let country: string | undefined;
     let lat: number | undefined;
     let lng: number | undefined;
+    let website: string | undefined;
     let showWebsiteButton: boolean | undefined;
+    let hiringTrainers: boolean | undefined;
+    let traineeTrainerStatus: "LOOKING" | "TRAINING_WITH" | null | undefined;
+    let traineeGymStatus: "LOOKING" | "MEMBER" | null | undefined;
+    let trainerGymStatus: "LOOKING" | "TRAINER" | null | undefined;
+    let associatedTrainerId: string | null | undefined;
+    let associatedGymName: string | null | undefined;
+    let associatedGymPlaceId: string | null | undefined;
 
     if (ct.includes("multipart/form-data")) {
         const form = await req.formData();
@@ -115,15 +168,51 @@ export async function PATCH(req: Request) {
 
         const latStr = (form.get("lat") as string | null) || "";
         const lngStr = (form.get("lng") as string | null) || "";
+        const websiteValue = form.get("website");
         const showWebsiteButtonValue = form.get("showWebsiteButton");
+        const hiringTrainersValue = form.get("hiringTrainers");
         const latNum = latStr ? Number(latStr) : NaN;
         const lngNum = lngStr ? Number(lngStr) : NaN;
         if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
             lat = latNum;
             lng = lngNum;
         }
+        if (websiteValue !== null) {
+            website = String(websiteValue).trim() || "";
+        }
         if (showWebsiteButtonValue !== null) {
             showWebsiteButton = String(showWebsiteButtonValue) === "true";
+        }
+        if (hiringTrainersValue !== null) {
+            hiringTrainers = String(hiringTrainersValue) === "true";
+        }
+        const traineeTrainerStatusValue = form.get("traineeTrainerStatus");
+        const traineeGymStatusValue = form.get("traineeGymStatus");
+        const trainerGymStatusValue = form.get("trainerGymStatus");
+        const associatedTrainerIdValue = form.get("associatedTrainerId");
+        const associatedGymNameValue = form.get("associatedGymName");
+        const associatedGymPlaceIdValue = form.get("associatedGymPlaceId");
+
+        if (traineeTrainerStatusValue !== null) {
+            const value = String(traineeTrainerStatusValue) || "";
+            traineeTrainerStatus = value === "LOOKING" || value === "TRAINING_WITH" ? value : null;
+        }
+        if (traineeGymStatusValue !== null) {
+            const value = String(traineeGymStatusValue) || "";
+            traineeGymStatus = value === "LOOKING" || value === "MEMBER" ? value : null;
+        }
+        if (trainerGymStatusValue !== null) {
+            const value = String(trainerGymStatusValue) || "";
+            trainerGymStatus = value === "LOOKING" || value === "TRAINER" ? value : null;
+        }
+        if (associatedTrainerIdValue !== null) {
+            associatedTrainerId = String(associatedTrainerIdValue) || null;
+        }
+        if (associatedGymNameValue !== null) {
+            associatedGymName = String(associatedGymNameValue) || null;
+        }
+        if (associatedGymPlaceIdValue !== null) {
+            associatedGymPlaceId = String(associatedGymPlaceIdValue) || null;
         }
 
         const file = form.get("image");
@@ -170,6 +259,39 @@ export async function PATCH(req: Request) {
         if (typeof body?.showWebsiteButton === "boolean") {
             showWebsiteButton = body.showWebsiteButton;
         }
+        if (typeof body?.hiringTrainers === "boolean") {
+            hiringTrainers = body.hiringTrainers;
+        }
+        if ("website" in body) {
+            website = String(body?.website ?? "").trim();
+        }
+        if ("traineeTrainerStatus" in body) {
+            traineeTrainerStatus =
+                body?.traineeTrainerStatus === "LOOKING" || body?.traineeTrainerStatus === "TRAINING_WITH"
+                    ? body.traineeTrainerStatus
+                    : null;
+        }
+        if ("traineeGymStatus" in body) {
+            traineeGymStatus =
+                body?.traineeGymStatus === "LOOKING" || body?.traineeGymStatus === "MEMBER"
+                    ? body.traineeGymStatus
+                    : null;
+        }
+        if ("trainerGymStatus" in body) {
+            trainerGymStatus =
+                body?.trainerGymStatus === "LOOKING" || body?.trainerGymStatus === "TRAINER"
+                    ? body.trainerGymStatus
+                    : null;
+        }
+        if ("associatedTrainerId" in body) {
+            associatedTrainerId = body?.associatedTrainerId || null;
+        }
+        if ("associatedGymName" in body) {
+            associatedGymName = body?.associatedGymName || null;
+        }
+        if ("associatedGymPlaceId" in body) {
+            associatedGymPlaceId = body?.associatedGymPlaceId || null;
+        }
     }
 
     // Update base User fields
@@ -193,22 +315,90 @@ export async function PATCH(req: Request) {
         country !== undefined ||
         lat !== undefined ||
         lng !== undefined ||
-        showWebsiteButton !== undefined;
+        website !== undefined ||
+        showWebsiteButton !== undefined ||
+        hiringTrainers !== undefined ||
+        traineeTrainerStatus !== undefined ||
+        traineeGymStatus !== undefined ||
+        trainerGymStatus !== undefined ||
+        associatedTrainerId !== undefined ||
+        associatedGymName !== undefined ||
+        associatedGymPlaceId !== undefined;
 
     if (hasGeoUpdate) {
+        let validatedAssociatedTrainerId = associatedTrainerId;
+
+        if (me.role === "TRAINEE" && traineeTrainerStatus === "TRAINING_WITH") {
+            if (!associatedTrainerId) {
+                return NextResponse.json(
+                    { message: "Please select a trainer." },
+                    { status: 400 }
+                );
+            }
+
+            const associatedTrainer = await db.user.findUnique({
+                where: { id: associatedTrainerId },
+                select: { id: true, role: true },
+            });
+
+            if (!associatedTrainer || associatedTrainer.role !== "TRAINER") {
+                return NextResponse.json(
+                    { message: "Selected trainer was not found." },
+                    { status: 400 }
+                );
+            }
+
+            validatedAssociatedTrainerId = associatedTrainer.id;
+        }
+
         const geoData = {
             ...(city !== undefined ? { city } : {}),
             ...(state !== undefined ? { state } : {}),
             ...(country !== undefined ? { country } : {}),
             ...(lat !== undefined ? { lat } : {}),
             ...(lng !== undefined ? { lng } : {}),
+            ...(website !== undefined ? { website } : {}),
             ...(showWebsiteButton !== undefined ? { showWebsiteButton } : {}),
+            ...(hiringTrainers !== undefined ? { hiringTrainers } : {}),
         };
 
         if (me.role === "TRAINEE" && me.traineeProfile) {
-            await db.traineeProfile.update({ where: { userId: me.id }, data: geoData });
+            await db.traineeProfile.update({
+                where: { userId: me.id },
+                data: {
+                    ...geoData,
+                    ...(traineeTrainerStatus !== undefined ? { trainerStatus: traineeTrainerStatus } : {}),
+                    ...(traineeGymStatus !== undefined ? { gymStatus: traineeGymStatus } : {}),
+                    ...(associatedTrainerId !== undefined
+                        ? {
+                            associatedTrainerId:
+                                traineeTrainerStatus === "TRAINING_WITH"
+                                    ? validatedAssociatedTrainerId
+                                    : null,
+                        }
+                        : {}),
+                    ...(associatedGymName !== undefined
+                        ? { gymName: traineeGymStatus === "MEMBER" ? associatedGymName : null }
+                        : {}),
+                    ...(associatedGymPlaceId !== undefined
+                        ? { gymPlaceId: traineeGymStatus === "MEMBER" ? associatedGymPlaceId : null }
+                        : {}),
+                },
+            });
         } else if (me.role === "TRAINER" && me.trainerProfile) {
-            await db.trainerProfile.update({ where: { userId: me.id }, data: geoData });
+            await db.trainerProfile.update({
+                where: { userId: me.id },
+                data: {
+                    ...geoData,
+                    ...(trainerGymStatus !== undefined ? { gymStatus: trainerGymStatus } : {}),
+                    ...(associatedGymName !== undefined
+                        ? { gymName: trainerGymStatus === "TRAINER" ? associatedGymName : null }
+                        : {}),
+                    ...(associatedGymPlaceId !== undefined
+                        ? { gymPlaceId: trainerGymStatus === "TRAINER" ? associatedGymPlaceId : null }
+                        : {}),
+                },
+            });
         } else if (me.role === "GYM" && me.gymProfile) {
             await db.gymProfile.update({ where: { userId: me.id }, data: geoData });
         }
@@ -235,9 +425,51 @@ export async function PATCH(req: Request) {
             image: true,
             location: true,
             role: true,
-            traineeProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true } },
-            trainerProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true } },
-            gymProfile: { select: { bio: true, city: true, state: true, country: true, lat: true, lng: true, website: true, showWebsiteButton: true } },
+            traineeProfile: {
+                select: {
+                    bio: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    trainerStatus: true,
+                    gymStatus: true,
+                    gymName: true,
+                    gymPlaceId: true,
+                    associatedTrainer: {
+                        select: { id: true, username: true, name: true },
+                    },
+                },
+            },
+            trainerProfile: {
+                select: {
+                    bio: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    website: true,
+                    showWebsiteButton: true,
+                    gymStatus: true,
+                    gymName: true,
+                    gymPlaceId: true,
+                },
+            },
+            gymProfile: {
+                select: {
+                    bio: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    website: true,
+                    showWebsiteButton: true,
+                    hiringTrainers: true,
+                },
+            },
         },
     });
 
@@ -266,7 +498,16 @@ export async function PATCH(req: Request) {
         country: profile?.country ?? null,
         lat: profile?.lat ?? null,
         lng: profile?.lng ?? null,
-        website: out?.gymProfile?.website ?? null,
-        showWebsiteButton: out?.gymProfile?.showWebsiteButton ?? false,
+        website: out?.gymProfile?.website ?? out?.trainerProfile?.website ?? null,
+        showWebsiteButton: out?.gymProfile?.showWebsiteButton ?? out?.trainerProfile?.showWebsiteButton ?? false,
+        hiringTrainers: out?.gymProfile?.hiringTrainers ?? false,
+        traineeTrainerStatus: out?.traineeProfile?.trainerStatus ?? null,
+        traineeGymStatus: out?.traineeProfile?.gymStatus ?? null,
+        traineeGymName: out?.traineeProfile?.gymName ?? null,
+        traineeGymPlaceId: out?.traineeProfile?.gymPlaceId ?? null,
+        associatedTrainer: out?.traineeProfile?.associatedTrainer ?? null,
+        trainerGymStatus: out?.trainerProfile?.gymStatus ?? null,
+        trainerGymName: out?.trainerProfile?.gymName ?? null,
+        trainerGymPlaceId: out?.trainerProfile?.gymPlaceId ?? null,
     });
 }

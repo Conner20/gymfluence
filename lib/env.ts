@@ -5,6 +5,7 @@ const envSchema = z.object({
     NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is missing"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     ADMIN_EMAILS: z.string().default(""),
+    GOOGLE_PLACES_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse({
@@ -12,6 +13,7 @@ const parsed = envSchema.safeParse({
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NODE_ENV: process.env.NODE_ENV,
     ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? "",
+    GOOGLE_PLACES_API_KEY: process.env.GOOGLE_PLACES_API_KEY,
 });
 
 if (!parsed.success) {

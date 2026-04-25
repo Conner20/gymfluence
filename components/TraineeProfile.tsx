@@ -9,13 +9,16 @@ import {
     UserMinus,
     MessageSquare,
     Share2,
+    Bell,
     Lock,
     ArrowLeft,
     Heart,
     MessageCircle,
     Pencil,
+    UserPen,
     Trash2,
     MapPin,
+    Search,
 } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
@@ -310,6 +313,48 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                         </div>
                     )}
 
+                    {(trainee?.trainerStatus || trainee?.gymStatus) && (
+                        <div className="flex w-full flex-col items-center gap-1 text-center">
+                            {trainee?.trainerStatus === "LOOKING" && (
+                                <p className="inline-flex max-w-full items-center justify-center gap-1 text-center text-xs text-gray-600 dark:text-gray-300">
+                                    <Search size={12} className="shrink-0" />
+                                    <span>Looking for a trainer</span>
+                                </p>
+                            )}
+                            {trainee?.trainerStatus === "TRAINING_WITH" && trainee?.associatedTrainer && (
+                                <p className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 text-center text-xs text-gray-600 dark:text-gray-300">
+                                    Training with{" "}
+                                    <Link
+                                        href={`/u/${encodeURIComponent(trainee.associatedTrainer.username ?? trainee.associatedTrainer.id)}`}
+                                        className="font-semibold text-zinc-900 hover:underline dark:text-white"
+                                    >
+                                        {trainee.associatedTrainer.username ?? trainee.associatedTrainer.name ?? "trainer"}
+                                    </Link>
+                                </p>
+                            )}
+                            {trainee?.gymStatus === "LOOKING" && (
+                                <p className="inline-flex max-w-full items-center justify-center gap-1 text-center text-xs text-gray-600 dark:text-gray-300">
+                                    <Search size={12} className="shrink-0" />
+                                    <span>Looking for a gym</span>
+                                </p>
+                            )}
+                            {trainee?.gymStatus === "MEMBER" && trainee?.gymName && (
+                                <p className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 text-center text-xs text-gray-600 dark:text-gray-300">
+                                    Member @{" "}
+                                    <span className="font-semibold text-zinc-900 dark:text-white">
+                                        {trainee.gymName}
+                                    </span>
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Bio – trimmed & subtle */}
+                    {trainee?.bio && (
+                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
+                            {trainee.bio}
+                        </p>
+                    )}
 
                     {/* Stats row */}
                     <div className="w-full mt-2">
@@ -356,13 +401,6 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             </div>
                         </div>
                     </div>
-
-                    {/* Bio – trimmed & subtle */}
-                    {trainee?.bio && (
-                        <p className="mt-3 text-sm leading-relaxed text-zinc-700 text-center line-clamp-4 dark:text-gray-300">
-                            {trainee.bio}
-                        </p>
-                    )}
 
                     {/* Actions */}
                     <div className="w-full mt-4 space-y-2">
@@ -438,18 +476,26 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             </>
                         ) : (
                             <>
-                                <button
-                                        className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                    onClick={() => router.push("/settings")}
-                                >
-                                    Edit profile
-                                </button>
-                                <button
-                                    className="w-full py-2 rounded-full border text-sm text-zinc-700 bg-white hover:bg-gray-50 transition dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
-                                    onClick={() => setShowNotifications(true)}
-                                >
-                                    View notifications
-                                </button>
+                                <div className="mx-auto grid w-full max-w-[312px] grid-cols-[0.96fr_1.04fr] gap-2">
+                                    <button
+                                        className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        onClick={() => router.push("/settings")}
+                                        aria-label="Edit profile"
+                                        title="Edit profile"
+                                    >
+                                        <UserPen size={16} className="shrink-0" />
+                                        <span className="whitespace-nowrap">Edit Profile</span>
+                                    </button>
+                                    <button
+                                        className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border bg-white px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-gray-50 sm:text-sm dark:bg-transparent dark:text-gray-100 dark:border-white/20 dark:hover:bg-white/10"
+                                        onClick={() => setShowNotifications(true)}
+                                        aria-label="Notifications"
+                                        title="Notifications"
+                                    >
+                                        <Bell size={16} className="shrink-0" />
+                                        <span>Notifications</span>
+                                    </button>
+                                </div>
                             </>
                         )}
                     </div>
