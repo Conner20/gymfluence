@@ -147,7 +147,10 @@ export default function Sidebar({ mobileOpen = true }: NavbarProps) {
                     mobileOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
                 }`}
             >
-                <div className="flex justify-around items-center py-2">
+                <div
+                    className="flex items-center justify-around pt-2 pb-4"
+                    style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+                >
                     {navItems.map((item, idx) => {
                         const isActive = pathname === item.href;
                         if (item.type === "modal") {

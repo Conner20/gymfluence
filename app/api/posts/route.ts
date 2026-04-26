@@ -152,6 +152,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const authorId = searchParams.get("authorId");
     const cursorParam = searchParams.get("cursor");
+    const limitParam = Number(searchParams.get("limit") ?? PAGE_SIZE);
+    const profileLimit = Number.isFinite(limitParam)
+        ? Math.min(Math.max(Math.floor(limitParam), 1), 100)
+        : PAGE_SIZE;
 
     let cursorDate: Date | null = null;
     if (cursorParam) {
@@ -213,7 +217,12 @@ export async function GET(req: Request) {
                 where: { id: authorId },
                 select: { id: true, isPrivate: true },
             });
-            if (!author) return NextResponse.json([], { status: 200 });
+            if (!author) {
+                return NextResponse.json(
+                    { posts: [], nextCursor: null, hasMore: false, totalCount: 0 },
+                    { status: 200 }
+                );
+            }
 
             if (author.isPrivate && viewerId !== author.id) {
                 const canSee = viewerId
@@ -229,11 +238,15 @@ export async function GET(req: Request) {
 
                 if (!canSee) {
                     // Hide posts from non-followers of private accounts
-                    return NextResponse.json([], { status: 200 });
+                    return NextResponse.json(
+                        { posts: [], nextCursor: null, hasMore: false, totalCount: 0 },
+                        { status: 200 }
+                    );
                 }
             }
 
-            const posts = await db.post.findMany({
+            const [profilePosts, totalCount] = await Promise.all([
+                db.post.findMany({
                 where: {
                     authorId,
                     ...(cursorDate && { createdAt: { lt: cursorDate } }),
@@ -258,11 +271,22 @@ export async function GET(req: Request) {
                         },
                     },
                 },
-                take: PAGE_SIZE, // 🔹 10 per page
-            });
+                take: profileLimit + 1,
+                }),
+                db.post.count({
+                    where: { authorId },
+                }),
+            ]);
 
-            const formatted = formatPosts(posts);
-            return NextResponse.json(formatted, {
+            const hasMore = profilePosts.length > profileLimit;
+            const visiblePosts = hasMore ? profilePosts.slice(0, profileLimit) : profilePosts;
+            const formatted = formatPosts(visiblePosts);
+            const nextCursor =
+                hasMore && visiblePosts.length > 0
+                    ? visiblePosts[visiblePosts.length - 1]?.createdAt?.toISOString?.() ?? null
+                    : null;
+
+            return NextResponse.json({ posts: formatted, nextCursor, hasMore, totalCount }, {
                 headers: { "Cache-Control": "no-store" },
             });
         }

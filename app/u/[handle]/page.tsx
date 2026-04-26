@@ -32,6 +32,9 @@ export default async function UserProfilePage({
     const user = await db.user.findUnique({
         where: { username: decoded },
         include: {
+            _count: {
+                select: { post: true },
+            },
             traineeProfile: {
                 include: {
                     associatedTrainer: {
@@ -68,11 +71,11 @@ export default async function UserProfilePage({
 
     switch (user.role) {
         case "TRAINEE":
-            return shell(<TraineeProfile user={user} />);
+            return shell(<TraineeProfile user={user} totalPostCount={user._count.post} />);
         case "TRAINER":
-            return shell(<TrainerProfile user={user} />);
+            return shell(<TrainerProfile user={user} totalPostCount={user._count.post} />);
         case "GYM":
-            return shell(<GymProfile user={user} />);
+            return shell(<GymProfile user={user} totalPostCount={user._count.post} />);
         default:
             return <div className="p-8 text-red-500">Unknown role</div>;
     }

@@ -16,6 +16,7 @@ export default function ProfilePage() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
+    const [totalPostCount, setTotalPostCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [profileResolved, setProfileResolved] = useState(false);
     const [showShortcutPrompt, setShowShortcutPrompt] = useState(false);
@@ -69,12 +70,14 @@ export default function ProfilePage() {
 
                 setUser(data.user);
                 setPosts(data.posts ?? []);
+                setTotalPostCount(data.totalPostCount ?? data.posts?.length ?? 0);
                 setProfileResolved(true);
             } catch (error) {
                 console.error(error);
                 if (!cancelled) {
                     setUser(null);
                     setPosts([]);
+                    setTotalPostCount(0);
                     setProfileResolved(true);
                 }
             } finally {
@@ -184,21 +187,21 @@ export default function ProfilePage() {
         case "TRAINEE":
             return (
                 <Shell>
-                    <TraineeProfile user={user} posts={posts} />
+                    <TraineeProfile user={user} posts={posts} totalPostCount={totalPostCount} />
                 </Shell>
             );
 
         case "TRAINER":
             return (
                 <Shell>
-                    <TrainerProfile user={user} posts={posts} />
+                    <TrainerProfile user={user} posts={posts} totalPostCount={totalPostCount} />
                 </Shell>
             );
 
         case "GYM":
             return (
                 <Shell>
-                    <GymProfile user={user} posts={posts} />
+                    <GymProfile user={user} posts={posts} totalPostCount={totalPostCount} />
                 </Shell>
             );
 

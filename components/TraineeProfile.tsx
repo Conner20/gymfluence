@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -53,7 +53,24 @@ type FullPost = {
     commentCount: number;
 };
 
-export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[] }) {
+type ProfilePostsResponse = {
+    posts: FullPost[];
+    nextCursor: string | null;
+    hasMore: boolean;
+    totalCount: number;
+};
+
+const PROFILE_POSTS_PAGE_SIZE = 9;
+
+export function TraineeProfile({
+    user,
+    posts,
+    totalPostCount = 0,
+}: {
+    user: any;
+    posts?: BasicPost[];
+    totalPostCount?: number;
+}) {
     const router = useRouter();
     const pathname = usePathname();
     const { data: session } = useSession();
@@ -91,38 +108,120 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     const [gridPosts, setGridPosts] = useState<BasicPost[]>(posts ?? []);
     const [fullPosts, setFullPosts] = useState<FullPost[] | null>(null);
     const [postsLoading, setPostsLoading] = useState(false);
+    const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+    const [hasMorePosts, setHasMorePosts] = useState(true);
+    const [profilePostCount, setProfilePostCount] = useState(totalPostCount);
     const [showCreatePost, setShowCreatePost] = useState(false);
+    const [viewMode, setViewMode] = useState<"grid" | "scroll">("grid");
 
     const [focusPostId, setFocusPostId] = useState<string | null>(null);
     const [editingPost, setEditingPost] = useState<FullPost | null>(null);
     const [editingPostLoading, setEditingPostLoading] = useState(false);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
+    const nextCursorRef = useRef<string | null>(null);
+    const loadedCountRef = useRef(Math.max(posts?.length ?? 0, PROFILE_POSTS_PAGE_SIZE));
+
+    const toBasicPosts = useCallback(
+        (items: FullPost[]): BasicPost[] =>
+            items.map((p) => ({
+                id: p.id,
+                title: p.title,
+                imageUrl: p.imageUrl ?? null,
+                imageUrls: p.imageUrls ?? [],
+            })),
+        []
+    );
+
+    const fetchProfilePosts = useCallback(
+        async ({
+            cursor,
+            append = false,
+            limit = PROFILE_POSTS_PAGE_SIZE,
+        }: {
+            cursor?: string | null;
+            append?: boolean;
+            limit?: number;
+        } = {}) => {
+            if (!canViewPrivate) return;
+
+            if (append) setLoadingMorePosts(true);
+            else setPostsLoading(true);
+
+            try {
+                const params = new URLSearchParams({
+                    authorId: user.id,
+                    limit: String(limit),
+                });
+                if (cursor) params.set("cursor", cursor);
+
+                const res = await fetch(`/api/posts?${params.toString()}`, {
+                    cache: "no-store",
+                });
+                if (!res.ok) return;
+
+                const data: ProfilePostsResponse = await res.json();
+                nextCursorRef.current = data.nextCursor;
+                setHasMorePosts(data.hasMore);
+                setProfilePostCount(data.totalCount ?? 0);
+
+                if (append) {
+                    setFullPosts((prev) => {
+                        const base = prev ?? [];
+                        const existingIds = new Set(base.map((post) => post.id));
+                        const merged = [
+                            ...base,
+                            ...data.posts.filter((post) => !existingIds.has(post.id)),
+                        ];
+                        loadedCountRef.current = Math.max(merged.length, PROFILE_POSTS_PAGE_SIZE);
+                        setGridPosts(toBasicPosts(merged));
+                        return merged;
+                    });
+                    return;
+                }
+
+                loadedCountRef.current = Math.max(data.posts.length, PROFILE_POSTS_PAGE_SIZE);
+                setFullPosts(data.posts);
+                setGridPosts(toBasicPosts(data.posts));
+            } finally {
+                if (append) setLoadingMorePosts(false);
+                else setPostsLoading(false);
+            }
+        },
+        [canViewPrivate, toBasicPosts, user.id]
+    );
 
     const refreshPosts = useCallback(async () => {
         if (!canViewPrivate) return;
-        setPostsLoading(true);
-        try {
-            const res = await fetch(`/api/posts?authorId=${encodeURIComponent(user.id)}`, {
-                cache: "no-store",
-            });
-            if (!res.ok) return;
-            const data: FullPost[] = await res.json();
-            setFullPosts(data);
-            setGridPosts(
-                data.map((p) => ({
-                    id: p.id,
-                    title: p.title,
-                    imageUrl: p.imageUrl ?? null,
-                    imageUrls: p.imageUrls ?? [],
-                }))
-            );
-        } finally {
-            setPostsLoading(false);
+        await fetchProfilePosts({ limit: loadedCountRef.current });
+    }, [canViewPrivate, fetchProfilePosts]);
+
+    const loadMorePosts = useCallback(async () => {
+        if (
+            !canViewPrivate ||
+            postsLoading ||
+            loadingMorePosts ||
+            !hasMorePosts ||
+            !nextCursorRef.current
+        ) {
+            return;
         }
-    }, [user.id, canViewPrivate]);
+        await fetchProfilePosts({
+            cursor: nextCursorRef.current,
+            append: true,
+            limit: PROFILE_POSTS_PAGE_SIZE,
+        });
+    }, [canViewPrivate, fetchProfilePosts, hasMorePosts, loadingMorePosts, postsLoading]);
 
     useEffect(() => {
-        refreshPosts();
-    }, [refreshPosts]);
+        if (!canViewPrivate) {
+            setFullPosts(null);
+            setGridPosts([]);
+            setHasMorePosts(false);
+            nextCursorRef.current = null;
+            return;
+        }
+        void fetchProfilePosts({ limit: PROFILE_POSTS_PAGE_SIZE });
+    }, [canViewPrivate, fetchProfilePosts]);
 
     useLiveRefresh(refreshPosts, { enabled: canViewPrivate, interval: 5000 });
 
@@ -139,6 +238,22 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
             window.removeEventListener("post-updated", handler);
         };
     }, [isOwnProfile, refreshPosts]);
+
+    useEffect(() => {
+        if (!canViewPrivate || !hasMorePosts || !loadMoreRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    void loadMorePosts();
+                }
+            },
+            { rootMargin: "300px 0px" }
+        );
+
+        observer.observe(loadMoreRef.current);
+        return () => observer.disconnect();
+    }, [canViewPrivate, hasMorePosts, loadMorePosts, viewMode, gridPosts.length, fullPosts?.length]);
 
     const handleDeletePost = async (postId: string) => {
         if (!isOwnProfile) return;
@@ -159,6 +274,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
 
             setFullPosts((prev) => (prev ? prev.filter((p) => p.id !== postId) : prev));
             setGridPosts((prev) => prev.filter((p) => p.id !== postId));
+            setProfilePostCount((prev) => Math.max(0, prev - 1));
             if (focusPostId === postId) setFocusPostId(null);
         } catch {
             alert("Failed to delete post.");
@@ -259,9 +375,6 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
     };
 
     const [showNotifications, setShowNotifications] = useState(false);
-
-    // View mode
-    const [viewMode, setViewMode] = useState<"grid" | "scroll">("grid");
 
     const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
@@ -395,7 +508,7 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                             <div className="w-px h-8 bg-gray-200 dark:bg-white/10" />
                             <div className="flex-1 flex flex-col py-1 text-center items-center">
                                 <span className="text-sm font-semibold text-zinc-900 dark:text-white">
-                                    {canViewPrivate ? (fullPosts?.length ?? gridPosts.length) : "—"}
+                                    {canViewPrivate ? profilePostCount : "—"}
                                 </span>
                                 <span className="block text-[11px] tracking-wide">posts</span>
                             </div>
@@ -578,6 +691,16 @@ export function TraineeProfile({ user, posts }: { user: any; posts?: BasicPost[]
                                 }}
                             />
                         )}
+
+                        {hasMorePosts && (
+                            <div ref={loadMoreRef} className="h-6 w-full" aria-hidden="true" />
+                        )}
+
+                        {loadingMorePosts && (
+                            <div className="flex items-center justify-center py-4 text-gray-500 dark:text-gray-400">
+                                <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+                            </div>
+                        )}
                     </>
                 )}
 
@@ -676,7 +799,7 @@ function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string)
             {posts.map((post) => (
                 <button
                     key={post.id}
-                    className="bg-white rounded-xl flex items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 hover:shadow-sm hover:opacity-95 transition dark:bg-neutral-900 dark:border-white/10"
+                    className="bg-white rounded-xl flex items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 transition hover:border-black hover:shadow-lg hover:ring-1 hover:ring-black dark:bg-neutral-900 dark:border-white/10 dark:hover:border-white dark:hover:ring-white"
                     title={post.title}
                     onClick={() => onOpen(post.id)}
                 >

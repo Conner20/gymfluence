@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
+const PROFILE_PAGE_SIZE = 9;
+
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const session = await getServerSession(authOptions);
@@ -13,6 +15,9 @@ export async function GET(req: Request) {
     const user = await db.user.findUnique({
         where: { email: email.toLowerCase() },
         include: {
+            _count: {
+                select: { post: true },
+            },
             traineeProfile: {
                 include: {
                     associatedTrainer: {
@@ -30,27 +35,21 @@ export async function GET(req: Request) {
     const postsRaw = await db.post.findMany({
         where: { authorId: user.id },
         orderBy: { createdAt: "desc" },
-        include: {
-            likes: { select: { userId: true } },
-            comments: {
-                where: { parentId: null },
-                include: {
-                    replies: true,
-                },
-            },
+        take: PROFILE_PAGE_SIZE,
+        select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            imageUrls: true,
         },
     });
 
     const posts = postsRaw.map((p: typeof postsRaw[number]) => ({
-        ...p,
-        likeCount: p.likes.length,
-        commentCount:
-            p.comments.length +
-            p.comments.reduce(
-                (s: number, c: typeof p.comments[number]) => s + (c.replies?.length ?? 0),
-                0
-            ),
+        id: p.id,
+        title: p.title,
+        imageUrl: p.imageUrl ?? null,
+        imageUrls: p.imageUrls ?? [],
     }));
 
-    return NextResponse.json({ user, posts });
+    return NextResponse.json({ user, posts, totalPostCount: user._count.post });
 }
