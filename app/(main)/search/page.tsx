@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
+import { Search as SearchIcon, ChevronDown, ChevronLeft, ChevronRight, X, MessageSquare, Share2, Star } from 'lucide-react';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import MobileHeader from "@/components/MobileHeader";
@@ -45,12 +45,86 @@ type ApiResponse = {
     viewerHasCoords: boolean;
 };
 
+type SeekingFilter = 'ALL' | 'LOOKING_GYM' | 'LOOKING_TRAINER';
+
+function FilterScroller({
+    children,
+    className,
+}: {
+    children: React.ReactNode;
+    className?: string;
+}) {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const update = () => {
+            setCanScrollLeft(el.scrollLeft > 4);
+            setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+        };
+
+        update();
+        el.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        return () => {
+            el.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+        };
+    }, [children]);
+
+    const handleScroll = (direction: 'left' | 'right') => {
+        const el = containerRef.current;
+        if (!el) return;
+        el.scrollBy({
+            left: direction === 'left' ? -Math.max(el.clientWidth * 0.8, 180) : Math.max(el.clientWidth * 0.8, 180),
+            behavior: 'smooth',
+        });
+    };
+
+    return (
+        <div className="flex min-w-0 items-center gap-2">
+            <button
+                type="button"
+                onClick={() => handleScroll('left')}
+                disabled={!canScrollLeft}
+                className={clsx(
+                    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white/90 text-gray-700 transition dark:border-white/15 dark:bg-white/5 dark:text-gray-200',
+                    canScrollLeft ? 'hover:bg-gray-50 dark:hover:bg-white/10' : 'cursor-default opacity-35'
+                )}
+                aria-label="Scroll filters left"
+            >
+                <ChevronLeft size={16} />
+            </button>
+            <div ref={containerRef} className={clsx('min-w-0 flex-1 overflow-x-auto', className)}>
+                {children}
+            </div>
+            <button
+                type="button"
+                onClick={() => handleScroll('right')}
+                disabled={!canScrollRight}
+                className={clsx(
+                    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white/90 text-gray-700 transition dark:border-white/15 dark:bg-white/5 dark:text-gray-200',
+                    canScrollRight ? 'hover:bg-gray-50 dark:hover:bg-white/10' : 'cursor-default opacity-35'
+                )}
+                aria-label="Scroll filters right"
+            >
+                <ChevronRight size={16} />
+            </button>
+        </div>
+    );
+}
+
 export default function SearchPage() {
     const router = useRouter();
 
     // ------- filters -------
     const [q, setQ] = useState('');
     const [role, setRole] = useState<'ALL' | Role>('ALL');
+    const [seeking, setSeeking] = useState<SeekingFilter>('ALL');
     const [minBudget, setMinBudget] = useState('');
     const [maxBudget, setMaxBudget] = useState('');
     const [distanceKm, setDistanceKm] = useState('');
@@ -87,6 +161,7 @@ export default function SearchPage() {
             const params = new URLSearchParams();
             if (q.trim()) params.set('q', q.trim());
             if (role !== 'ALL') params.set('role', role);
+            if (seeking !== 'ALL') params.set('seeking', seeking);
             if (minBudget) params.set('minBudget', minBudget);
             if (maxBudget) params.set('maxBudget', maxBudget);
             if (distanceKm) params.set('distanceKm', distanceKm);
@@ -125,11 +200,12 @@ export default function SearchPage() {
         const t = setTimeout(fetchResults, 250);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [q, role, minBudget, maxBudget, distanceKm, goals]);
+    }, [q, role, seeking, minBudget, maxBudget, distanceKm, goals]);
 
     const resetFilters = () => {
         setQ('');
         setRole('ALL');
+        setSeeking('ALL');
         setMinBudget('');
         setMaxBudget('');
         setDistanceKm('');
@@ -200,10 +276,10 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div className="flex gap-2 flex-nowrap overflow-x-auto">
-                <div className="shrink-0">
+            <div className="grid grid-cols-5 gap-1.5">
+                <div className="min-w-0">
                     <Chip
-                        label="Distance"
+                        label="Dist"
                         value={distanceKm ? `${distanceKm} km` : 'Any'}
                         menu={
                             <div className="flex flex-col gap-1 p-3">
@@ -234,7 +310,7 @@ export default function SearchPage() {
                         menuFixed
                     />
                 </div>
-                <div className="shrink-0">
+                <div className="min-w-0">
                     <Chip
                         label="Role"
                         value={role === 'ALL' ? 'All' : role.toLowerCase()}
@@ -267,12 +343,57 @@ export default function SearchPage() {
                         menuFixed
                     />
                 </div>
-                <div className="shrink-0">
+                <div className="min-w-0">
                     <Chip
-                        label="Budget"
-                        value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                        label="Seek"
+                        value={
+                            seeking === 'LOOKING_GYM'
+                                ? 'Looking for a gym'
+                                : seeking === 'LOOKING_TRAINER'
+                                    ? 'Looking for a trainer'
+                                : 'Any'
+                        }
                         menu={
-                            <div className="space-y-3 p-4 text-sm">
+                            <div className="flex flex-col gap-1 p-3">
+                                {(
+                                    [
+                                        ['ALL', 'Any'],
+                                        ['LOOKING_GYM', 'Looking for a gym'],
+                                        ['LOOKING_TRAINER', 'Looking for a trainer'],
+                                    ] as const
+                                ).map(([value, label]) => {
+                                    const activeOpt = seeking === value;
+                                    return (
+                                        <button
+                                            key={value}
+                                            onClick={() => setSeeking(value)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-left text-sm transition',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={seeking !== 'ALL'}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                    />
+                </div>
+                <div className="min-w-0">
+                    <Chip
+                        label="Price"
+                        value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                            menu={
+                                <div className="space-y-2.5 p-3 text-sm">
                                 <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                     trainers hourly · gyms monthly
                                 </div>
@@ -280,7 +401,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                         placeholder="Min"
                                         value={minBudget}
                                         onChange={(e) => setMinBudget(e.target.value)}
@@ -289,7 +410,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-24 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                         placeholder="Max"
                                         value={maxBudget}
                                         onChange={(e) => setMaxBudget(e.target.value)}
@@ -319,9 +440,9 @@ export default function SearchPage() {
                         menuFixed
                     />
                 </div>
-                <div className="shrink-0">
+                <div className="min-w-0">
                     <Chip
-                        label="Goals"
+                        label="Goal"
                         value={goals.length ? `${goals.length} selected` : 'Any'}
                         menu={
                             <div className="flex flex-col gap-1 p-3 text-sm">
@@ -363,7 +484,7 @@ export default function SearchPage() {
                         menuFixed
                     />
                 </div>
-            </div>
+                </div>
         </div>
     );
 
@@ -466,8 +587,8 @@ export default function SearchPage() {
                         <span>search</span>
                     </h1>
 
-                    <div className="flex items-center gap-3 flex-1 justify-end">
-                        <div className="flex items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2 dark:border-white/15">
+                    <div className="flex min-w-0 items-center gap-3 flex-1 justify-end">
+                        <div className="flex min-w-[220px] items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2 dark:border-white/15">
                             <SearchIcon size={18} className="text-gray-500 dark:text-gray-400" />
                             <input
                                 value={q}
@@ -477,12 +598,13 @@ export default function SearchPage() {
                             />
                         </div>
 
+                        <div className="flex items-center gap-3">
                         <Chip
                             label="Distance"
                             value={distanceKm ? `${distanceKm} km` : 'Any'}
                             active={Boolean(distanceKm)}
                             menu={
-                                <div className="flex flex-col gap-1 p-3 w-60">
+                                <div className="flex flex-col gap-1 p-2.5 w-52">
                                     {['', '5', '10', '25', '50', '100'].map((d) => {
                                         const activeOpt = (distanceKm || '') === d;
                                         return (
@@ -509,7 +631,7 @@ export default function SearchPage() {
                             value={role === 'ALL' ? 'All' : role.toLowerCase()}
                             active={role !== 'ALL'}
                             menu={
-                                <div className="flex flex-col gap-1 p-3 w-60">
+                                <div className="flex flex-col gap-1 p-2.5 w-52">
                                     {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                         const activeOpt = role === r;
                                         return (
@@ -531,13 +653,52 @@ export default function SearchPage() {
                             }
                         />
 
+                        <Chip
+                            label="Seeking"
+                            value={
+                                seeking === 'LOOKING_GYM'
+                                    ? 'Looking for a gym'
+                                    : seeking === 'LOOKING_TRAINER'
+                                        ? 'Looking for a trainer'
+                                    : 'Any'
+                            }
+                            active={seeking !== 'ALL'}
+                            menu={
+                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                    {(
+                                        [
+                                            ['ALL', 'Any'],
+                                            ['LOOKING_GYM', 'Looking for a gym'],
+                                            ['LOOKING_TRAINER', 'Looking for a trainer'],
+                                        ] as const
+                                    ).map(([value, label]) => {
+                                        const activeOpt = seeking === value;
+                                        return (
+                                            <button
+                                                key={value}
+                                                onClick={() => setSeeking(value)}
+                                                className={clsx(
+                                                    'rounded-2xl border px-3 py-2 text-left text-sm transition',
+                                                    activeOpt
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                )}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            }
+                        />
+
 
                         <Chip
                             label="Budget"
                             value={`${minBudget || 0}–${maxBudget || '∞'}`}
                             active={Boolean(minBudget || maxBudget)}
                             menu={
-                                <div className="space-y-3 p-4 w-[22rem] max-w-[calc(100vw-80px)] text-sm">
+                                <div className="space-y-2.5 p-3 w-[19rem] max-w-[calc(100vw-88px)] text-sm">
                                     <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                         trainers hourly · gyms monthly
                                     </div>
@@ -545,7 +706,7 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                             placeholder="Min"
                                             value={minBudget}
                                             onChange={(e) => setMinBudget(e.target.value)}
@@ -554,7 +715,7 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[110px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
                                             placeholder="Max"
                                             value={maxBudget}
                                             onChange={(e) => setMaxBudget(e.target.value)}
@@ -583,7 +744,7 @@ export default function SearchPage() {
                             value={goals.length ? `${goals.length} selected` : 'Any'}
                             active={goals.length > 0}
                             menu={
-                                <div className="flex flex-col gap-1 p-3 text-sm w-64">
+                                <div className="flex w-56 flex-col gap-1 p-2.5 text-sm">
                                     {allGoals.map((g) => {
                                         const checked = goals.includes(g);
                                         return (
@@ -618,11 +779,12 @@ export default function SearchPage() {
 
                         <button
                             onClick={resetFilters}
-                className="flex items-center rounded-xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm text-gray-700 uppercase tracking-wide transition hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10"
+                            className="flex items-center rounded-xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm text-gray-700 uppercase tracking-wide transition hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10"
                             title="Reset filters"
                         >
                             Reset
                         </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -1129,7 +1291,7 @@ function Chip({
         window.addEventListener('close-filters', handler as EventListener);
         return () => window.removeEventListener('close-filters', handler as EventListener);
     }, [label]);
-    const spacingClass = showValue ? (compact ? 'gap-1' : 'gap-2') : 'gap-1.5';
+    const spacingClass = compact ? 'gap-1.5' : 'gap-2';
     const justifyClass = showValue ? '' : 'justify-between';
 
     return (
@@ -1151,7 +1313,7 @@ function Chip({
                 className={clsx(
                     'flex items-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
                     fluid ? 'w-full' : 'max-w-[220px]',
-                    compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm',
+                    compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-1.5 text-sm',
                     spacingClass,
                     justifyClass,
                     active
@@ -1165,9 +1327,9 @@ function Chip({
                         compact ? 'text-[10px]' : 'text-xs',
                         active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400',
                         !showValue && 'flex-1 text-left'
-                )}
-            >
-                {label}
+                    )}
+                >
+                    {label}
                 </span>
                 {showValue && (
                     <>
@@ -1202,10 +1364,10 @@ function Chip({
                     <div
                         className={clsx(
                             menuFixed
-                                ? 'fixed left-1/2 z-40 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur w-[calc(100vw-32px)] max-w-sm dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100'
+                                ? 'fixed left-1/2 z-40 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur w-[calc(100vw-32px)] max-w-[20rem] dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100'
                                 : 'absolute z-20 mt-2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100',
                             menuFixed ? '' : menuPosition ?? 'right-0',
-                            menuClassName ?? (menuFixed ? '' : 'min-w-[240px]')
+                            menuClassName ?? (menuFixed ? '' : 'min-w-[220px]')
                         )}
                         style={
                             menuFixed
@@ -1213,7 +1375,7 @@ function Chip({
                                 : undefined
                         }
                     >
-                        <div className="flex justify-end px-2 pt-2">
+                        <div className="flex justify-end px-1.5 pt-1.5">
                             <button
                                 onClick={() => {
                                     setOpen(false);
@@ -1225,7 +1387,7 @@ function Chip({
                                 <X size={16} />
                             </button>
                         </div>
-                        <div className="px-4 pb-4">
+                        <div className="px-3 pb-3">
                             {menu}
                         </div>
                     </div>

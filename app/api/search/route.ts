@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/prisma/client";
 
 type Role = "TRAINEE" | "TRAINER" | "GYM";
+type SeekingFilter = "ALL" | "LOOKING_GYM" | "LOOKING_TRAINER";
 
 const toNum = (v: string | null) => {
     if (v == null || v.trim() === "") return null;
@@ -29,6 +30,7 @@ export async function GET(req: Request) {
 
     const q = url.searchParams.get("q")?.trim() ?? "";
     const roleParam = (url.searchParams.get("role") || "ALL").toUpperCase() as "ALL" | Role;
+    const seekingParam = (url.searchParams.get("seeking") || "ALL").toUpperCase() as SeekingFilter;
 
     // IMPORTANT: only treat as active if the param exists and is non-empty
     const hasMin = url.searchParams.has("minBudget") && url.searchParams.get("minBudget")!.trim() !== "";
@@ -170,7 +172,16 @@ export async function GET(req: Request) {
             location: true,
             bio: true,
             traineeProfile: {
-                select: { goals: true, city: true, state: true, country: true, lat: true, lng: true },
+                select: {
+                    goals: true,
+                    city: true,
+                    state: true,
+                    country: true,
+                    lat: true,
+                    lng: true,
+                    gymStatus: true,
+                    trainerStatus: true,
+                },
             },
             trainerProfile: {
                 select: {
@@ -183,6 +194,7 @@ export async function GET(req: Request) {
                     country: true,
                     lat: true,
                     lng: true,
+                    gymStatus: true,
                 },
             },
             gymProfile: {
@@ -206,8 +218,23 @@ export async function GET(req: Request) {
 
     const haveViewerPoint = viewerLat != null && viewerLng != null;
 
+    const seekingFilteredRaw = raw.filter((u: typeof raw[number]) => {
+        if (seekingParam === "ALL") return true;
+
+        const lookingForGym =
+            (u.role === "TRAINEE" && u.traineeProfile?.gymStatus === "LOOKING") ||
+            (u.role === "TRAINER" && u.trainerProfile?.gymStatus === "LOOKING");
+
+        const lookingForTrainer =
+            u.role === "TRAINEE" && u.traineeProfile?.trainerStatus === "LOOKING";
+
+        if (seekingParam === "LOOKING_GYM") return lookingForGym;
+        if (seekingParam === "LOOKING_TRAINER") return lookingForTrainer;
+        return true;
+    });
+
     // Build result objects (including gallery) asynchronously
-    const processed = raw.map((u: typeof raw[number]) => {
+    const processed = seekingFilteredRaw.map((u: typeof raw[number]) => {
         const p = u.traineeProfile || u.trainerProfile || u.gymProfile || ({} as any);
         const lat: number | undefined = p.lat ?? undefined;
         const lng: number | undefined = p.lng ?? undefined;
