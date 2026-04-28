@@ -4,6 +4,7 @@ import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { storeImageFile, deleteStoredFile } from "@/lib/storage";
+import { buildPollPayload } from "@/lib/postPoll";
 import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +32,20 @@ export async function POST(req: Request) {
     try {
         let title = "";
         let content = "";
+        let type: "STANDARD" | "POLL" = "STANDARD";
+        let pollQuestion = "";
+        let pollOptions: string[] = [];
         let imageUrls: string[] = [];
 
         if (contentType.includes("multipart/form-data")) {
             const form = await req.formData();
             title = String(form.get("title") || "").trim();
             content = String(form.get("content") || "").trim();
+            type = String(form.get("type") || "STANDARD").toUpperCase() === "POLL" ? "POLL" : "STANDARD";
+            pollQuestion = String(form.get("pollQuestion") || "").trim();
+
+            const rawPollOptions = form.getAll("pollOptions").map((value) => String(value || "").trim());
+            pollOptions = rawPollOptions.filter(Boolean).slice(0, 5);
 
             const files = form
                 .getAll("images")
@@ -46,73 +55,139 @@ export async function POST(req: Request) {
                 files.push(legacyFile);
             }
 
-            if (files.length > MAX_POST_IMAGES) {
+            if (type === "STANDARD" && files.length > MAX_POST_IMAGES) {
                 return NextResponse.json(
                     { message: "You can upload up to 3 images per post." },
                     { status: 400 }
                 );
             }
 
-            for (const file of files) {
-                const maxBytes = 8 * 1024 * 1024; // 8MB
-                if (file.size > maxBytes) {
-                    return NextResponse.json(
-                        { message: "Image too large (max 8MB)." },
-                        { status: 400 }
-                    );
-                }
-                const mime = file.type || "application/octet-stream";
-                if (!mime.startsWith("image/")) {
-                    return NextResponse.json(
-                        { message: "Only image uploads are allowed." },
-                        { status: 400 }
-                    );
+            if (type === "STANDARD") {
+                for (const file of files) {
+                    const maxBytes = 8 * 1024 * 1024; // 8MB
+                    if (file.size > maxBytes) {
+                        return NextResponse.json(
+                            { message: "Image too large (max 8MB)." },
+                            { status: 400 }
+                        );
+                    }
+                    const mime = file.type || "application/octet-stream";
+                    if (!mime.startsWith("image/")) {
+                        return NextResponse.json(
+                            { message: "Only image uploads are allowed." },
+                            { status: 400 }
+                        );
+                    }
                 }
             }
 
-            try {
-                for (const file of files) {
-                    const uploaded = await storeImageFile(file, {
-                        folder: "posts",
-                        prefix: `post-${user.id}`,
-                    });
-                    imageUrls.push(uploaded.url);
+            if (type === "STANDARD") {
+                try {
+                    for (const file of files) {
+                        const uploaded = await storeImageFile(file, {
+                            folder: "posts",
+                            prefix: `post-${user.id}`,
+                        });
+                        imageUrls.push(uploaded.url);
+                    }
+                } catch (err: any) {
+                    const msg =
+                        typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
+                            ? err.message
+                            : "Failed to upload image";
+                    return NextResponse.json(
+                        { message: msg },
+                        { status: 503 }
+                    );
                 }
-            } catch (err: any) {
-                const msg =
-                    typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
-                        ? err.message
-                        : "Failed to upload image";
-                return NextResponse.json(
-                    { message: msg },
-                    { status: 503 }
-                );
             }
         } else {
             const body = await req.json();
             title = String(body.title || "").trim();
             content = String(body.content || "").trim();
-            imageUrls = Array.isArray(body.imageUrls)
-                ? body.imageUrls.map(String).filter(Boolean).slice(0, MAX_POST_IMAGES)
-                : body.imageUrl
-                    ? [String(body.imageUrl)]
+            type = String(body.type || "STANDARD").toUpperCase() === "POLL" ? "POLL" : "STANDARD";
+            pollQuestion = String(body.pollQuestion || "").trim();
+            pollOptions = Array.isArray(body.pollOptions)
+                ? body.pollOptions.map((value: unknown) => String(value).trim()).filter(Boolean).slice(0, 5)
+                : [];
+            imageUrls =
+                type === "STANDARD"
+                    ? Array.isArray(body.imageUrls)
+                        ? body.imageUrls.map(String).filter(Boolean).slice(0, MAX_POST_IMAGES)
+                        : body.imageUrl
+                            ? [String(body.imageUrl)]
+                            : []
                     : [];
         }
 
-        if (!title || !content) {
+        if (type === "STANDARD" && (!title || !content)) {
             return NextResponse.json(
                 { message: "Title and content are required." },
                 { status: 400 }
             );
         }
 
+        if (type === "POLL") {
+            const uniqueOptions = Array.from(new Set(pollOptions.map((option) => option.trim()).filter(Boolean)));
+            if (!pollQuestion) {
+                return NextResponse.json(
+                    { message: "Poll question is required." },
+                    { status: 400 }
+                );
+            }
+            if (uniqueOptions.length < 2 || uniqueOptions.length > 5) {
+                return NextResponse.json(
+                    { message: "Polls need between 2 and 5 answer options." },
+                    { status: 400 }
+                );
+            }
+            pollOptions = uniqueOptions;
+            title = pollQuestion;
+            content = "";
+        }
+
         const newPost = await db.post.create({
             data: {
                 title,
                 content,
+                type,
+                pollQuestion: type === "POLL" ? pollQuestion : null,
                 imageUrl: imageUrls[0] ?? null,
                 imageUrls,
                 authorId: user.id,
+                ...(type === "POLL"
+                    ? {
+                        pollOptions: {
+                            create: pollOptions.map((option, index) => ({
+                                text: option,
+                                order: index,
+                            })),
+                        },
+                    }
+                    : {}),
+            },
+            include: {
+                pollOptions: {
+                    orderBy: { order: "asc" },
+                    include: { votes: { select: { userId: true } } },
+                },
+                author: { select: { id: true, username: true, name: true } },
+                likes: { select: { userId: true } },
+                comments: {
+                    where: { parentId: null },
+                    orderBy: { createdAt: "asc" },
+                    include: {
+                        author: { select: { username: true, email: true } },
+                        replies: {
+                            orderBy: { createdAt: "asc" },
+                            include: {
+                                author: {
+                                    select: { username: true, email: true },
+                                },
+                            },
+                        },
+                    },
+                },
             },
         });
 
@@ -171,6 +246,15 @@ export async function GET(req: Request) {
             id: p.id,
             title: p.title,
             content: p.content,
+            type: p.type,
+            poll:
+                p.type === "POLL" && p.pollQuestion
+                    ? buildPollPayload({
+                        question: p.pollQuestion,
+                        options: p.pollOptions ?? [],
+                        viewerId,
+                    })
+                    : null,
             imageUrl: p.imageUrl ?? null,
             imageUrls: p.imageUrls ?? [],
             createdAt: p.createdAt,
@@ -255,6 +339,10 @@ export async function GET(req: Request) {
                 include: {
                     author: { select: { id: true, username: true, name: true } },
                     likes: { select: { userId: true } },
+                    pollOptions: {
+                        orderBy: { order: "asc" },
+                        include: { votes: { select: { userId: true } } },
+                    },
                     comments: {
                         where: { parentId: null },
                         orderBy: { createdAt: "asc" },
@@ -325,6 +413,10 @@ export async function GET(req: Request) {
             include: {
                 author: { select: { id: true, username: true, name: true } },
                 likes: { select: { userId: true } },
+                pollOptions: {
+                    orderBy: { order: "asc" },
+                    include: { votes: { select: { userId: true } } },
+                },
                 comments: {
                     where: { parentId: null },
                     orderBy: { createdAt: "asc" },

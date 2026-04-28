@@ -78,6 +78,11 @@ enum TrainerGymStatus {
   TRAINER
 }
 
+enum PostType {
+  STANDARD
+  POLL
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String?   @unique
@@ -97,6 +102,7 @@ model User {
   notificationsSeenAt DateTime?
 
   post           Post[]
+  pollVotes      PollVote[]
   accounts       Account[]
   sessions       Session[]
   likes          Like[]
@@ -284,20 +290,50 @@ model VerificationToken {
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
-  createdAt DateTime @default(now())
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
+  id           String      @id @default(cuid())
+  title        String
+  content      String
+  type         PostType    @default(STANDARD)
+  pollQuestion String?
+  createdAt    DateTime    @default(now())
+  author       User        @relation(fields: [authorId], references: [id])
+  authorId     String
 
-  likes    Like[]
-  comments Comment[]
-  imageUrl String?
-  imageUrls String[] @default([])
+  likes       Like[]
+  comments    Comment[]
+  imageUrl    String?
+  imageUrls   String[]     @default([])
+  pollOptions PollOption[]
+  pollVotes   PollVote[]
 
   // Inverse side of Message.sharedPost
   sharedInMessages Message[] @relation("SharedPost")
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  text   String
+  order  Int
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+
+  votes PollVote[]
+
+  @@index([postId, order])
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  optionId  String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([postId, userId])
+  @@index([optionId])
 }
 
 model Like {

@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { PostComments } from "@/components/PostComments";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EditPostDialog } from "@/components/ui/edit-content-dialog";
+import PostPoll from "@/components/PostPoll";
+import type { PostPollData, PostTypeValue } from "@/lib/postPoll";
 import { formatRelativeTime } from "@/lib/utils";
 import { getPostImageUrls } from "@/lib/postImages";
 import PostImageCarousel from "@/components/PostImageCarousel";
@@ -41,6 +43,8 @@ type Post = {
     id: string;
     title: string;
     content: string;
+    type: PostTypeValue;
+    poll: PostPollData | null;
     imageUrl?: string | null;
     imageUrls?: string[];
     createdAt: string;
@@ -332,6 +336,12 @@ export default function HomePosts({
         setOpenComments((prev) => ({ ...prev, [postId]: !prev[postId] }));
     };
 
+    const updatePollForPost = useCallback((postId: string, poll: PostPollData) => {
+        setPosts((prev) =>
+            prev.map((post) => (post.id === postId ? { ...post, poll } : post))
+        );
+    }, []);
+
     const handleCommentCount = (postId: string, count: number) => {
         setPosts((prev) =>
             prev.map((p) =>
@@ -457,6 +467,7 @@ export default function HomePosts({
             <div className="w-full max-w-xl mx-auto mt-6">
                 <div className="space-y-6">
                     {posts.map((post) => {
+                        const isPollPost = post.type === "POLL" && !!post.poll;
                         const actionButtons = (
                             <>
                                 <button
@@ -526,13 +537,15 @@ export default function HomePosts({
                             >
                             {post.author?.username === username && (
                                 <div className="absolute right-4 top-4 flex items-center gap-2">
-                                    <button
-                                        onClick={() => setEditingPost(post)}
-                                        className="text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
-                                        title="Edit post"
-                                    >
-                                        <Pencil size={18} />
-                                    </button>
+                                    {!isPollPost && (
+                                        <button
+                                            onClick={() => setEditingPost(post)}
+                                            className="text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                            title="Edit post"
+                                        >
+                                            <Pencil size={18} />
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setPendingDeletePostId(post.id)}
                                         className="text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
@@ -544,9 +557,11 @@ export default function HomePosts({
                             )}
 
                             <div className="flex flex-col gap-1 mb-2">
-                                <span className="font-bold text-lg text-gray-800 dark:text-white">
-                                    {post.title}
-                                </span>
+                                {post.title && (
+                                    <span className="font-bold text-lg text-gray-800 dark:text-white">
+                                        {post.title}
+                                    </span>
+                                )}
                                 {(() => {
                                     const authorBits = (
                                         <>
@@ -608,7 +623,14 @@ export default function HomePosts({
                             )}
 
                             {/* Image (optional) */}
-                            {getPostImageUrls(post).length > 0 && (
+                            {isPollPost && post.poll ? (
+                                <PostPoll
+                                    postId={post.id}
+                                    poll={post.poll}
+                                    isOwner={post.author?.username === username}
+                                    onPollChange={(poll) => updatePollForPost(post.id, poll)}
+                                />
+                            ) : getPostImageUrls(post).length > 0 && (
                                 <div className="mt-3">
                                     <PostImageCarousel
                                         imageUrls={getPostImageUrls(post)}

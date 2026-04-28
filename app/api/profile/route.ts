@@ -39,6 +39,8 @@ export async function GET(req: Request) {
         select: {
             id: true,
             title: true,
+            type: true,
+            pollQuestion: true,
             imageUrl: true,
             imageUrls: true,
         },
@@ -47,6 +49,8 @@ export async function GET(req: Request) {
     const posts = postsRaw.map((p: typeof postsRaw[number]) => ({
         id: p.id,
         title: p.title,
+        type: p.type,
+        pollQuestion: p.pollQuestion ?? null,
         imageUrl: p.imageUrl ?? null,
         imageUrls: p.imageUrls ?? [],
     }));

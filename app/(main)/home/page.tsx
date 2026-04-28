@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/prisma/client";
 import HomePageShell from "@/components/HomePageShell";
 import { hasAdminAccessByEmail } from "@/lib/admin";
+import { buildPollPayload } from "@/lib/postPoll";
 
 export const revalidate = 0; // always fresh server render
 
@@ -71,6 +72,10 @@ export default async function Home() {
                 },
             },
             likes: { select: { userId: true } },
+            pollOptions: {
+                orderBy: { order: "asc" },
+                include: { votes: { select: { userId: true } } },
+            },
             comments: {
                 where: { parentId: null },
                 orderBy: { createdAt: "asc" },
@@ -100,6 +105,15 @@ export default async function Home() {
 
         return {
             ...p,
+            title: p.title || p.pollQuestion || "",
+            poll:
+                p.type === "POLL" && p.pollQuestion
+                    ? buildPollPayload({
+                        question: p.pollQuestion,
+                        options: p.pollOptions,
+                        viewerId,
+                    })
+                    : null,
             likeCount: p.likes.length,
             didLike: viewerId
                 ? p.likes.some((l: typeof p.likes[number]) => l.userId === viewerId)

@@ -3,6 +3,7 @@ import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { deleteStoredFile, storeImageFile } from "@/lib/storage";
+import { buildPollPayload } from "@/lib/postPoll";
 
 const MAX_POST_IMAGES = 3;
 
@@ -31,6 +32,10 @@ export async function GET(
                 select: { id: true, username: true, name: true, isPrivate: true },
             },
             likes: { select: { userId: true } },
+            pollOptions: {
+                orderBy: { order: "asc" },
+                include: { votes: { select: { userId: true } } },
+            },
             comments: {
                 where: { parentId: null },
                 orderBy: { createdAt: "asc" },
@@ -77,6 +82,15 @@ export async function GET(
         id: post.id,
         title: post.title,
         content: post.content,
+        type: post.type,
+        poll:
+            post.type === "POLL" && post.pollQuestion
+                ? buildPollPayload({
+                    question: post.pollQuestion,
+                    options: post.pollOptions,
+                    viewerId,
+                })
+                : null,
         imageUrl: post.imageUrl ?? null,
         imageUrls: post.imageUrls ?? [],
         createdAt: post.createdAt,
@@ -139,13 +153,16 @@ export async function PATCH(
 
     const post = await db.post.findUnique({
         where: { id },
-        select: { id: true, authorId: true, imageUrl: true, imageUrls: true },
+        select: { id: true, authorId: true, imageUrl: true, imageUrls: true, type: true },
     });
     if (!post) {
         return NextResponse.json({ message: "Post not found." }, { status: 404 });
     }
     if (post.authorId !== user.id) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+    if (post.type === "POLL") {
+        return NextResponse.json({ message: "Poll posts cannot be edited." }, { status: 400 });
     }
 
     const existingImageUrls = post.imageUrls?.length

@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 import { ArrowLeft, Heart, MessageCircle, Share2, X, Search } from "lucide-react";
 import clsx from "clsx";
 import { PostComments } from "@/components/PostComments";
+import PostPoll from "@/components/PostPoll";
+import type { PostPollData, PostTypeValue } from "@/lib/postPoll";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 import { getPostImageUrls } from "@/lib/postImages";
@@ -47,6 +49,8 @@ type Post = {
     id: string;
     title: string;
     content: string;
+    type: PostTypeValue;
+    poll: PostPollData | null;
     imageUrl?: string | null;
     imageUrls?: string[];
     createdAt: string;
@@ -432,10 +436,12 @@ export default function PostDetail({
                 )}
                 <article className={articleCls}>
                     <div className="flex flex-col gap-1 mb-2">
-                        {isFlat ? (
-                            <span className={titleCls}>{post.title}</span>
-                        ) : (
-                            <h2 className={titleCls}>{post.title}</h2>
+                        {post.title && (
+                            isFlat ? (
+                                <span className={titleCls}>{post.title}</span>
+                            ) : (
+                                <h2 className={titleCls}>{post.title}</h2>
+                            )
                         )}
                         <div className="flex flex-wrap items-center gap-2 md:hidden">
                             {authorBits}
@@ -453,11 +459,18 @@ export default function PostDetail({
 
                     {post.content && <div className={textCls}>{post.content}</div>}
 
-                    {getPostImageUrls(post).length > 0 && (
+                    {post.type === "POLL" && post.poll ? (
+                        <PostPoll
+                            postId={post.id}
+                            poll={post.poll}
+                            isOwner={post.author?.id === session?.user?.id}
+                            onPollChange={(poll) => setPost((prev) => (prev ? { ...prev, poll } : prev))}
+                        />
+                    ) : getPostImageUrls(post).length > 0 && (
                         <div className="mt-3">
                             <PostImageCarousel
                                 imageUrls={getPostImageUrls(post)}
-                                alt={post.title}
+                                alt={post.title || "Post image"}
                                 imageClassName={imageCls}
                             />
                         </div>

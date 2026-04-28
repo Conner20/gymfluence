@@ -28,6 +28,8 @@ import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
 import { EditPostDialog } from "@/components/ui/edit-content-dialog";
+import PostPoll from "@/components/PostPoll";
+import type { PostPollData, PostTypeValue } from "@/lib/postPoll";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 import { getPostImageUrls } from "@/lib/postImages";
@@ -36,6 +38,8 @@ import PostImageCarousel from "@/components/PostImageCarousel";
 type BasicPost = {
     id: string;
     title: string;
+    type?: PostTypeValue;
+    pollQuestion?: string | null;
     imageUrl?: string | null;
     imageUrls?: string[];
 };
@@ -44,6 +48,8 @@ type FullPost = {
     id: string;
     title: string;
     content: string;
+    type: PostTypeValue;
+    poll: PostPollData | null;
     imageUrl?: string | null;
     imageUrls?: string[];
     createdAt: string;
@@ -126,6 +132,8 @@ export function TraineeProfile({
             items.map((p) => ({
                 id: p.id,
                 title: p.title,
+                type: p.type,
+                pollQuestion: p.poll?.question ?? null,
                 imageUrl: p.imageUrl ?? null,
                 imageUrls: p.imageUrls ?? [],
             })),
@@ -306,6 +314,12 @@ export function TraineeProfile({
             setEditingPostLoading(false);
         }
     };
+
+    const handlePollChange = useCallback((postId: string, poll: PostPollData) => {
+        setFullPosts((prev) =>
+            prev ? prev.map((post) => (post.id === postId ? { ...post, poll } : post)) : prev
+        );
+    }, []);
 
     // Followers / Following
     const [showFollowers, setShowFollowers] = useState(false);
@@ -677,6 +691,7 @@ export function TraineeProfile({
                                 canDelete={isOwnProfile}
                                 onEdit={(post) => setEditingPost(post)}
                                 onDelete={handleDeletePost}
+                                onPollChange={handlePollChange}
                                 onOpen={(id) => setFocusPostId(id)}
                                 onLike={async (id) => {
                                     try {
@@ -718,16 +733,19 @@ export function TraineeProfile({
                             </button>
                             {isOwnProfile && (
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        className="p-2 rounded-full text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
-                                        title="Edit post"
-                                        onClick={() => {
-                                            const target = fullPosts?.find((post) => post.id === focusPostId) ?? null;
-                                            if (target) setEditingPost(target);
-                                        }}
-                                    >
-                                        <Pencil size={18} />
-                                    </button>
+                                    {fullPosts?.find((post) => post.id === focusPostId)?.type !== "POLL" && (
+                                        <button
+                                            className="p-2 rounded-full text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                            title="Edit post"
+                                            onClick={() => {
+                                                const target = fullPosts?.find((post) => post.id === focusPostId) ?? null;
+                                                if (!target) return;
+                                                setEditingPost(target);
+                                            }}
+                                        >
+                                            <Pencil size={18} />
+                                        </button>
+                                    )}
                                     <button
                                         className="p-2 rounded-full text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
                                         title="Delete post"
@@ -800,19 +818,19 @@ function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string)
                 <button
                     key={post.id}
                     className="bg-white rounded-xl flex items-center justify-center w-full h-56 overflow-hidden border border-zinc-200 transition hover:border-black hover:shadow-lg hover:ring-1 hover:ring-black dark:bg-neutral-900 dark:border-white/10 dark:hover:border-white dark:hover:ring-white"
-                    title={post.title}
+                    title={post.title || post.pollQuestion || "Post"}
                     onClick={() => onOpen(post.id)}
                 >
                     {post.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={post.imageUrl}
-                            alt={post.title}
+                            alt={post.title || post.pollQuestion || "Post"}
                             className="object-cover w-full h-full"
                         />
                     ) : (
                         <span className="text-gray-700 font-medium text-base text-center px-4 dark:text-gray-100">
-                            {post.title}
+                            {post.title || post.pollQuestion || "Post"}
                         </span>
                     )}
                 </button>
@@ -829,6 +847,7 @@ function ScrollFeed({
     canDelete,
     onEdit,
     onDelete,
+    onPollChange,
 }: {
     posts: FullPost[];
     onOpen: (id: string) => void;
@@ -836,6 +855,7 @@ function ScrollFeed({
     canDelete: boolean;
     onEdit: (post: FullPost) => void;
     onDelete: (id: string) => void | Promise<void>;
+    onPollChange: (postId: string, poll: PostPollData) => void;
 }) {
     const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
     const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -944,13 +964,15 @@ function ScrollFeed({
                     >
                         {canDelete && (
                             <div className="absolute right-4 top-4 flex items-center gap-2">
-                                <button
-                                    className="text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
-                                    title="Edit post"
-                                    onClick={() => onEdit(p)}
-                                >
-                                    <Pencil size={18} />
-                                </button>
+                                {p.type !== "POLL" && (
+                                    <button
+                                        className="text-gray-300 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                        title="Edit post"
+                                        onClick={() => onEdit(p)}
+                                    >
+                                        <Pencil size={18} />
+                                    </button>
+                                )}
                                 <button
                                     className="text-gray-300 hover:text-red-500 transition dark:text-gray-500 dark:hover:text-red-500"
                                     title="Delete post"
@@ -967,7 +989,7 @@ function ScrollFeed({
                                 onClick={() => onOpen(p.id)}
                                 title="Open post"
                             >
-                                {p.title}
+                                {p.title || p.poll?.question || "Post"}
                             </button>
 
                         <div className="flex flex-wrap items-center gap-2 md:hidden text-gray-600 dark:text-gray-400">
@@ -989,11 +1011,18 @@ function ScrollFeed({
                             <div className="text-zinc-800 mt-3 whitespace-pre-wrap dark:text-gray-200">{p.content}</div>
                         )}
 
-                        {getPostImageUrls(p).length > 0 && (
+                        {p.type === "POLL" && p.poll ? (
+                            <PostPoll
+                                postId={p.id}
+                                poll={p.poll}
+                                isOwner={canDelete}
+                                onPollChange={(poll) => onPollChange(p.id, poll)}
+                            />
+                        ) : getPostImageUrls(p).length > 0 && (
                             <div className="mt-3">
                                 <PostImageCarousel
                                     imageUrls={getPostImageUrls(p)}
-                                    alt={p.title}
+                                    alt={p.title || p.poll?.question || "Post image"}
                                     onOpen={() => onOpen(p.id)}
                                     imageClassName="w-full max-h-[540px] object-contain"
                                 />
