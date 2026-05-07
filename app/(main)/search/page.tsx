@@ -1483,7 +1483,7 @@ export default function SearchPage() {
                     <>
                 <div className="lg:hidden">
                     {mobileView === 'list' && (
-                        <div className="px-4 py-4 space-y-4">
+                        <div className="px-4 pb-0 pt-4 space-y-4">
                             {loading ? (
                                 <div className="flex items-center justify-center rounded-xl border bg-white py-6 text-sm text-gray-500 dark:bg-neutral-900 dark:border-white/10 dark:text-gray-300">
                                     <span className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
@@ -1494,12 +1494,12 @@ export default function SearchPage() {
                             ) : allResults.length ? (
                                 <>
                                     <div
-                                        className="max-h-[calc(100dvh-19rem-env(safe-area-inset-bottom,0px))] space-y-3 overflow-y-auto scrollbar-slim"
+                                        className="max-h-[calc(100dvh-21rem-env(safe-area-inset-bottom,0px))] space-y-3 overflow-y-auto scrollbar-slim"
                                         ref={mobileListRef}
                                     >
                                         {paginatedResults.map((u) => renderMobileCard(u))}
                                     </div>
-                                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                                    <div className="flex items-center justify-between pt-1 text-xs text-gray-600 dark:text-gray-400">
                                         <button
                                             className="px-2 py-1 rounded border bg-white hover:bg-gray-50 disabled:opacity-40 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
                                             disabled={page === 1}
