@@ -1086,12 +1086,12 @@ export default function Messenger() {
     return (
         <>
             <div
-                className="w-full max-w-full lg:max-w-6xl bg-white lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 overflow-hidden flex flex-col lg:flex-row flex-1 min-h-0 h-full max-h-[calc(100vh-130px)] lg:h-[83vh] lg:max-h-[83vh] dark:bg-neutral-900 dark:text-gray-100 dark:lg:ring-white/10 dark:lg:shadow-none"
+                className="flex h-full min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden bg-white lg:h-[83vh] lg:max-h-[83vh] lg:max-w-6xl lg:flex-row lg:rounded-2xl lg:shadow lg:ring-1 lg:ring-black/5 dark:bg-neutral-900 dark:text-gray-100 dark:lg:ring-white/10 dark:lg:shadow-none"
             >
                 {/* Left column */}
                 <aside
                     className={clsx(
-                        'border-b lg:border-b-0 lg:border-r w-full lg:w-[340px] flex-shrink-0 flex flex-col h-full min-h-0 max-h-[calc(100vh-130px)] lg:max-h-none bg-white dark:bg-neutral-900 dark:border-white/10',
+                        'flex h-full min-h-0 w-full flex-shrink-0 flex-col border-b bg-white dark:bg-neutral-900 dark:border-white/10 lg:max-h-none lg:w-[340px] lg:border-b-0 lg:border-r',
                         mobileView === 'thread' ? 'hidden lg:flex' : 'flex'
                     )}
                 >
@@ -1262,7 +1262,7 @@ export default function Messenger() {
                 {/* Right column */}
                 <section
                     className={clsx(
-                        'flex flex-col h-full flex-1 overflow-hidden w-full max-w-full min-h-[calc(100vh-140px)]',
+                        'flex h-full min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden',
                         mobileView === 'thread' ? 'flex' : 'hidden',
                         'lg:flex lg:min-h-0'
                     )}
@@ -1457,7 +1457,7 @@ export default function Messenger() {
                     </div>
 
                     {/* Composer */}
-                    <div className="border-t flex flex-col gap-2 px-3 sm:px-4 py-3 flex-shrink-0 dark:border-white/10">
+                    <div className="mb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-2 border-t bg-white px-3 py-3 flex-shrink-0 dark:border-white/10 dark:bg-neutral-900 sm:px-4 lg:mb-0 lg:bg-transparent lg:py-3 dark:lg:bg-transparent">
                         {/* Share draft preview bar */}
                         {shareDraft && (
                             <div className="border rounded-lg p-2 flex items-center gap-3 dark:border-white/10">

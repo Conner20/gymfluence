@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { encode } from "next-auth/jwt";
+import { geocodeAddress } from "@/lib/geocoding";
 
 async function getIdentifierFromOnboardingCookie() {
     const cookieStore = await cookies();
@@ -52,21 +53,51 @@ export async function POST(req: Request) {
         // find current user (by email from session)
         const current = await db.user.findFirst({
             where: { email: { equals: identifier, mode: "insensitive" } },
-            select: { id: true },
+            select: { id: true, location: true },
         });
         if (!current) {
             return NextResponse.json({ message: "User not found" }, { status: 404 });
         }
 
         const data: any = { role, lastLoginAt: new Date() };
+        let signupLocationGeo = null;
+        if ((role === "TRAINEE" || role === "TRAINER") && current.location?.trim()) {
+            try {
+                signupLocationGeo = await geocodeAddress(current.location);
+            } catch (error) {
+                console.error("signup location geocode failed during onboarding:", error);
+            }
+        }
 
         if (role === "TRAINEE") {
             if (!Array.isArray(selections)) selections = [];
             data.traineeProfile = {
                 upsert: {
-                    update: { goals: selections },
+                    update: {
+                        goals: selections,
+                        ...(signupLocationGeo
+                            ? {
+                                  city: signupLocationGeo.city,
+                                  state: signupLocationGeo.state,
+                                  country: signupLocationGeo.country,
+                                  lat: signupLocationGeo.lat,
+                                  lng: signupLocationGeo.lng,
+                              }
+                            : {}),
+                    },
                     // ❌ do NOT include userId in nested create
-                    create: { goals: selections },
+                    create: {
+                        goals: selections,
+                        ...(signupLocationGeo
+                            ? {
+                                  city: signupLocationGeo.city,
+                                  state: signupLocationGeo.state,
+                                  country: signupLocationGeo.country,
+                                  lat: signupLocationGeo.lat,
+                                  lng: signupLocationGeo.lng,
+                              }
+                            : {}),
+                    },
                 },
             };
         }
@@ -75,9 +106,31 @@ export async function POST(req: Request) {
             if (!Array.isArray(selections)) selections = [];
             data.trainerProfile = {
                 upsert: {
-                    update: { services: selections },
+                    update: {
+                        services: selections,
+                        ...(signupLocationGeo
+                            ? {
+                                  city: signupLocationGeo.city,
+                                  state: signupLocationGeo.state,
+                                  country: signupLocationGeo.country,
+                                  lat: signupLocationGeo.lat,
+                                  lng: signupLocationGeo.lng,
+                              }
+                            : {}),
+                    },
                     // ❌ do NOT include userId in nested create
-                    create: { services: selections },
+                    create: {
+                        services: selections,
+                        ...(signupLocationGeo
+                            ? {
+                                  city: signupLocationGeo.city,
+                                  state: signupLocationGeo.state,
+                                  country: signupLocationGeo.country,
+                                  lat: signupLocationGeo.lat,
+                                  lng: signupLocationGeo.lng,
+                              }
+                            : {}),
+                    },
                 },
             };
         }
@@ -93,6 +146,15 @@ export async function POST(req: Request) {
                 return NextResponse.json({ message: "Fee must be a number" }, { status: 400 });
             }
 
+            let geocoded = null;
+            try {
+                geocoded = await geocodeAddress(gymForm.address);
+            } catch (error) {
+                console.error("gym onboarding geocode failed:", error);
+            }
+
+            data.name = gymForm.name;
+
             data.gymProfile = {
                 upsert: {
                     update: {
@@ -101,6 +163,15 @@ export async function POST(req: Request) {
                         phone: gymForm.phone,
                         website: gymForm.website,
                         fee: feeNum,
+                        ...(geocoded
+                            ? {
+                                  city: geocoded.city,
+                                  state: geocoded.state,
+                                  country: geocoded.country,
+                                  lat: geocoded.lat,
+                                  lng: geocoded.lng,
+                              }
+                            : {}),
                     },
                     create: {
                         name: gymForm.name,
@@ -108,6 +179,15 @@ export async function POST(req: Request) {
                         phone: gymForm.phone,
                         website: gymForm.website,
                         fee: feeNum,
+                        ...(geocoded
+                            ? {
+                                  city: geocoded.city,
+                                  state: geocoded.state,
+                                  country: geocoded.country,
+                                  lat: geocoded.lat,
+                                  lng: geocoded.lng,
+                              }
+                            : {}),
                     },
                 },
             };

@@ -778,6 +778,8 @@ export function GymProfile({
 
   const [showNotifications, setShowNotifications] = useState(false);
   const showWebsiteAction = Boolean(gym?.showWebsiteButton && gymWebsite);
+  const displayName = gym?.name || user.name || user.username || "User";
+  const avatarFallback = (gym?.name || user.name || user.username || "U").slice(0, 2);
 
   const requested = user.isPrivate ? isPending || optimisticRequested : false;
 
@@ -803,13 +805,13 @@ export function GymProfile({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={user.image}
-                alt={user.username || user.name || "Profile picture"}
+                alt={displayName || "Profile picture"}
                 className="w-20 h-20 rounded-full object-cover border border-gray-200 dark:border-white/20"
               />
             ) : (
               <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center dark:bg-neutral-800 dark:border-white/20">
                 <span className="text-green-700 font-semibold text-lg select-none dark:text-green-400">
-                  {(user.name || user.username || "U").slice(0, 2)}
+                  {avatarFallback}
                 </span>
               </div>
             )}
@@ -818,7 +820,7 @@ export function GymProfile({
           {/* Name / handle / role */}
           <div className="text-center space-y-1">
             <h2 className="font-semibold text-lg text-zinc-900 truncate max-w-[200px] dark:text-white">
-              {user.name || user.username || "User"}
+              {displayName}
             </h2>
             {user.role && (
               <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">

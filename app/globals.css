@@ -160,6 +160,15 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: none;
 }

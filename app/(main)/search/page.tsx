@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search as SearchIcon, ChevronDown, ChevronLeft, ChevronRight, X, MessageSquare, Share2, Star } from 'lucide-react';
+import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import MobileHeader from "@/components/MobileHeader";
+import { GymDiscoveryPanel } from "@/components/GymMapPage";
 
 type Role = 'TRAINEE' | 'TRAINER' | 'GYM';
 
@@ -32,6 +33,7 @@ type SearchUser = {
     amenitiesText?: string | null; // NEW: free-form amenities description
     rating: number | null;
     clients: number | null;
+    hiringTrainers?: boolean;
 
     about?: string | null;
     gallery?: string[];
@@ -45,77 +47,40 @@ type ApiResponse = {
     viewerHasCoords: boolean;
 };
 
-type SeekingFilter = 'ALL' | 'LOOKING_GYM' | 'LOOKING_TRAINER';
+type StatusFilter = 'ALL' | 'LOOKING_GYM' | 'LOOKING_TRAINER' | 'AT_GYM';
+type ViewerCoords = { lat: number; lng: number };
+type SortBy = 'DISTANCE' | 'RATING';
 
-function FilterScroller({
-    children,
-    className,
-}: {
-    children: React.ReactNode;
-    className?: string;
-}) {
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
+const traineeStatusOptions = [
+    ['ALL', 'Any'],
+    ['LOOKING_GYM', 'Looking for a gym'],
+    ['LOOKING_TRAINER', 'Looking for a trainer'],
+] as const;
 
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
+const trainerStatusOptions = [
+    ['ALL', 'Any'],
+    ['LOOKING_GYM', 'Looking for a gym'],
+    ['AT_GYM', 'Training at a gym'],
+] as const;
 
-        const update = () => {
-            setCanScrollLeft(el.scrollLeft > 4);
-            setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-        };
+const generalStatusOptions = [
+    ['ALL', 'Any'],
+    ['LOOKING_GYM', 'Looking for a gym'],
+    ['LOOKING_TRAINER', 'Looking for a trainer'],
+    ['AT_GYM', 'Training at a gym'],
+] as const;
 
-        update();
-        el.addEventListener('scroll', update, { passive: true });
-        window.addEventListener('resize', update);
-        return () => {
-            el.removeEventListener('scroll', update);
-            window.removeEventListener('resize', update);
-        };
-    }, [children]);
+function getStatusLabel(role: 'ALL' | Role, statusFilter: StatusFilter) {
+    if (statusFilter === 'LOOKING_GYM') return 'Looking for a gym';
+    if (statusFilter === 'LOOKING_TRAINER') return 'Looking for a trainer';
+    if (statusFilter === 'AT_GYM') return 'Training at a gym';
+    return 'Any';
+}
 
-    const handleScroll = (direction: 'left' | 'right') => {
-        const el = containerRef.current;
-        if (!el) return;
-        el.scrollBy({
-            left: direction === 'left' ? -Math.max(el.clientWidth * 0.8, 180) : Math.max(el.clientWidth * 0.8, 180),
-            behavior: 'smooth',
-        });
-    };
-
-    return (
-        <div className="flex min-w-0 items-center gap-2">
-            <button
-                type="button"
-                onClick={() => handleScroll('left')}
-                disabled={!canScrollLeft}
-                className={clsx(
-                    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white/90 text-gray-700 transition dark:border-white/15 dark:bg-white/5 dark:text-gray-200',
-                    canScrollLeft ? 'hover:bg-gray-50 dark:hover:bg-white/10' : 'cursor-default opacity-35'
-                )}
-                aria-label="Scroll filters left"
-            >
-                <ChevronLeft size={16} />
-            </button>
-            <div ref={containerRef} className={clsx('min-w-0 flex-1 overflow-x-auto', className)}>
-                {children}
-            </div>
-            <button
-                type="button"
-                onClick={() => handleScroll('right')}
-                disabled={!canScrollRight}
-                className={clsx(
-                    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white/90 text-gray-700 transition dark:border-white/15 dark:bg-white/5 dark:text-gray-200',
-                    canScrollRight ? 'hover:bg-gray-50 dark:hover:bg-white/10' : 'cursor-default opacity-35'
-                )}
-                aria-label="Scroll filters right"
-            >
-                <ChevronRight size={16} />
-            </button>
-        </div>
-    );
+function formatDistanceMiles(distanceKm: number) {
+    const miles = distanceKm * 0.621371;
+    if (miles < 10) return `${miles.toFixed(1)} mi`;
+    return `${Math.round(miles)} mi`;
 }
 
 export default function SearchPage() {
@@ -124,21 +89,25 @@ export default function SearchPage() {
     // ------- filters -------
     const [q, setQ] = useState('');
     const [role, setRole] = useState<'ALL' | Role>('ALL');
-    const [seeking, setSeeking] = useState<SeekingFilter>('ALL');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
     const [minBudget, setMinBudget] = useState('');
     const [maxBudget, setMaxBudget] = useState('');
-    const [distanceKm, setDistanceKm] = useState('');
     const [goals, setGoals] = useState<string[]>([]);
+    const [hiringOnly, setHiringOnly] = useState(false);
+    const [gymSortBy, setGymSortBy] = useState<SortBy>('DISTANCE');
+    const [trainerSortBy, setTrainerSortBy] = useState<SortBy>('DISTANCE');
 
     // data
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<ApiResponse | null>(null);
+    const [viewerCoords, setViewerCoords] = useState<ViewerCoords | null>(null);
     const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
     const pageSize = 10;
     const [page, setPage] = useState(1);
     const listRef = useRef<HTMLDivElement | null>(null);
     const mobileListRef = useRef<HTMLDivElement | null>(null);
+    const previousRoleRef = useRef<'ALL' | Role>('ALL');
 
     // selection for details panel
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -152,7 +121,47 @@ export default function SearchPage() {
 
     // ensure portal only runs client-side
     const [mounted, setMounted] = useState(false);
+    const [isDesktopViewport, setIsDesktopViewport] = useState(false);
     useEffect(() => setMounted(true), []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const updateViewport = () => {
+            setIsDesktopViewport(window.innerWidth >= 1024);
+        };
+
+        updateViewport();
+        window.addEventListener('resize', updateViewport);
+        return () => window.removeEventListener('resize', updateViewport);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+
+        let cancelled = false;
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                if (cancelled) return;
+                setViewerCoords({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                });
+            },
+            () => {
+                // Fallback to server-side stored profile coordinates when unavailable.
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 5 * 60 * 1000,
+            }
+        );
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const fetchResults = async () => {
         setLoading(true);
@@ -161,11 +170,17 @@ export default function SearchPage() {
             const params = new URLSearchParams();
             if (q.trim()) params.set('q', q.trim());
             if (role !== 'ALL') params.set('role', role);
-            if (seeking !== 'ALL') params.set('seeking', seeking);
-            if (minBudget) params.set('minBudget', minBudget);
-            if (maxBudget) params.set('maxBudget', maxBudget);
-            if (distanceKm) params.set('distanceKm', distanceKm);
+            if (role !== 'GYM' && statusFilter !== 'ALL') params.set('status', statusFilter);
+            if (role !== 'TRAINEE' && minBudget) params.set('minBudget', minBudget);
+            if (role !== 'TRAINEE' && maxBudget) params.set('maxBudget', maxBudget);
             if (goals.length) params.set('goals', goals.join(','));
+            if (role === 'GYM' && hiringOnly) params.set('hiringOnly', 'true');
+            if (role === 'GYM' && gymSortBy === 'RATING') params.set('sortBy', 'RATING');
+            if (role === 'TRAINER' && trainerSortBy === 'RATING') params.set('sortBy', 'RATING');
+            if (viewerCoords) {
+                params.set('viewerLat', String(viewerCoords.lat));
+                params.set('viewerLng', String(viewerCoords.lng));
+            }
             params.set('page', '1');
             params.set('pageSize', '1000');
 
@@ -179,7 +194,6 @@ export default function SearchPage() {
                 total: filteredResults.length,
             });
             setPage(1);
-            setMobileView('list');
 
             setSelectedId((prev) =>
                 prev && filteredResults.some((r) => r.id === prev) ? prev : filteredResults[0]?.id ?? null
@@ -200,16 +214,18 @@ export default function SearchPage() {
         const t = setTimeout(fetchResults, 250);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [q, role, seeking, minBudget, maxBudget, distanceKm, goals]);
+    }, [q, role, statusFilter, minBudget, maxBudget, goals, viewerCoords, hiringOnly, gymSortBy, trainerSortBy]);
 
     const resetFilters = () => {
         setQ('');
         setRole('ALL');
-        setSeeking('ALL');
+        setStatusFilter('ALL');
         setMinBudget('');
         setMaxBudget('');
-        setDistanceKm('');
         setGoals([]);
+        setHiringOnly(false);
+        setGymSortBy('DISTANCE');
+        setTrainerSortBy('DISTANCE');
         setPage(1);
     };
 
@@ -226,6 +242,29 @@ export default function SearchPage() {
     ];
 
     useEffect(() => {
+        if (role !== 'GYM') {
+            setHiringOnly(false);
+            setGymSortBy('DISTANCE');
+        }
+        if (role !== 'TRAINER') {
+            setTrainerSortBy('DISTANCE');
+        }
+        if (role === 'TRAINEE' && (minBudget || maxBudget)) {
+            setMinBudget('');
+            setMaxBudget('');
+        }
+        if (role === 'GYM' && statusFilter !== 'ALL') {
+            setStatusFilter('ALL');
+        }
+        if (role === 'TRAINER' && statusFilter === 'LOOKING_TRAINER') {
+            setStatusFilter('ALL');
+        }
+        if (role === 'TRAINEE' && statusFilter === 'AT_GYM') {
+            setStatusFilter('ALL');
+        }
+    }, [role, statusFilter]);
+
+    useEffect(() => {
         window.dispatchEvent(new CustomEvent('close-filters', { detail: selected?.id || '' }));
         const total = Math.max(
             1,
@@ -238,6 +277,19 @@ export default function SearchPage() {
         if (listRef.current) listRef.current.scrollTop = 0;
         if (mobileListRef.current) mobileListRef.current.scrollTop = 0;
     }, [page, mobileView]);
+
+    useEffect(() => {
+        if (isDesktopViewport) {
+            previousRoleRef.current = role;
+            return;
+        }
+
+        if (previousRoleRef.current !== role && mobileView === 'details') {
+            setMobileView('list');
+        }
+
+        previousRoleRef.current = role;
+    }, [isDesktopViewport, mobileView, role]);
 
     // actions
     const handleMessage = (u: SearchUser) => {
@@ -276,27 +328,29 @@ export default function SearchPage() {
                     placeholder="Search by name or @username…"
                 />
             </div>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className={clsx('grid gap-1.5', role === 'TRAINER' ? 'grid-cols-5' : role === 'TRAINEE' ? 'grid-cols-3' : 'grid-cols-4')}>
+                {role === 'GYM' ? (
+                    <>
                 <div className="min-w-0">
                     <Chip
-                        label="Dist"
-                        value={distanceKm ? `${distanceKm} km` : 'Any'}
+                        label="Role"
+                        value="gym"
                         menu={
                             <div className="flex flex-col gap-1 p-3">
-                                {['', '5', '10', '25', '50', '100'].map((d) => {
-                                    const activeOpt = (distanceKm || '') === d;
+                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                    const activeOpt = role === r;
                                     return (
                                         <button
-                                            key={d || 'any'}
-                                            onClick={() => setDistanceKm(d)}
+                                            key={r}
+                                            onClick={() => setRole(r)}
                                             className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-sm text-left transition',
+                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
                                                 activeOpt
                                                     ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
                                                     : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                             )}
                                         >
-                                            {d ? `${d} km` : 'Any distance'}
+                                            {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                         </button>
                                     );
                                 })}
@@ -305,15 +359,383 @@ export default function SearchPage() {
                         size="compact"
                         fluid
                         showValue={false}
-                        active={Boolean(distanceKm)}
+                        active
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                    />
+                </div>
+                <div className="min-w-0">
+                    <ToggleChip
+                        label="Hiring"
+                        active={hiringOnly}
+                        onClick={() => setHiringOnly((current) => !current)}
+                        size="compact"
+                        fluid
+                    />
+                </div>
+                <div className="min-w-0">
+                    <Chip
+                        label="Price"
+                        value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                        menu={
+                            <div className="space-y-2.5 p-3 text-sm">
+                                <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
+                                    gyms monthly
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        placeholder="Min"
+                                        value={minBudget}
+                                        onChange={(e) => setMinBudget(e.target.value)}
+                                    />
+                                    <span className="text-gray-400 dark:text-gray-500">—</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        placeholder="Max"
+                                        value={maxBudget}
+                                        onChange={(e) => setMaxBudget(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                    <button
+                                        onClick={() => {
+                                            setMinBudget('');
+                                            setMaxBudget('');
+                                        }}
+                                        className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                    >
+                                        Clear
+                                    </button>
+                                    <span>
+                                        {minBudget || '0'} – {maxBudget || '∞'}
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={Boolean(minBudget || maxBudget)}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                    />
+                </div>
+                <div className="min-w-0">
+                    <ToggleChip
+                        label="Rating"
+                        active={gymSortBy === 'RATING'}
+                        onClick={() => setGymSortBy((current) => (current === 'RATING' ? 'DISTANCE' : 'RATING'))}
+                        size="compact"
+                        fluid
+                    />
+                </div>
+                    </>
+                ) : role === 'TRAINER' ? (
+                    <>
+                <div className="min-w-0">
+                    <Chip
+                        label="Role"
+                        value="trainer"
+                        menu={
+                            <div className="flex flex-col gap-1 p-3">
+                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                    const activeOpt = role === r;
+                                    return (
+                                        <button
+                                            key={r}
+                                            onClick={() => setRole(r)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            {r === 'ALL' ? 'any role' : r.toLowerCase()}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                        hideChevron
+                        centerLabel
+                    />
+                </div>
+                <div className="min-w-0">
+                    <Chip
+                        label="Price"
+                        value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                        menu={
+                            <div className="space-y-2.5 p-3 text-sm">
+                                <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
+                                    trainers hourly
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        placeholder="Min"
+                                        value={minBudget}
+                                        onChange={(e) => setMinBudget(e.target.value)}
+                                    />
+                                    <span className="text-gray-400 dark:text-gray-500">—</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        placeholder="Max"
+                                        value={maxBudget}
+                                        onChange={(e) => setMaxBudget(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                    <button
+                                        onClick={() => {
+                                            setMinBudget('');
+                                            setMaxBudget('');
+                                        }}
+                                        className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                    >
+                                        Clear
+                                    </button>
+                                    <span>
+                                        {minBudget || '0'} – {maxBudget || '∞'}
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={Boolean(minBudget || maxBudget)}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                        hideChevron
+                        centerLabel
+                    />
+                </div>
+                <div className="min-w-0">
+                    <ToggleChip
+                        label="Rating"
+                        active={trainerSortBy === 'RATING'}
+                        onClick={() => setTrainerSortBy((current) => (current === 'RATING' ? 'DISTANCE' : 'RATING'))}
+                        size="compact"
+                        fluid
+                    />
+                </div>
+                <div className="min-w-0">
+                    <Chip
+                        label="Service"
+                        value={goals.length ? `${goals.length} selected` : 'Any'}
+                        menu={
+                            <div className="flex flex-col gap-1 p-3 text-sm">
+                                {allGoals.map((g) => {
+                                    const checked = goals.includes(g);
+                                    return (
+                                        <label
+                                            key={g}
+                                            className={clsx(
+                                                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
+                                                checked
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleGoal(g)}
+                                                className="accent-gray-900 dark:accent-green-400"
+                                            />
+                                            <span>{g}</span>
+                                        </label>
+                                    );
+                                })}
+                                <button
+                                    onClick={() => setGoals([])}
+                                    className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                >
+                                    Clear services
+                                </button>
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={goals.length > 0}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                        hideChevron
+                        centerLabel
+                    />
+                </div>
+                <div className="min-w-0">
+                    <Chip
+                        label="Status"
+                        value={getStatusLabel(role, statusFilter)}
+                        menu={
+                            <div className="flex flex-col gap-1 p-3">
+                                {trainerStatusOptions.map(([value, label]) => {
+                                    const activeOpt = statusFilter === value;
+                                    return (
+                                        <button
+                                            key={value}
+                                            onClick={() => setStatusFilter(value)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-left text-sm transition',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={statusFilter !== 'ALL'}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                        hideChevron
+                        centerLabel
+                    />
+                </div>
+                    </>
+                ) : role === 'TRAINEE' ? (
+                    <>
+                <div className="min-w-0">
+                    <Chip
+                        label="Role"
+                        value="trainee"
+                        menu={
+                            <div className="flex flex-col gap-1 p-3">
+                                {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                    const activeOpt = role === r;
+                                    return (
+                                        <button
+                                            key={r}
+                                            onClick={() => setRole(r)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            {r === 'ALL' ? 'any role' : r.toLowerCase()}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active
                         menuClassName="max-h-[60vh] overflow-y-auto"
                         menuFixed
                     />
                 </div>
                 <div className="min-w-0">
                     <Chip
+                        label="Status"
+                        value={getStatusLabel(role, statusFilter)}
+                        menu={
+                            <div className="flex flex-col gap-1 p-3">
+                                {traineeStatusOptions.map(([value, label]) => {
+                                    const activeOpt = statusFilter === value;
+                                    return (
+                                        <button
+                                            key={value}
+                                            onClick={() => setStatusFilter(value)}
+                                            className={clsx(
+                                                'rounded-2xl border px-3 py-2 text-left text-sm transition',
+                                                activeOpt
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={statusFilter !== 'ALL'}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                    />
+                </div>
+                <div className="min-w-0">
+                    <Chip
+                        label="Goal"
+                        value={goals.length ? `${goals.length} selected` : 'Any'}
+                        menu={
+                            <div className="flex flex-col gap-1 p-3 text-sm">
+                                {allGoals.map((g) => {
+                                    const checked = goals.includes(g);
+                                    return (
+                                        <label
+                                            key={g}
+                                            className={clsx(
+                                                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
+                                                checked
+                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                            )}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleGoal(g)}
+                                                className="accent-gray-900 dark:accent-green-400"
+                                            />
+                                            <span>{g}</span>
+                                        </label>
+                                    );
+                                })}
+                                <button
+                                    onClick={() => setGoals([])}
+                                    className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                >
+                                    Clear goals
+                                </button>
+                            </div>
+                        }
+                        size="compact"
+                        fluid
+                        showValue={false}
+                        active={goals.length > 0}
+                        menuClassName="max-h-[60vh] overflow-y-auto"
+                        menuFixed
+                    />
+                </div>
+                    </>
+                ) : (
+                    <>
+                <div className="min-w-0">
+                    <Chip
                         label="Role"
-                        value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                        value="All"
                         menu={
                             <div className="flex flex-col gap-1 p-3">
                                 {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
@@ -345,28 +767,16 @@ export default function SearchPage() {
                 </div>
                 <div className="min-w-0">
                     <Chip
-                        label="Seek"
-                        value={
-                            seeking === 'LOOKING_GYM'
-                                ? 'Looking for a gym'
-                                : seeking === 'LOOKING_TRAINER'
-                                    ? 'Looking for a trainer'
-                                : 'Any'
-                        }
+                        label="Status"
+                        value={getStatusLabel(role, statusFilter)}
                         menu={
                             <div className="flex flex-col gap-1 p-3">
-                                {(
-                                    [
-                                        ['ALL', 'Any'],
-                                        ['LOOKING_GYM', 'Looking for a gym'],
-                                        ['LOOKING_TRAINER', 'Looking for a trainer'],
-                                    ] as const
-                                ).map(([value, label]) => {
-                                    const activeOpt = seeking === value;
+                                {generalStatusOptions.map(([value, label]) => {
+                                    const activeOpt = statusFilter === value;
                                     return (
                                         <button
                                             key={value}
-                                            onClick={() => setSeeking(value)}
+                                            onClick={() => setStatusFilter(value)}
                                             className={clsx(
                                                 'rounded-2xl border px-3 py-2 text-left text-sm transition',
                                                 activeOpt
@@ -383,7 +793,7 @@ export default function SearchPage() {
                         size="compact"
                         fluid
                         showValue={false}
-                        active={seeking !== 'ALL'}
+                        active={statusFilter !== 'ALL'}
                         menuClassName="max-h-[60vh] overflow-y-auto"
                         menuFixed
                     />
@@ -484,6 +894,8 @@ export default function SearchPage() {
                         menuFixed
                     />
                 </div>
+                    </>
+                )}
                 </div>
         </div>
     );
@@ -495,11 +907,13 @@ export default function SearchPage() {
 
     const renderMobileCard = (u: SearchUser) => {
         const isSelected = selectedId === u.id;
+        const display = u.name || u.username || 'User';
+        const locationLabel = [u.city, u.state].filter(Boolean).join(', ');
         return (
             <button
                 key={`mobile-${u.id}`}
                 className={clsx(
-                    "w-full rounded-2xl border bg-white px-4 py-4 text-left transition focus-visible:outline-none shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100",
+                    "w-full rounded-2xl border bg-white px-4 py-3 text-left transition focus-visible:outline-none shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100",
                     isSelected && "border-2 border-gray-900 dark:border-green-400"
                 )}
                 onClick={() => handleMobileSelect(u.id)}
@@ -507,63 +921,35 @@ export default function SearchPage() {
                 <div className="flex items-start gap-3">
                     {u.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={u.image} alt="" className="h-12 w-12 rounded-full object-cover border dark:border-white/20" />
+                        <img src={u.image} alt={display} className="h-11 w-11 rounded-full object-cover border dark:border-white/20" />
                     ) : (
-                        <div className="h-12 w-12 rounded-full bg-gray-100 border flex items-center justify-center text-sm font-semibold dark:bg-white/10 dark:border-white/20">
+                        <div className="h-11 w-11 rounded-full bg-gray-100 border flex items-center justify-center text-sm font-semibold dark:bg-white/10 dark:border-white/20">
                             {(u.username || u.name || 'U').slice(0, 2).toUpperCase()}
                         </div>
                     )}
 
                     <div className="flex-1 min-w-0">
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <div className="text-sm font-semibold leading-tight">
-                                        {u.name || u.username || 'User'}
-                                    </div>
-                                    <div className="text-xs text-gray-400 dark:text-gray-400">
-                                        @{u.username || u.id.slice(0, 8)}
-                                    </div>
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold leading-tight">
+                                    {display}
                                 </div>
-
-                                <div className="text-right text-xs text-gray-500 space-y-0.5 dark:text-gray-400">
-                                    {u.role && <div className="uppercase tracking-wide dark:text-gray-300">{u.role.toLowerCase()}</div>}
-                                    {u.clients != null && (
-                                        <div className="flex items-center justify-end gap-1">
-                                            <span>{u.clients}</span>
-                                            <span className="text-gray-400 dark:text-gray-400">clients</span>
-                                        </div>
-                                    )}
+                                {u.role && (
+                                    <div className="mt-1 text-xs capitalize text-gray-500 dark:text-gray-400">
+                                        {u.role.toLowerCase()}
+                                    </div>
+                                )}
+                                {locationLabel && (
+                                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                        {locationLabel}
+                                    </div>
+                                )}
+                            </div>
+                            {typeof u.distanceKm === 'number' && (
+                                <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                                    {formatDistanceMiles(u.distanceKm)}
                                 </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                {(u.city || u.state) && (
-                                    <span>
-                                        {u.city}
-                                        {u.state ? `, ${u.state}` : ''}
-                                    </span>
-                                )}
-                                {u.price != null && (
-                                    <span>
-                                        {(u.city || u.state) ? '· ' : ''}
-                                        {u.role === 'TRAINER'
-                                            ? `$${u.price}/hr`
-                                            : u.role === 'GYM'
-                                                ? `$${u.price}/mo`
-                                                : `$${u.price}`}
-                                    </span>
-                                )}
-                                {typeof u.distanceKm === 'number' && (
-                                    <span>· {u.distanceKm.toFixed(1)} km away</span>
-                                )}
-                            </div>
-
-                            <div className="text-xs text-gray-600 line-clamp-2 dark:text-gray-300">
-                                {u.about?.trim()
-                                    ? u.about
-                                    : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -575,6 +961,18 @@ export default function SearchPage() {
     const totalPages = Math.max(1, Math.ceil(allResults.length / pageSize));
     const startIdx = (page - 1) * pageSize;
     const paginatedResults = allResults.slice(startIdx, startIdx + pageSize);
+    const gymDiscoveryMode = role === 'GYM';
+    const minBudgetValue = minBudget.trim() === '' ? null : Number(minBudget);
+    const maxBudgetValue = maxBudget.trim() === '' ? null : Number(maxBudget);
+    const selectedGymInAnyRole = role === 'ALL' && selected?.role === 'GYM' ? selected : null;
+
+    useEffect(() => {
+        if (isDesktopViewport) return;
+        if (role !== 'GYM' && role !== 'TRAINER' && role !== 'TRAINEE') return;
+        if (mobileView !== 'details') return;
+        if (selected) return;
+        setMobileView('list');
+    }, [isDesktopViewport, mobileView, role, selected]);
 
     return (
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col overflow-x-hidden dark:bg-[#050505] dark:text-white">
@@ -587,8 +985,8 @@ export default function SearchPage() {
                         <span>search</span>
                     </h1>
 
-                    <div className="flex min-w-0 items-center gap-3 flex-1 justify-end">
-                        <div className="flex min-w-[220px] items-center gap-2 flex-1 max-w-[520px] rounded-full border px-3 py-2 dark:border-white/15">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className="flex min-w-[220px] max-w-[520px] flex-1 items-center gap-2 rounded-full border px-3 py-2 dark:border-white/15">
                             <SearchIcon size={18} className="text-gray-500 dark:text-gray-400" />
                             <input
                                 value={q}
@@ -598,27 +996,116 @@ export default function SearchPage() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="ml-auto flex items-center gap-3">
+                        {role === 'GYM' ? (
+                            <>
+                                <Chip
+                                    label="Role"
+                                    value="gym"
+                                    active
+                                    menu={
+                                        <div className="flex flex-col gap-1 p-2.5 w-52">
+                                            {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                                const activeOpt = role === r;
+                                                return (
+                                                    <button
+                                                        key={r}
+                                                        onClick={() => setRole(r)}
+                                                        className={clsx(
+                                                            'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                            activeOpt
+                                                                ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                                : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                        )}
+                                                    >
+                                                        {r === 'ALL' ? 'any role' : r.toLowerCase()}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    }
+                                />
+
+                                <ToggleChip
+                                    label="Hiring"
+                                    active={hiringOnly}
+                                    onClick={() => setHiringOnly((current) => !current)}
+                                />
+
+                                <Chip
+                                    label="Budget"
+                                    value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                                    active={Boolean(minBudget || maxBudget)}
+                                    menu={
+                                        <div className="space-y-2.5 p-3 w-[19rem] max-w-[calc(100vw-88px)] text-sm">
+                                            <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
+                                                gyms monthly
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                                    placeholder="Min"
+                                                    value={minBudget}
+                                                    onChange={(e) => setMinBudget(e.target.value)}
+                                                />
+                                                <span className="text-gray-400 dark:text-gray-500">—</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                                    placeholder="Max"
+                                                    value={maxBudget}
+                                                    onChange={(e) => setMaxBudget(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                                <button
+                                                    onClick={() => {
+                                                        setMinBudget('');
+                                                        setMaxBudget('');
+                                                    }}
+                                                    className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                                >
+                                                    Clear
+                                                </button>
+                                                <span>
+                                                    {minBudget || '0'} – {maxBudget || '∞'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    }
+                                />
+
+                                <ToggleChip
+                                    label="Rating"
+                                    active={gymSortBy === 'RATING'}
+                                    onClick={() => setGymSortBy((current) => (current === 'RATING' ? 'DISTANCE' : 'RATING'))}
+                                />
+                            </>
+                        ) : role === 'TRAINER' ? (
+                            <>
                         <Chip
-                            label="Distance"
-                            value={distanceKm ? `${distanceKm} km` : 'Any'}
-                            active={Boolean(distanceKm)}
+                            label="Role"
+                            value="trainer"
+                            active
                             menu={
                                 <div className="flex flex-col gap-1 p-2.5 w-52">
-                                    {['', '5', '10', '25', '50', '100'].map((d) => {
-                                        const activeOpt = (distanceKm || '') === d;
+                                    {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                        const activeOpt = role === r;
                                         return (
                                             <button
-                                                key={d || 'any'}
-                                                onClick={() => setDistanceKm(d)}
+                                                key={r}
+                                                onClick={() => setRole(r)}
                                                 className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition',
+                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
                                                     activeOpt
                                                         ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
                                                         : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                                                 )}
                                             >
-                                                {d ? `${d} km` : 'Any distance'}
+                                                {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                             </button>
                                         );
                                     })}
@@ -627,8 +1114,221 @@ export default function SearchPage() {
                         />
 
                         <Chip
+                            label="Budget"
+                            value={`${minBudget || 0}–${maxBudget || '∞'}`}
+                            active={Boolean(minBudget || maxBudget)}
+                            menu={
+                                <div className="space-y-2.5 p-3 w-[19rem] max-w-[calc(100vw-88px)] text-sm">
+                                    <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
+                                        trainers hourly
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            placeholder="Min"
+                                            value={minBudget}
+                                            onChange={(e) => setMinBudget(e.target.value)}
+                                        />
+                                        <span className="text-gray-400 dark:text-gray-500">—</span>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            placeholder="Max"
+                                            value={maxBudget}
+                                            onChange={(e) => setMaxBudget(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                        <button
+                                            onClick={() => {
+                                                setMinBudget('');
+                                                setMaxBudget('');
+                                            }}
+                                            className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                        >
+                                            Clear
+                                        </button>
+                                        <span>
+                                            {minBudget || '0'} – {maxBudget || '∞'}
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        />
+
+                        <ToggleChip
+                            label="Rating"
+                            active={trainerSortBy === 'RATING'}
+                            onClick={() => setTrainerSortBy((current) => (current === 'RATING' ? 'DISTANCE' : 'RATING'))}
+                        />
+
+                        <Chip
+                            label="Services"
+                            value={goals.length ? `${goals.length} selected` : 'Any'}
+                            active={goals.length > 0}
+                            menu={
+                                <div className="flex w-56 flex-col gap-1 p-2.5 text-sm">
+                                    {allGoals.map((g) => {
+                                        const checked = goals.includes(g);
+                                        return (
+                                            <label
+                                                key={g}
+                                                className={clsx(
+                                                    'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
+                                                    checked
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                )}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleGoal(g)}
+                                                    className="accent-gray-900 dark:accent-green-400"
+                                                />
+                                                <span>{g}</span>
+                                            </label>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setGoals([])}
+                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                    >
+                                        Clear services
+                                    </button>
+                                </div>
+                            }
+                        />
+
+                        <Chip
+                            label="Status"
+                            value={getStatusLabel(role, statusFilter)}
+                            active={statusFilter !== 'ALL'}
+                            menu={
+                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                    {trainerStatusOptions.map(([value, label]) => {
+                                        const activeOpt = statusFilter === value;
+                                        return (
+                                            <button
+                                                key={value}
+                                                onClick={() => setStatusFilter(value)}
+                                                className={clsx(
+                                                    'rounded-2xl border px-3 py-2 text-left text-sm transition',
+                                                    activeOpt
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                )}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            }
+                        />
+                            </>
+                        ) : role === 'TRAINEE' ? (
+                            <>
+                        <Chip
                             label="Role"
-                            value={role === 'ALL' ? 'All' : role.toLowerCase()}
+                            value="trainee"
+                            active
+                            menu={
+                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                    {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
+                                        const activeOpt = role === r;
+                                        return (
+                                            <button
+                                                key={r}
+                                                onClick={() => setRole(r)}
+                                                className={clsx(
+                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                    activeOpt
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                )}
+                                            >
+                                                {r === 'ALL' ? 'any role' : r.toLowerCase()}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            }
+                        />
+
+                        <Chip
+                            label="Status"
+                            value={getStatusLabel(role, statusFilter)}
+                            active={statusFilter !== 'ALL'}
+                            menu={
+                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                    {traineeStatusOptions.map(([value, label]) => {
+                                        const activeOpt = statusFilter === value;
+                                        return (
+                                            <button
+                                                key={value}
+                                                onClick={() => setStatusFilter(value)}
+                                                className={clsx(
+                                                    'rounded-2xl border px-3 py-2 text-left text-sm transition',
+                                                    activeOpt
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                )}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            }
+                        />
+
+                        <Chip
+                            label="Goals"
+                            value={goals.length ? `${goals.length} selected` : 'Any'}
+                            active={goals.length > 0}
+                            menu={
+                                <div className="flex w-56 flex-col gap-1 p-2.5 text-sm">
+                                    {allGoals.map((g) => {
+                                        const checked = goals.includes(g);
+                                        return (
+                                            <label
+                                                key={g}
+                                                className={clsx(
+                                                    'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
+                                                    checked
+                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
+                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                )}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleGoal(g)}
+                                                    className="accent-gray-900 dark:accent-green-400"
+                                                />
+                                                <span>{g}</span>
+                                            </label>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setGoals([])}
+                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                    >
+                                        Clear goals
+                                    </button>
+                                </div>
+                            }
+                        />
+                            </>
+                        ) : (
+                            <>
+                        <Chip
+                            label="Role"
+                            value="All"
                             active={role !== 'ALL'}
                             menu={
                                 <div className="flex flex-col gap-1 p-2.5 w-52">
@@ -654,29 +1354,17 @@ export default function SearchPage() {
                         />
 
                         <Chip
-                            label="Seeking"
-                            value={
-                                seeking === 'LOOKING_GYM'
-                                    ? 'Looking for a gym'
-                                    : seeking === 'LOOKING_TRAINER'
-                                        ? 'Looking for a trainer'
-                                    : 'Any'
-                            }
-                            active={seeking !== 'ALL'}
+                            label="Status"
+                            value={getStatusLabel(role, statusFilter)}
+                            active={statusFilter !== 'ALL'}
                             menu={
                                 <div className="flex flex-col gap-1 p-2.5 w-52">
-                                    {(
-                                        [
-                                            ['ALL', 'Any'],
-                                            ['LOOKING_GYM', 'Looking for a gym'],
-                                            ['LOOKING_TRAINER', 'Looking for a trainer'],
-                                        ] as const
-                                    ).map(([value, label]) => {
-                                        const activeOpt = seeking === value;
+                                    {generalStatusOptions.map(([value, label]) => {
+                                        const activeOpt = statusFilter === value;
                                         return (
                                             <button
                                                 key={value}
-                                                onClick={() => setSeeking(value)}
+                                                onClick={() => setStatusFilter(value)}
                                                 className={clsx(
                                                     'rounded-2xl border px-3 py-2 text-left text-sm transition',
                                                     activeOpt
@@ -776,6 +1464,8 @@ export default function SearchPage() {
                                 </div>
                             }
                         />
+                            </>
+                        )}
 
                         <button
                             onClick={resetFilters}
@@ -790,6 +1480,7 @@ export default function SearchPage() {
             </header>
 
             <main className="w-full flex-1">
+                    <>
                 <div className="lg:hidden">
                     {mobileView === 'list' && (
                         <div className="px-4 py-4 space-y-4">
@@ -803,7 +1494,7 @@ export default function SearchPage() {
                             ) : allResults.length ? (
                                 <>
                                     <div
-                                        className="space-y-3 max-h-[70vh] overflow-y-auto scrollbar-slim"
+                                        className="max-h-[calc(100dvh-19rem-env(safe-area-inset-bottom,0px))] space-y-3 overflow-y-auto scrollbar-slim"
                                         ref={mobileListRef}
                                     >
                                         {paginatedResults.map((u) => renderMobileCard(u))}
@@ -845,6 +1536,27 @@ export default function SearchPage() {
                             <div className="bg-white border rounded-xl p-4 overflow-hidden dark:bg-neutral-900 dark:border-white/10">
                                 {!selected ? (
                                     <div className="text-gray-500 text-sm dark:text-gray-400">Select a result to see details.</div>
+                                ) : gymDiscoveryMode ? (
+                                    <GymDiscoveryPanel
+                                        embedded
+                                        hideList
+                                        selectedGymIdOverride={selected.id}
+                                        autoSelectFirst={false}
+                                        query={q}
+                                        hiringOnly={hiringOnly}
+                                        sortBy={gymSortBy}
+                                        minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
+                                        maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
+                                    />
+                                ) : selectedGymInAnyRole ? (
+                                    <GymDiscoveryPanel
+                                        embedded
+                                        hideList
+                                        selectedGymIdOverride={selectedGymInAnyRole.id}
+                                        query={q}
+                                        minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
+                                        maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
+                                    />
                                 ) : (
                                     <UserDetails
                                         u={selected}
@@ -860,102 +1572,105 @@ export default function SearchPage() {
                 </div>
 
                 <div className="hidden lg:block">
+                    {gymDiscoveryMode ? (
+                        <div className="mx-auto max-w-[1400px] px-4 py-4">
+                            <GymDiscoveryPanel
+                                embedded
+                                hideListHeader
+                                autoSelectFirst
+                                query={q}
+                                hiringOnly={hiringOnly}
+                                sortBy={gymSortBy}
+                                minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
+                                maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
+                            />
+                        </div>
+                    ) : (
                     <div className="mx-auto max-w-[1400px] px-4 py-4">
                         <div className="flex gap-6">
                             <aside className="w-[380px] shrink-0">
                                 <div className="bg-white border rounded-xl overflow-hidden lg:h-[calc(100vh-190px)] lg:flex lg:flex-col dark:bg-neutral-900 dark:border-white/10">
                                     <div
                                         ref={listRef}
-                                        className="overflow-y-auto divide-y lg:flex-1 lg:min-h-0 dark:divide-white/10 scrollbar-slim"
+                                        className="overflow-y-auto p-4 lg:flex-1 lg:min-h-0 scrollbar-slim"
                                     >
                                         {loading ? (
-                                            <div className="flex items-center justify-center p-4 text-sm text-gray-500 dark:text-gray-400">
+                                            <div className="flex items-center justify-center py-4 text-sm text-gray-500 dark:text-gray-400">
                                                 <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-900 border-t-transparent dark:border-white dark:border-t-transparent" />
                                                 Loading…
                                             </div>
                                         ) : error ? (
-                                            <div className="p-4 text-sm text-red-500">{error}</div>
+                                            <div className="py-4 text-sm text-red-500">{error}</div>
                                         ) : allResults.length === 0 ? (
-                                            <div className="p-4 text-sm text-gray-500 dark:text-gray-400">No results.</div>
+                                            <div className="py-4 text-sm text-gray-500 dark:text-gray-400">No results.</div>
                                         ) : (
-                                            paginatedResults.map((u) => {
-                                                const slug = u.username || u.id;
-                                                const display = u.name || u.username || 'User';
+                                            <div className="space-y-2">
+                                                {paginatedResults.map((u) => {
+                                                    const slug = u.username || u.id;
+                                                    const display = u.name || u.username || 'User';
+                                                    const locationLabel = [u.city, u.state].filter(Boolean).join(', ');
 
-                                                return (
-                                                    <button
-                                                        key={u.id}
-                                                        onClick={() => setSelectedId(u.id)}
-                                                        className={clsx(
-                                                            'w-full text-left p-3 hover:bg-gray-50 flex items-start gap-3 dark:hover:bg-white/5',
-                                                            selectedId === u.id && 'bg-gray-50 dark:bg-white/10'
-                                                        )}
-                                                        title={display}
-                                                    >
-                                                        {u.image ? (
-                                                            // eslint-disable-next-line @next/next/no-img-element
-                                                            <img
-                                                                src={u.image}
-                                                                alt={display}
-                                                                className="w-10 h-10 rounded-full object-cover border dark:border-white/20"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-10 h-10 rounded-full bg-gray-200 border flex items-center justify-center text-xs font-semibold dark:bg-white/10 dark:border-white/20 dark:text-white">
-                                                                {(u.name || u.username || 'U').slice(0, 2)}
-                                                            </div>
-                                                        )}
+                                                    return (
+                                                        <button
+                                                            key={u.id}
+                                                            onClick={() => setSelectedId(u.id)}
+                                                            className={clsx(
+                                                                'w-full rounded-2xl border px-4 py-3 text-left transition',
+                                                                selectedId === u.id
+                                                                    ? 'border-green-700 bg-green-50 dark:border-green-400 dark:bg-green-500/10'
+                                                                    : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:hover:border-white/30'
+                                                            )}
+                                                            title={display}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="flex min-w-0 items-start gap-3">
+                                                                    {u.image ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img
+                                                                            src={u.image}
+                                                                            alt={display}
+                                                                            className="h-11 w-11 shrink-0 rounded-full border border-zinc-200 object-cover dark:border-white/15"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-xs font-semibold text-zinc-700 dark:border-white/15 dark:bg-white/10 dark:text-white">
+                                                                            {(u.name || u.username || 'U').slice(0, 2)}
+                                                                        </div>
+                                                                    )}
 
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="min-w-0 flex items-center gap-2">
-                                                                    <Link
-                                                                        href={`/u/${encodeURIComponent(slug)}`}
-                                                                        className="truncate font-medium hover:underline"
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        title={display}
-                                                                    >
-                                                                        {display}
-                                                                    </Link>
-                                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                                        {u.role?.toLowerCase()}
-                                                                    </span>
+                                                                    <div className="min-w-0">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Link
+                                                                                href={`/u/${encodeURIComponent(slug)}`}
+                                                                                className="truncate font-semibold text-zinc-900 hover:underline dark:text-white"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                title={display}
+                                                                            >
+                                                                                {display}
+                                                                            </Link>
+                                                                        </div>
+                                                                        {u.role && (
+                                                                            <div className="mt-1 text-xs capitalize text-zinc-500 dark:text-gray-400">
+                                                                                {u.role.toLowerCase()}
+                                                                            </div>
+                                                                        )}
+                                                                        {locationLabel && (
+                                                                            <div className="mt-1 text-sm text-zinc-600 dark:text-gray-300">
+                                                                                {locationLabel}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
 
-                                                                {u.isPrivate && (
-                                                                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border whitespace-nowrap dark:bg-white/5 dark:text-gray-300 dark:border-white/10">
-                                                                        private
-                                                                    </span>
+                                                                {typeof u.distanceKm === 'number' && (
+                                                                    <div className="shrink-0 text-xs text-zinc-500 dark:text-gray-400">
+                                                                        {formatDistanceMiles(u.distanceKm)}
+                                                                    </div>
                                                                 )}
                                                             </div>
-
-                                                            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2 dark:text-gray-300">
-                                                                {u.about?.trim()
-                                                                    ? u.about
-                                                                    : `@${u.username || (u.name || '').toLowerCase().replace(/\s+/g, '')}`}
-                                                            </div>
-
-                                                            <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2 dark:text-gray-400">
-                                                                {(u.city || u.state) && (
-                                                                    <span>
-                                                                        {u.city}
-                                                                        {u.state ? `, ${u.state}` : ''}
-                                                                    </span>
-                                                                )}
-                                                                {u.price != null && (
-                                                                    <span>
-                                                                        {(u.city || u.state) ? '· ' : ''}
-                                                                        {u.role === 'TRAINER'
-                                                                            ? `$${u.price}/hr`
-                                                                            : u.role === 'GYM'
-                                                                                ? `$${u.price}/mo`
-                                                                                : `$${u.price}`}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         )}
                                     </div>
                                     {allResults.length > 0 && (
@@ -985,22 +1700,35 @@ export default function SearchPage() {
                             </aside>
 
                             <section className="flex-1 min-w-0">
-                                <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)] dark:bg-neutral-900 dark:border-white/10">
-                                    {!selected ? (
-                                        <div className="text-gray-500 dark:text-gray-400">Select a result to see details.</div>
-                                    ) : (
-                                        <UserDetails
-                                            u={selected}
-                                            onMessage={handleMessage}
-                                            onShare={handleShareProfile}
-                                            onOpenImage={(url) => setLightboxUrl(url)}
-                                        />
-                                    )}
-                                </div>
+                                {selectedGymInAnyRole ? (
+                                    <GymDiscoveryPanel
+                                        embedded
+                                        hideList
+                                        selectedGymIdOverride={selectedGymInAnyRole.id}
+                                        query={q}
+                                        minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
+                                        maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
+                                    />
+                                ) : (
+                                    <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)] dark:bg-neutral-900 dark:border-white/10">
+                                        {!selected ? (
+                                            <div className="text-gray-500 dark:text-gray-400">Select a result to see details.</div>
+                                        ) : (
+                                            <UserDetails
+                                                u={selected}
+                                                onMessage={handleMessage}
+                                                onShare={handleShareProfile}
+                                                onOpenImage={(url) => setLightboxUrl(url)}
+                                            />
+                                        )}
+                                                            </div>
+                                )}
                             </section>
                         </div>
                     </div>
+                    )}
                 </div>
+                    </>
             </main>
 
             {mounted && lightboxUrl && createPortal(
@@ -1051,6 +1779,11 @@ type UserDetailsProps = {
 function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }: UserDetailsProps) {
     const slug = u.username || u.id;
     const display = u.name || u.username || 'User';
+    const isMobile = variant === 'mobile';
+    const actionIconSize = isMobile ? 16 : 16;
+    const mobileActionButtonClass = isMobile
+        ? 'flex h-9 w-9 items-center justify-center rounded-full border bg-white p-0 leading-none hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10'
+        : 'px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10';
 
     return (
         <div className={clsx("max-w-[820px]", variant === 'mobile' && "max-w-full space-y-4")}>
@@ -1105,35 +1838,35 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                             )}
                         >
                             <button
-                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
+                                className={mobileActionButtonClass}
                                 title="Message"
                                 onClick={() => onMessage(u)}
                             >
                                 <span className="inline-flex items-center gap-1">
-                                    <MessageSquare size={16} />
-                                    Message
+                                    <MessageSquare size={actionIconSize} />
+                                    {!isMobile && 'Message'}
                                 </span>
                             </button>
                             <button
-                                className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
+                                className={mobileActionButtonClass}
                                 title="Share profile"
                                 onClick={() => onShare(u)}
                             >
                                 <span className="inline-flex items-center gap-1">
-                                    <Share2 size={16} />
-                                    Share
+                                    <Share2 size={actionIconSize} />
+                                    {!isMobile && 'Share'}
                                 </span>
                             </button>
 
                             {(u.role === 'TRAINER' || u.role === 'GYM') && (
                                 <Link
                                     href={`/u/${encodeURIComponent(slug)}?rate=1`}
-                                    className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
+                                    className={mobileActionButtonClass}
                                     title={`Rate this ${u.role.toLowerCase()}`}
                                 >
                                     <span className="inline-flex items-center gap-1">
-                                        <Star size={16} />
-                                        Rate
+                                        <Star size={actionIconSize} />
+                                        {!isMobile && 'Rate'}
                                     </span>
                                 </Link>
                             )}
@@ -1143,14 +1876,10 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                     <div className={clsx("text-sm text-gray-600 mt-1 dark:text-gray-300", variant === 'mobile' && "break-words")}>
                         {u.city}
                         {u.state ? `, ${u.state}` : ''}
-                        {u.price != null && (
+                        {u.price != null && u.role !== 'GYM' && (
                             <>
                                 {' '}
-                                • {u.role === 'TRAINER'
-                                    ? `$${u.price}/hr`
-                                    : u.role === 'GYM'
-                                        ? `$${u.price}/mo`
-                                        : `$${u.price}`}
+                                • {u.role === 'TRAINER' ? `$${u.price}/hr` : `$${u.price}`}
                             </>
                         )}
                     </div>
@@ -1265,6 +1994,8 @@ function Chip({
     menuClassName,
     menuPosition,
     menuFixed = false,
+    hideChevron = false,
+    centerLabel = false,
 }: {
     label: string;
     value: string | number;
@@ -1276,6 +2007,8 @@ function Chip({
     menuClassName?: string;
     menuPosition?: string;
     menuFixed?: boolean;
+    hideChevron?: boolean;
+    centerLabel?: boolean;
 }) {
     const compact = size === 'compact';
     const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -1326,7 +2059,7 @@ function Chip({
                         'whitespace-nowrap uppercase tracking-wide',
                         compact ? 'text-[10px]' : 'text-xs',
                         active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400',
-                        !showValue && 'flex-1 text-left'
+                        !showValue && (centerLabel ? 'flex-1 text-center' : 'flex-1 text-left')
                     )}
                 >
                     {label}
@@ -1345,10 +2078,12 @@ function Chip({
                         </span>
                     </>
                 )}
-                <ChevronDown
-                    size={compact ? 14 : 16}
-                    className={clsx('shrink-0', active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400')}
-                />
+                {!hideChevron && (
+                    <ChevronDown
+                        size={compact ? 14 : 16}
+                        className={clsx('shrink-0', active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400')}
+                    />
+                )}
             </button>
             {open && (
                 <>
@@ -1394,5 +2129,46 @@ function Chip({
                 </>
             )}
         </div>
+    );
+}
+
+function ToggleChip({
+    label,
+    active = false,
+    onClick,
+    size = 'default',
+    fluid = false,
+}: {
+    label: string;
+    active?: boolean;
+    onClick: () => void;
+    size?: 'default' | 'compact';
+    fluid?: boolean;
+}) {
+    const compact = size === 'compact';
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={clsx(
+                'flex items-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
+                fluid ? 'w-full justify-center' : '',
+                compact ? 'px-3 py-1.5 text-xs' : 'min-h-[34px] px-3 py-1.5 text-sm',
+                active
+                    ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-400 dark:bg-green-500/10 dark:text-green-200'
+                    : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10'
+            )}
+        >
+            <span
+                className={clsx(
+                    'whitespace-nowrap uppercase tracking-wide',
+                    compact ? 'text-[10px]' : 'text-xs',
+                    active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400'
+                )}
+            >
+                {label}
+            </span>
+        </button>
     );
 }
