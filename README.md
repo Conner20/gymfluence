@@ -26,3 +26,4 @@ NEXTAUTH_SECRET=your-secret
 ```
 
 Without the Google keys NextAuth disables OAuth and Google sign-in buttons will remain inactive. 
+
