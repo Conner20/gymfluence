@@ -34,6 +34,9 @@ function fmtDate(d: Date) {
 }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d; }
 function average(nums: number[]) { if (!nums.length) return 0; return nums.reduce((a, b) => a + b, 0) / nums.length; }
+function formatServings(value: number) {
+    return value.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+}
 
 /** Small hook for responsive components */
 function useMeasure<T extends HTMLElement>() {
@@ -71,11 +74,10 @@ function useIsCoarsePointer() {
 
 /** ---------- types ---------- */
 type Macro = { kcal: number; p: number; f: number; c: number };
-type Food = { id: string; name: string; macros: Macro };
+type Food = { id: string; name: string; macros: Macro; servingGrams: number };
 type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type BWPoint = { date: string; weight: number };
 type RangeKey = '1W' | '1M' | '3M' | '1Y' | 'ALL';
-type Metric = 'kcal' | 'p' | 'c' | 'f';
 type HMMetric = 'kcal' | 'f' | 'c' | 'p';
 type ShareUserInfo = { id: string; username: string | null; name: string | null; image?: string | null };
 type ShareOutgoingEntry = { viewer: ShareUserInfo; workouts: boolean; wellness: boolean; nutrition: boolean };
@@ -86,11 +88,11 @@ const shareDisplayName = (user: ShareUserInfo) =>
 
 /** Demo foods (static baseline options) */
 const FOOD_DB: Food[] = [
-    { id: '1', name: 'Grilled chicken (100g)', macros: { kcal: 165, p: 31, f: 3.6, c: 0 } },
-    { id: '2', name: 'White rice (1 cup)', macros: { kcal: 205, p: 4.3, f: 0.4, c: 44.5 } },
-    { id: '3', name: 'Avocado (1/2)', macros: { kcal: 120, p: 1.5, f: 11, c: 6 } },
-    { id: '4', name: 'Greek yogurt (170g)', macros: { kcal: 100, p: 17, f: 0, c: 6 } },
-    { id: '5', name: 'Oats (1/2 cup)', macros: { kcal: 150, p: 5, f: 3, c: 27 } },
+    { id: '1', name: 'Grilled chicken (100g)', macros: { kcal: 165, p: 31, f: 3.6, c: 0 }, servingGrams: 100 },
+    { id: '2', name: 'White rice (1 cup)', macros: { kcal: 205, p: 4.3, f: 0.4, c: 44.5 }, servingGrams: 158 },
+    { id: '3', name: 'Avocado (1/2)', macros: { kcal: 120, p: 1.5, f: 11, c: 6 }, servingGrams: 100 },
+    { id: '4', name: 'Greek yogurt (170g)', macros: { kcal: 100, p: 17, f: 0, c: 6 }, servingGrams: 170 },
+    { id: '5', name: 'Oats (1/2 cup)', macros: { kcal: 150, p: 5, f: 3, c: 27 }, servingGrams: 40 },
 ];
 
 /** Defaults for heatmap thresholds */
@@ -138,35 +140,53 @@ function NutritionContent() {
 
     /** Derived “meals for selected date” view */
     const mealsForDate = useMemo<
-        { meal: Meal; items: { id?: string; food: Food; servings: number; time?: string }[] }[]
+        { meal: Meal; items: { ids: string[]; food: Food; servings: number; time?: string }[] }[]
     >(() => {
         const rows = entries.filter((e) => e.date === dateISO);
-        const base: { meal: Meal; items: { id?: string; food: Food; servings: number; time?: string }[] }[] = [
+        const base: { meal: Meal; items: { ids: string[]; food: Food; servings: number; time?: string }[] }[] = [
             { meal: 'breakfast', items: [] },
             { meal: 'lunch', items: [] },
             { meal: 'dinner', items: [] },
             { meal: 'snack', items: [] },
         ];
         for (const r of rows) {
+            const matchingCustomFood = r.customFoodId
+                ? customFoods.find((cf) => cf.id === r.customFoodId) ?? null
+                : null;
             const f: Food = {
                 id: r.customFoodId || r.foodName,
                 name: r.foodName,
                 macros: { kcal: r.kcal, p: r.p, f: r.f, c: r.c },
+                servingGrams: matchingCustomFood?.grams ?? 100,
             };
             const row = base.find((b) => b.meal === r.meal)!;
-            row.items.push({ id: r.id, food: f, servings: r.servings, time: r.time || '' });
+            const existingItem = row.items.find((item) => item.food.id === f.id && item.food.name === f.name);
+            if (existingItem) {
+                existingItem.servings += r.servings;
+                existingItem.ids.push(r.id);
+                if (!existingItem.time && r.time) {
+                    existingItem.time = r.time;
+                }
+            } else {
+                row.items.push({ ids: [r.id], food: f, servings: r.servings, time: r.time || '' });
+            }
         }
         return base;
-    }, [entries, dateISO]);
+    }, [customFoods, entries, dateISO]);
 
     /** Add-food UI state (lives inside the macros card) */
     const [q, setQ] = useState('');
-    const [serv, setServ] = useState('1');
+    const [serv, setServ] = useState('');
     const [targetMeal, setTargetMeal] = useState<Meal>('lunch');
 
     /** Add a food to selected date (persists via server) */
     const addFood = async (food: Food) => {
-        const s = Math.max(0.25, parseFloat(serv || '1'));
+        const gramsValue = parseFloat(serv);
+        const hasValidServingGrams = Number.isFinite(food.servingGrams) && food.servingGrams > 0;
+        const s =
+            Number.isFinite(gramsValue) && gramsValue > 0 && hasValidServingGrams
+                ? Math.max(0.01, gramsValue / food.servingGrams)
+                : 1;
         const maybeCF = customFoods.find((cf) => cf.id === food.id) || null;
 
         const payload = {
@@ -188,11 +208,14 @@ function NutritionContent() {
     };
 
     /** Remove a single food entry by DB id */
-    const removeEntry = async (id?: string) => {
-        if (!id) return;
+    const removeEntry = async (ids: string[]) => {
+        if (!ids.length) return;
         try {
-            const res = await deleteNutritionEntryServer(id);
-            if (res.deleted) setEntries((cur) => cur.filter((x) => x.id !== id));
+            const results = await Promise.all(ids.map((id) => deleteNutritionEntryServer(id)));
+            if (results.some((res) => res.deleted)) {
+                const idSet = new Set(ids);
+                setEntries((cur) => cur.filter((x) => !idSet.has(x.id)));
+            }
         } catch (e) { console.error(e); }
     };
 
@@ -533,7 +556,7 @@ function NutritionContent() {
             <div className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-4 sm:px-4 xl:px-6 xl:pb-4 xl:pt-4 xl:overflow-y-auto scrollbar-slim">
                 <div className="mx-auto flex w-full max-w-[375px] flex-col gap-6 xl:max-w-[1400px] xl:grid xl:min-h-[820px] xl:h-full xl:min-w-0 xl:grid-cols-12">
                     {/* LEFT — Macros flip card (with date switcher) */}
-                    <section className="col-span-12 min-h-0 xl:col-span-4 xl:flex xl:flex-col">
+                    <section className="order-1 col-span-12 min-h-0 xl:order-none xl:col-span-4 xl:flex xl:flex-col">
                         <div className="mx-auto w-full max-w-[375px] xl:max-w-none xl:flex-1">
                             <MacrosFlipCard
                                 dateISO={dateISO}
@@ -548,7 +571,7 @@ function NutritionContent() {
                     </section>
 
                     {/* MIDDLE — Bodyweight + Heatmap */}
-                    <section className="col-span-12 min-h-0 xl:col-span-5 xl:flex xl:flex-col gap-3">
+                    <section className="order-3 col-span-12 min-h-0 xl:order-none xl:col-span-5 xl:flex xl:flex-col gap-3">
                         <div className="mx-auto flex w-full max-w-[375px] flex-col gap-3 xl:flex-1 xl:max-w-none">
                             <div className="relative min-h-[320px] rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none xl:flex-1">
                                 <BWChartLiftsStyle
@@ -615,7 +638,7 @@ function NutritionContent() {
                     </section>
 
                     {/* RIGHT — Meals for selected date */}
-                    <section className="col-span-12 min-h-0 xl:col-span-3 xl:flex xl:flex-col">
+                    <section className="order-2 col-span-12 min-h-0 xl:order-none xl:col-span-3 xl:flex xl:flex-col">
                         <div className="mx-auto flex w-full max-w-[375px] flex-col xl:flex-1 xl:max-w-none">
                             <div className="min-h-0 flex-1 rounded-xl border bg-white p-3 shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none">
                                 <div className="mb-2 flex items-center justify-between">
@@ -642,21 +665,21 @@ function NutritionContent() {
                                                     <li className="text-sm text-zinc-400">—</li>
                                                 ) : (
                                                     row.items.map((it) => (
-                                                        <li key={it.id} className="flex items-center gap-2 text-sm">
+                                                        <li key={it.ids.join('-')} className="flex items-center gap-2 text-sm">
                                                             <span className="min-w-0 flex-1 truncate">{it.food.name}</span>
-                                                            <span className="flex flex-shrink-0 items-center gap-3 whitespace-nowrap text-zinc-500">
+                                                            <div className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap text-zinc-500">
                                                                 <span>
-                                                                    {it.servings}× • {(it.food.macros.kcal * it.servings) | 0} kcal
+                                                                    {formatServings(it.servings)}× • {(it.food.macros.kcal * it.servings) | 0} kcal
                                                                 </span>
                                                                 <button
                                                                     aria-label="Delete"
-                                                                    className="p-1 text-zinc-500 hover:text-red-600"
-                                                                    onClick={() => removeEntry(it.id)}
+                                                                    className="relative z-10 -m-2 rounded-full p-2 text-zinc-500 hover:text-red-600 touch-manipulation"
+                                                                    onClick={() => removeEntry(it.ids)}
                                                                     title="Remove"
                                                                 >
                                                                     <Trash2 size={16} />
                                                                 </button>
-                                                            </span>
+                                                            </div>
                                                         </li>
                                                     ))
                                                 )}
@@ -792,7 +815,7 @@ function MacrosFlipCard({
     onDateChange: (d: string) => void;
     goals: Macro;
     consumed: Macro;
-    meals: { meal: Meal; items: { food: Food; servings: number; time?: string }[] }[];
+    meals: { meal: Meal; items: { ids: string[]; food: Food; servings: number; time?: string }[] }[];
     onEditGoals: () => void;
     addUI: {
         q: string;
@@ -807,6 +830,30 @@ function MacrosFlipCard({
     };
 }) {
     const [flipped, setFlipped] = useState(false);
+    const [selectedMealFilter, setSelectedMealFilter] = useState<Meal | null>(null);
+    const highlightedConsumed = useMemo(() => {
+        if (!selectedMealFilter) return null;
+        const selectedMeal = meals.find((meal) => meal.meal === selectedMealFilter);
+        if (!selectedMeal) return null;
+
+        const mealTotals = selectedMeal.items.reduce(
+            (sum, item) => {
+                sum.kcal += item.food.macros.kcal * item.servings;
+                sum.p += item.food.macros.p * item.servings;
+                sum.f += item.food.macros.f * item.servings;
+                sum.c += item.food.macros.c * item.servings;
+                return sum;
+            },
+            { kcal: 0, p: 0, f: 0, c: 0 },
+        );
+
+        return {
+            kcal: Math.round(mealTotals.kcal),
+            p: Math.round(mealTotals.p),
+            f: Math.round(mealTotals.f),
+            c: Math.round(mealTotals.c),
+        };
+    }, [meals, selectedMealFilter]);
 
     return (
         <div className="rounded-xl border bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900 dark:shadow-none [perspective:1200px] overflow-hidden xl:h-full">
@@ -855,20 +902,25 @@ function MacrosFlipCard({
             >
                 {/* FRONT — rings + Edit button (bottom-right) */}
                 <div className="absolute inset-0 backface-hidden p-4">
-                    <div className="relative flex h-full items-center justify-center">
-                        <div className="grid w-full max-w-[375px] grid-cols-2 place-items-center gap-3 md:gap-2">
-                            <RingBig label="calories (kcal)" value={consumed.kcal} goal={goals.kcal} color="#ef4444" />
-                            <RingBig label="protein (g)" value={consumed.p} goal={goals.p} color="#6cf542" />
-                            <RingBig label="fat (g)" value={consumed.f} goal={goals.f} color="#f5e642" />
-                            <RingBig label="carbs (g)" value={consumed.c} goal={goals.c} color="#3b82f6" />
+                    <div className="relative flex h-full flex-col">
+                        <div className="flex flex-1 items-center justify-center">
+                            <div className="grid w-full max-w-[375px] grid-cols-2 place-items-center gap-3 md:gap-2">
+                                <RingBig label="calories (kcal)" value={consumed.kcal} goal={goals.kcal} color="#ef4444" highlightValue={highlightedConsumed?.kcal ?? null} />
+                                <RingBig label="protein (g)" value={consumed.p} goal={goals.p} color="#6cf542" highlightValue={highlightedConsumed?.p ?? null} />
+                                <RingBig label="fat (g)" value={consumed.f} goal={goals.f} color="#f5e642" highlightValue={highlightedConsumed?.f ?? null} />
+                                <RingBig label="carbs (g)" value={consumed.c} goal={goals.c} color="#3b82f6" highlightValue={highlightedConsumed?.c ?? null} />
+                            </div>
                         </div>
-
+                        <MacroMealFilter
+                            selectedMeal={selectedMealFilter}
+                            setSelectedMeal={setSelectedMealFilter}
+                        />
                     </div>
                 </div>
 
                 {/* BACK — Add food */}
                 <div className="absolute inset-0 overflow-hidden rounded-3xl p-4 [transform:rotateY(180deg)] backface-hidden dark:bg-neutral-900">
-                    <AddFoodPanel meals={meals} {...addUI} />
+                    <AddFoodPanel {...addUI} />
                 </div>
             </div>
         </div>
@@ -876,18 +928,98 @@ function MacrosFlipCard({
 }
 
 /** Rings */
-function RingBig({ label, value, goal, color }: { label: string; value: number; goal: number; color: string; }) {
+function RingBig({
+    label,
+    value,
+    goal,
+    color,
+    highlightValue = null,
+}: {
+    label: string;
+    value: number;
+    goal: number;
+    color: string;
+    highlightValue?: number | null;
+}) {
     const pct = Math.min(1, value / Math.max(1, goal));
+    const highlightPct = highlightValue == null ? null : Math.min(1, highlightValue / Math.max(1, goal));
+    const centerValue = highlightValue ?? value;
+    const centerTotal = highlightValue == null ? goal : value;
     const R = 90; const C = 2 * Math.PI * R;
     return (
         <div className="relative flex items-center justify-center bg-white p-0.5 sm:p-2 dark:bg-transparent">
             <svg viewBox="0 0 240 240" className="aspect-square w-full max-w-[220px]">
                 <circle cx="120" cy="120" r={R} stroke="#e5e7eb" strokeWidth="10" fill="none" strokeLinecap="round" className="dark:stroke-white/10" />
-                <circle cx="120" cy="120" r={R} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={`${C * pct},999`} transform="rotate(-90 120 120)" />
+                <circle
+                    cx="120"
+                    cy="120"
+                    r={R}
+                    stroke={color}
+                    strokeOpacity={highlightPct == null ? 1 : 0.28}
+                    strokeWidth="10"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${C * pct},999`}
+                    transform="rotate(-90 120 120)"
+                />
+                {highlightPct != null && (
+                    <circle
+                        cx="120"
+                        cy="120"
+                        r={R}
+                        stroke={color}
+                        strokeWidth="12"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={`${C * highlightPct},999`}
+                        transform="rotate(-90 120 120)"
+                    />
+                )}
             </svg>
             <div className="absolute text-center">
-                <div className="text-base md:text-base font-semibold">{value} / {goal}</div>
+                <div className="text-base md:text-base font-semibold">{centerValue} / {centerTotal}</div>
                 <div className="text-xs md:text-xs text-neutral-500 dark:text-neutral-300">{label}</div>
+            </div>
+        </div>
+    );
+}
+
+function MacroMealFilter({
+    selectedMeal,
+    setSelectedMeal,
+}: {
+    selectedMeal: Meal | null;
+    setSelectedMeal: Dispatch<SetStateAction<Meal | null>>;
+}) {
+    return (
+        <div className="mt-3">
+            <div className="grid grid-cols-5 gap-1 sm:gap-2">
+                {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((meal) => (
+                    <button
+                        key={meal}
+                        onClick={() => setSelectedMeal(meal)}
+                        className={`min-w-0 rounded-md px-1 py-1 text-[10px] capitalize whitespace-nowrap sm:px-2 sm:text-[12px] ${
+                            selectedMeal === meal
+                                ? 'bg-black text-white dark:bg-white dark:text-black'
+                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10'
+                        }`}
+                        title={meal}
+                    >
+                        <span className="block whitespace-nowrap">{meal}</span>
+                    </button>
+                ))}
+                <button
+                    onClick={() => setSelectedMeal(null)}
+                    className={`inline-flex h-7 w-full items-center justify-center rounded-md border text-sm sm:h-8 ${
+                        selectedMeal
+                            ? 'border-zinc-900 text-zinc-900 hover:bg-zinc-100 dark:border-white dark:text-white dark:hover:bg-white/10'
+                            : 'border-zinc-200 text-zinc-400 dark:border-white/20 dark:text-zinc-500'
+                    }`}
+                    title="Show total macros"
+                    aria-label="Show total macros"
+                >
+                    <X size={14} />
+                </button>
             </div>
         </div>
     );
@@ -897,21 +1029,21 @@ function RingBig({ label, value, goal, color }: { label: string; value: number; 
 const HIDDEN_PRESETS_KEY = 'nutrition_hidden_presets';
 
 function AddFoodPanel({
-    q, setQ, serv, setServ, targetMeal, setTargetMeal, addFood, meals, customFoods, setCustomFoods,
+    q, setQ, serv, setServ, targetMeal, setTargetMeal, addFood, customFoods, setCustomFoods,
 }: {
     q: string; setQ: (v: string) => void;
     serv: string; setServ: (v: string) => void;
     targetMeal: Meal; setTargetMeal: (m: Meal) => void;
     addFood: (food: Food) => void;
-    meals: { meal: Meal; items: { food: Food; servings: number; time?: string }[] }[];
     customFoods: CustomFoodDTO[];
     setCustomFoods: Dispatch<SetStateAction<CustomFoodDTO[]>>;
 }) {
-    const [metric, setMetric] = useState<Metric>('kcal');
     const [cf, setCf] = useState({ name: '', grams: '', kcal: '', p: '', c: '', f: '' });
     const [showCustom, setShowCustom] = useState(false);
     const [hiddenPresets, setHiddenPresets] = useState<string[]>([]);
     const [presetsLoaded, setPresetsLoaded] = useState(false);
+    const [addedFoodId, setAddedFoodId] = useState<string | null>(null);
+    const addFeedbackTimeoutRef = useRef<number | null>(null);
 
     const fieldCls = 'h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/10 dark:border-white/20 dark:bg-transparent dark:text-gray-100';
 
@@ -930,9 +1062,6 @@ function AddFoodPanel({
             setShowCustom(false);
         } catch (e) { console.error(e); }
     };
-
-    const unitLabel = metric === 'kcal' ? 'kcal' : metric === 'p' ? 'g protein' : metric === 'c' ? 'g carbs' : 'g fat';
-
     const presetIds = useMemo(() => new Set(FOOD_DB.map((f) => f.id)), []);
 
     useEffect(() => {
@@ -966,6 +1095,7 @@ function AddFoodPanel({
         id: cf.id,
         name: `${cf.name} (${cf.grams}g)`,
         macros: { kcal: cf.kcal, p: cf.p, c: cf.c, f: cf.f },
+        servingGrams: cf.grams,
     }));
 
     const presetFoods = presetsLoaded
@@ -989,10 +1119,30 @@ function AddFoodPanel({
         }
     };
 
+    useEffect(() => {
+        return () => {
+            if (addFeedbackTimeoutRef.current !== null) {
+                window.clearTimeout(addFeedbackTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const handleAddFood = async (food: Food) => {
+        setAddedFoodId(food.id);
+        if (addFeedbackTimeoutRef.current !== null) {
+            window.clearTimeout(addFeedbackTimeoutRef.current);
+        }
+        addFeedbackTimeoutRef.current = window.setTimeout(() => {
+            setAddedFoodId((current) => (current === food.id ? null : current));
+            addFeedbackTimeoutRef.current = null;
+        }, 900);
+        await addFood(food);
+    };
+
     return (
         <div className="flex h-full flex-col">
-            {/* search + target + servings */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* search + target + grams */}
+            <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.95fr)_72px] gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.95fr)_92px]">
                 <input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
@@ -1018,13 +1168,13 @@ function AddFoodPanel({
 
                 <input
                     type="number"
-                    min={0.25}
-                    step="0.25"
+                    min={1}
+                    step="1"
                     value={serv}
                     onChange={(e) => setServ(e.target.value)}
                     className={`${fieldCls} w-full text-right`}
-                    placeholder="serv"
-                    inputMode="decimal"
+                    placeholder="grams"
+                    inputMode="numeric"
                 />
             </div>
 
@@ -1076,8 +1226,22 @@ function AddFoodPanel({
                                     >
                                         <Trash2 size={16} />
                                     </button>
-                                    <button className="rounded-full border p-2 hover:bg-zinc-50 dark:hover:bg-white/10 dark:text-gray-500 dark:hover:text-white" onClick={() => addFood(f)} title="Add">
-                                        <Plus size={16} />
+                                    <button
+                                        className={clsx(
+                                            'rounded-full border p-2 transition-colors hover:bg-zinc-50 dark:hover:bg-white/10 dark:text-gray-500 dark:hover:text-white',
+                                            addedFoodId === f.id &&
+                                                'border-green-700 bg-green-50 text-green-700 dark:border-green-400 dark:bg-green-400/10 dark:text-green-400',
+                                        )}
+                                        onClick={() => void handleAddFood(f)}
+                                        title="Add"
+                                    >
+                                        <Plus
+                                            size={16}
+                                            className={clsx(
+                                                'transition-transform duration-500 ease-out',
+                                                addedFoodId === f.id && 'rotate-180',
+                                            )}
+                                        />
                                     </button>
                                 </div>
                             </li>
@@ -1086,34 +1250,6 @@ function AddFoodPanel({
                 </ul>
             </div>
 
-            {/* metric toggle + per-meal tiles */}
-            <div className="mt-3">
-            <div className="mb-2 inline-flex rounded-lg border bg-white p-1 text-sm dark:border-white/20 dark:bg-white/10">
-                    {(['kcal', 'p', 'c', 'f'] as const).map((m) => (
-                        <button
-                            key={m}
-                            onClick={() => setMetric(m)}
-                            className={`rounded-md px-3 py-1 capitalize ${
-                                metric === m
-                                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                                    : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-white/10'
-                            }`}
-                            title={m === 'kcal' ? 'Calories' : m === 'p' ? 'Protein' : m === 'c' ? 'Carbs' : 'Fat'}
-                        >
-                            {m === 'kcal' ? 'kcal' : m === 'p' ? 'protein' : m === 'c' ? 'carbs' : 'fat'}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="grid grid-cols-4 gap-2 text-center text-[12px]">
-                    {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((m) => (
-                        <div key={m} className="rounded border bg-white px-2 py-1 dark:border-white/20 dark:bg-white/5">
-                            <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-300">{m}</div>
-                            <div className="text-zinc-700 dark:text-white">{mealMetric(m, meals as any, metric)} {unitLabel}</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }
@@ -1148,7 +1284,6 @@ function BWChartLiftsStyle({
     const labelColor = isDark ? '#d1d5db' : '#6b7280';
     const hoverLineColor = isDark ? 'rgba(255,255,255,0.15)' : '#e5e7eb';
     const hoverDotFill = isDark ? '#0f172a' : '#ffffff';
-    const lineColor = '#16a34a';
 
     const labels = useMemo(() => {
         if (range === 'ALL') {
@@ -1212,6 +1347,8 @@ function BWChartLiftsStyle({
         const to = series[lastIdx]!;
         return { diff: Number((to - from).toFixed(1)), from, to };
     }, [series]);
+    const isNegativeTrend = Boolean(delta && delta.diff < 0);
+    const lineColor = isNegativeTrend ? '#dc2626' : '#16a34a';
 
     const left = 40, right = 40, top = 28, bottom = 22;
     const w = svgW - left - right, h = svgH - top - bottom;
@@ -1403,10 +1540,8 @@ function BWChartLiftsStyle({
             <div className="mb-3 flex flex-wrap items-center gap-3 sm:mb-1">
                 <div className="min-w-0 flex-1">
                     <h3 className="font-semibold whitespace-nowrap">{title}</h3>
-                    <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
+                    <div className="flex items-center text-xs text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
                         <Delta />
-                        <span className="text-zinc-400 dark:text-zinc-500">•</span>
-                        <span className="uppercase tracking-wide">{fmtUnit}</span>
                     </div>
                 </div>
 
@@ -1427,7 +1562,12 @@ function BWChartLiftsStyle({
                                             dateInputRef.current?.showPicker?.();
                                             dateInputRef.current?.focus();
                                         }}
-                                        className="flex h-full w-full items-center justify-center rounded-lg border text-green-700 dark:border-white/20 dark:text-green-300"
+                                        className={clsx(
+                                            'flex h-full w-full items-center justify-center rounded-lg border dark:border-white/20',
+                                            isNegativeTrend
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-green-700 dark:text-green-300',
+                                        )}
                                         aria-label="Select date"
                                     >
                                         <Calendar size={16} />
@@ -1448,7 +1588,10 @@ function BWChartLiftsStyle({
                                     onChange={(e) => setNewW(e.target.value)}
                                 />
                                 <button
-                                    className="h-8 w-8 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                                    className={clsx(
+                                        'h-8 w-8 rounded-lg text-white',
+                                        isNegativeTrend ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700',
+                                    )}
                                     onClick={() => {
                                         const n = parseFloat(newW);
                                         if (!isFinite(n) || n <= 0) return;
@@ -1463,7 +1606,10 @@ function BWChartLiftsStyle({
                             </div>
                             <button
                                 aria-label="Add bodyweight"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700"
+                                className={clsx(
+                                    'inline-flex h-8 w-8 items-center justify-center rounded-lg text-white',
+                                    isNegativeTrend ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700',
+                                )}
                                 onClick={() => setOpenAdd((v) => !v)}
                                 title="Add bodyweight"
                             >
@@ -1488,7 +1634,10 @@ function BWChartLiftsStyle({
                                         onChange={(e) => setNewW(e.target.value)}
                                     />
                                     <button
-                                        className="h-9 rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:h-7"
+                                        className={clsx(
+                                            'h-9 rounded-md px-3 text-xs text-white sm:h-7',
+                                            isNegativeTrend ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700',
+                                        )}
                                         onClick={() => {
                                             const n = parseFloat(newW);
                                             if (!isFinite(n) || n <= 0) return;
@@ -1504,7 +1653,10 @@ function BWChartLiftsStyle({
                             )}
                             <button
                                 aria-label="Add bodyweight"
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 sm:h-7 sm:w-7"
+                                className={clsx(
+                                    'inline-flex h-9 w-9 items-center justify-center rounded-lg text-white sm:h-7 sm:w-7',
+                                    isNegativeTrend ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700',
+                                )}
                                 onClick={() => setOpenAdd((v) => !v)}
                                 title="Add bodyweight"
                             >
@@ -1607,7 +1759,7 @@ function BWChartLiftsStyle({
                             )}
                         </div>
                         <div className="inline-flex items-center gap-2">
-                            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#16a34a' }} />
+                            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: lineColor }} />
                             <span className="font-medium">
                                 {series[hover.i] ? `${series[hover.i].toFixed(1)} ${fmtUnit}` : '—'}
                             </span>
@@ -1841,16 +1993,6 @@ function LegendItem({ label, color, borderColor }: { label: string; color: strin
             <span>{label}</span>
         </div>
     );
-}
-
-function mealMetric(
-    meal: Meal,
-    meals: { meal: Meal; items: { food: Food; servings: number }[] }[],
-    metric: 'kcal' | 'p' | 'c' | 'f'
-) {
-    const items = meals.find((m) => m.meal === meal)?.items || [];
-    const total = items.reduce((acc, it) => acc + (it.food.macros[metric] as number) * it.servings, 0);
-    return Math.round(total);
 }
 
 /** ---------- Edit Goals Modal ---------- */

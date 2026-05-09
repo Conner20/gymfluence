@@ -473,8 +473,9 @@ export async function deleteCustomFoodServer(id: string): Promise<{ deleted: boo
     });
     if (!found) return { deleted: false };
 
-    await db.nutritionEntry.deleteMany({
+    await db.nutritionEntry.updateMany({
         where: { userId, customFoodId: id },
+        data: { customFoodId: null },
     });
     await db.nutritionCustomFood.delete({ where: { id } });
     return { deleted: true };
