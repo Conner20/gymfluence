@@ -210,13 +210,18 @@ function NutritionContent() {
     /** Remove a single food entry by DB id */
     const removeEntry = async (ids: string[]) => {
         if (!ids.length) return;
+        const previousEntries = entries;
+        const idSet = new Set(ids);
+        setEntries((cur) => cur.filter((x) => !idSet.has(x.id)));
         try {
             const results = await Promise.all(ids.map((id) => deleteNutritionEntryServer(id)));
-            if (results.some((res) => res.deleted)) {
-                const idSet = new Set(ids);
-                setEntries((cur) => cur.filter((x) => !idSet.has(x.id)));
+            if (!results.some((res) => res.deleted)) {
+                setEntries(previousEntries);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+            setEntries(previousEntries);
+        }
     };
 
     /** Totals for selected date */
@@ -654,7 +659,7 @@ function NutritionContent() {
                                     />
                                 </div>
 
-                                <div className="space-y-3 overflow-y-auto pr-1 max-h-96 xl:h-[calc(100%-36px)] xl:max-h-none">
+                                <div className="max-h-96 space-y-3 overflow-x-hidden overflow-y-auto pr-1 xl:h-[calc(100%-36px)] xl:max-h-none">
                                     {mealsForDate.map((row) => (
                                         <div key={row.meal}>
                                             <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">
@@ -665,10 +670,10 @@ function NutritionContent() {
                                                     <li className="text-sm text-zinc-400">—</li>
                                                 ) : (
                                                     row.items.map((it) => (
-                                                        <li key={it.ids.join('-')} className="flex items-center gap-2 text-sm">
+                                                        <li key={it.ids.join('-')} className="flex min-w-0 items-center gap-2 text-sm">
                                                             <span className="min-w-0 flex-1 truncate">{it.food.name}</span>
-                                                            <div className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap text-zinc-500">
-                                                                <span>
+                                                            <div className="flex flex-shrink-0 items-center gap-1 text-zinc-500">
+                                                                <span className="text-right text-xs sm:text-sm">
                                                                     {formatServings(it.servings)}× • {(it.food.macros.kcal * it.servings) | 0} kcal
                                                                 </span>
                                                                 <button
@@ -1039,6 +1044,14 @@ function AddFoodPanel({
     setCustomFoods: Dispatch<SetStateAction<CustomFoodDTO[]>>;
 }) {
     const [cf, setCf] = useState({ name: '', grams: '', kcal: '', p: '', c: '', f: '' });
+    const [cfErrors, setCfErrors] = useState<Record<'name' | 'grams' | 'kcal' | 'p' | 'c' | 'f', boolean>>({
+        name: false,
+        grams: false,
+        kcal: false,
+        p: false,
+        c: false,
+        f: false,
+    });
     const [showCustom, setShowCustom] = useState(false);
     const [hiddenPresets, setHiddenPresets] = useState<string[]>([]);
     const [presetsLoaded, setPresetsLoaded] = useState(false);
@@ -1046,6 +1059,7 @@ function AddFoodPanel({
     const addFeedbackTimeoutRef = useRef<number | null>(null);
 
     const fieldCls = 'h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/10 dark:border-white/20 dark:bg-transparent dark:text-gray-100';
+    const errorFieldCls = 'border-red-500 bg-red-50 ring-1 ring-red-200 focus:ring-red-200 dark:border-red-400 dark:bg-red-500/10 dark:ring-red-400/30 dark:focus:ring-red-400/20';
 
     const addCustomFood = async () => {
         const kcal = parseFloat(cf.kcal);
@@ -1053,12 +1067,24 @@ function AddFoodPanel({
         const c = parseFloat(cf.c);
         const f = parseFloat(cf.f);
         const grams = parseFloat(cf.grams);
-        if (!cf.name || !isFinite(kcal) || !isFinite(p) || !isFinite(c) || !isFinite(f) || !isFinite(grams)) return;
+        const nextErrors = {
+            name: !cf.name.trim(),
+            grams: !isFinite(grams),
+            kcal: !isFinite(kcal),
+            p: !isFinite(p),
+            c: !isFinite(c),
+            f: !isFinite(f),
+        };
+        if (Object.values(nextErrors).some(Boolean)) {
+            setCfErrors(nextErrors);
+            return;
+        }
 
         try {
             const created = await saveCustomFoodServer({ name: cf.name, grams, kcal, p, c, f });
             setCustomFoods([created, ...customFoods]);
             setCf({ name: '', grams: '', kcal: '', p: '', c: '', f: '' });
+            setCfErrors({ name: false, grams: false, kcal: false, p: false, c: false, f: false });
             setShowCustom(false);
         } catch (e) { console.error(e); }
     };
@@ -1195,12 +1221,12 @@ function AddFoodPanel({
             {/* Collapsible custom food form */}
             <div id="custom-food-panel" className={`mt-2 overflow-hidden rounded-lg border transition-all duration-300 dark:border-white/20 dark:bg-neutral-900/50 ${showCustom ? 'max-h-[420px] opacity-100 p-3' : 'max-h-0 opacity-0 p-0'}`}>
                 <div className="grid grid-cols-12 gap-2">
-                    <input className={`${fieldCls} col-span-12 md:col-span-6`} placeholder="Name" value={cf.name} onChange={(e) => setCf((s) => ({ ...s, name: e.target.value }))} />
-                    <input className={`${fieldCls} col-span-6 md:col-span-3`} placeholder="Grams" inputMode="numeric" value={cf.grams} onChange={(e) => setCf((s) => ({ ...s, grams: e.target.value }))} />
-                    <input className={`${fieldCls} col-span-6 md:col-span-3`} placeholder="Calories" inputMode="numeric" value={cf.kcal} onChange={(e) => setCf((s) => ({ ...s, kcal: e.target.value }))} />
-                    <input className={`${fieldCls} col-span-4 md:col-span-3`} placeholder="Protein" inputMode="numeric" value={cf.p} onChange={(e) => setCf((s) => ({ ...s, p: e.target.value }))} />
-                    <input className={`${fieldCls} col-span-4 md:col-span-3`} placeholder="Carbs" inputMode="numeric" value={cf.c} onChange={(e) => setCf((s) => ({ ...s, c: e.target.value }))} />
-                    <input className={`${fieldCls} col-span-4 md:col-span-3`} placeholder="Fat" inputMode="numeric" value={cf.f} onChange={(e) => setCf((s) => ({ ...s, f: e.target.value }))} />
+                    <input className={clsx(fieldCls, 'col-span-12 md:col-span-6', cfErrors.name && errorFieldCls)} placeholder="Name" value={cf.name} onChange={(e) => { const value = e.target.value; setCf((s) => ({ ...s, name: value })); if (cfErrors.name && value.trim()) setCfErrors((s) => ({ ...s, name: false })); }} />
+                    <input className={clsx(fieldCls, 'col-span-6 md:col-span-3', cfErrors.grams && errorFieldCls)} placeholder="Grams" inputMode="numeric" value={cf.grams} onChange={(e) => { const value = e.target.value; setCf((s) => ({ ...s, grams: value })); if (cfErrors.grams && value.trim()) setCfErrors((s) => ({ ...s, grams: false })); }} />
+                    <input className={clsx(fieldCls, 'col-span-6 md:col-span-3', cfErrors.kcal && errorFieldCls)} placeholder="Calories" inputMode="numeric" value={cf.kcal} onChange={(e) => { const value = e.target.value; setCf((s) => ({ ...s, kcal: value })); if (cfErrors.kcal && value.trim()) setCfErrors((s) => ({ ...s, kcal: false })); }} />
+                    <input className={clsx(fieldCls, 'col-span-4 md:col-span-3', cfErrors.p && errorFieldCls)} placeholder="Protein" inputMode="numeric" value={cf.p} onChange={(e) => { const value = e.target.value; setCf((s) => ({ ...s, p: value })); if (cfErrors.p && value.trim()) setCfErrors((s) => ({ ...s, p: false })); }} />
+                    <input className={clsx(fieldCls, 'col-span-4 md:col-span-3', cfErrors.c && errorFieldCls)} placeholder="Carbs" inputMode="numeric" value={cf.c} onChange={(e) => { const value = e.target.value; setCf((s) => ({ ...s, c: value })); if (cfErrors.c && value.trim()) setCfErrors((s) => ({ ...s, c: false })); }} />
+                    <input className={clsx(fieldCls, 'col-span-4 md:col-span-3', cfErrors.f && errorFieldCls)} placeholder="Fat" inputMode="numeric" value={cf.f} onChange={(e) => { const value = e.target.value; setCf((s) => ({ ...s, f: value })); if (cfErrors.f && value.trim()) setCfErrors((s) => ({ ...s, f: false })); }} />
                     <div className="col-span-4 md:col-span-3 flex items-center">
                         <button className="h-10 w-full border rounded-md bg-black px-4 text-sm text-white dark:border-white/20 dark:bg-neutral-900 dark:hover:bg-white/10" onClick={addCustomFood}>Save</button>
                     </div>
