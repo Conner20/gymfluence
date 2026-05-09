@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { db } from "@/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { createCommentMentionNotifications } from "@/lib/mentionNotifications";
 
 export async function GET(
     _req: Request,
@@ -57,6 +58,13 @@ export async function POST(
             authorId: user.id,
             parentId: parentId || null,
         },
+    });
+
+    await createCommentMentionNotifications({
+        actorId: user.id,
+        postId,
+        commentId: comment.id,
+        content,
     });
 
     const commentCount = await db.comment.count({ where: { postId } });

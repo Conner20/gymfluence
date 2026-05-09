@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CornerDownRight, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EditCommentDialog } from "@/components/ui/edit-content-dialog";
+import MentionSuggestions from "@/components/ui/mention-suggestions";
+import MentionText from "@/components/ui/mention-text";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
+import { getActiveMentionQuery, replaceMentionAtCursor, type MentionSearchResult } from "@/lib/mentions";
 
 type Comment = {
     id: string;
@@ -16,6 +19,7 @@ type Comment = {
     author: {
         username: string | null;
         email: string | null;
+        name?: string | null;
         image?: string | null;
     } | null;
     replies?: Comment[];
@@ -32,6 +36,13 @@ function CommentNode({
     onSubmitReply,
     onEdit,
     onDelete,
+    mentionTarget,
+    mentionLoading,
+    mentionResults,
+    onReplyMentionStateChange,
+    onMentionSelect,
+    onMentionBlur,
+    replyInputRefs,
 }: {
     comment: Comment;
     depth?: number;
@@ -43,6 +54,13 @@ function CommentNode({
     onSubmitReply: (commentId: string, value: string) => void | Promise<void>;
     onEdit: (comment: Comment) => void;
     onDelete: (commentId: string) => void | Promise<void>;
+    mentionTarget: string | null;
+    mentionLoading: boolean;
+    mentionResults: MentionSearchResult[];
+    onReplyMentionStateChange: (commentId: string, value: string, cursor: number) => void;
+    onMentionSelect: (item: MentionSearchResult) => void;
+    onMentionBlur: (target: string) => void;
+    replyInputRefs: MutableRefObject<Record<string, HTMLInputElement | null>>;
 }) {
     const isMine = !!sessionEmail && comment.author?.email === sessionEmail;
     const showReply = activeReplyId === comment.id;
@@ -117,7 +135,7 @@ function CommentNode({
                     </div>
 
                     <div className="mt-1 mb-1 text-sm whitespace-pre-wrap break-normal text-gray-800 dark:text-gray-100">
-                        {comment.content}
+                        <MentionText text={comment.content} />
                     </div>
 
                     {sessionEmail && depth === 0 && (
@@ -131,12 +149,29 @@ function CommentNode({
 
                     {showReply && depth === 0 && (
                         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <input
-                                className="w-full flex-1 rounded border px-2 py-1 text-xs dark:bg-transparent dark:border-white/20 dark:text-gray-100"
-                                value={replyDraft}
-                                onChange={(e) => onReplyDraftChange(comment.id, e.target.value)}
-                                placeholder="Reply..."
-                            />
+                            <div className="relative w-full flex-1">
+                                <input
+                                    ref={(node) => {
+                                        replyInputRefs.current[comment.id] = node;
+                                    }}
+                                    className="w-full flex-1 rounded border px-2 py-1 text-xs dark:bg-transparent dark:border-white/20 dark:text-gray-100"
+                                    value={replyDraft}
+                                    onChange={(e) => {
+                                        onReplyDraftChange(comment.id, e.target.value);
+                                        onReplyMentionStateChange(comment.id, e.target.value, e.target.selectionStart ?? e.target.value.length);
+                                    }}
+                                    onClick={(e) => onReplyMentionStateChange(comment.id, e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                                    onKeyUp={(e) => onReplyMentionStateChange(comment.id, e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                                    onBlur={() => onMentionBlur(`reply:${comment.id}`)}
+                                    placeholder="Reply..."
+                                />
+                                <MentionSuggestions
+                                    open={mentionTarget === `reply:${comment.id}`}
+                                    loading={mentionLoading}
+                                    items={mentionResults}
+                                    onSelect={onMentionSelect}
+                                />
+                            </div>
                             <button
                                 className="inline-flex items-center gap-1 rounded bg-green-600 px-3 py-1 text-xs text-white dark:bg-green-600 sm:self-stretch"
                                 onClick={() => onSubmitReply(comment.id, replyDraft)}
@@ -161,6 +196,13 @@ function CommentNode({
                                     onSubmitReply={onSubmitReply}
                                     onEdit={onEdit}
                                     onDelete={onDelete}
+                                    mentionTarget={mentionTarget}
+                                    mentionLoading={mentionLoading}
+                                    mentionResults={mentionResults}
+                                    onReplyMentionStateChange={onReplyMentionStateChange}
+                                    onMentionSelect={onMentionSelect}
+                                    onMentionBlur={onMentionBlur}
+                                    replyInputRefs={replyInputRefs}
                                 />
                             ))}
                         </div>
@@ -187,6 +229,13 @@ export function PostComments({
     const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
     const [editingComment, setEditingComment] = useState<Comment | null>(null);
     const [editingCommentLoading, setEditingCommentLoading] = useState(false);
+    const [mentionTarget, setMentionTarget] = useState<string | null>(null);
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [mentionCursor, setMentionCursor] = useState(0);
+    const [mentionResults, setMentionResults] = useState<MentionSearchResult[]>([]);
+    const [mentionLoading, setMentionLoading] = useState(false);
+    const commentInputRef = useRef<HTMLInputElement | null>(null);
+    const replyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
     const fetchComments = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -218,6 +267,91 @@ export function PostComments({
         Object.values(replyDrafts).some((value) => value.trim().length > 0);
 
     useLiveRefresh(() => fetchComments(true), { enabled: !hasActiveDraft, interval: 5000 });
+
+    useEffect(() => {
+        if (!mentionTarget) {
+            setMentionResults([]);
+            setMentionLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeout = window.setTimeout(async () => {
+            try {
+                setMentionLoading(true);
+                const res = await fetch(`/api/user/mention-search?q=${encodeURIComponent(mentionQuery)}`, {
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                setMentionResults(Array.isArray(data?.items) ? data.items : []);
+            } catch {
+                if (!controller.signal.aborted) setMentionResults([]);
+            } finally {
+                if (!controller.signal.aborted) setMentionLoading(false);
+            }
+        }, 120);
+
+        return () => {
+            controller.abort();
+            window.clearTimeout(timeout);
+        };
+    }, [mentionTarget, mentionQuery]);
+
+    const updateMentionState = (target: string, value: string, cursor: number) => {
+        const activeMention = getActiveMentionQuery(value, cursor);
+        if (!activeMention) {
+            if (mentionTarget === target) {
+                setMentionTarget(null);
+                setMentionQuery("");
+                setMentionResults([]);
+            }
+            return;
+        }
+
+        setMentionTarget(target);
+        setMentionQuery(activeMention.query);
+        setMentionCursor(cursor);
+    };
+
+    const handleMentionBlur = (target: string) => {
+        window.setTimeout(() => {
+            setMentionTarget((current) => (current === target ? null : current));
+        }, 100);
+    };
+
+    const insertMention = (item: MentionSearchResult) => {
+        if (!mentionTarget) return;
+
+        if (mentionTarget === "main") {
+            const { nextValue, nextCursor } = replaceMentionAtCursor(content, mentionCursor, item.username);
+            setContent(nextValue);
+            setMentionTarget(null);
+            setMentionQuery("");
+            setMentionResults([]);
+            window.requestAnimationFrame(() => {
+                commentInputRef.current?.focus();
+                commentInputRef.current?.setSelectionRange(nextCursor, nextCursor);
+            });
+            return;
+        }
+
+        if (mentionTarget.startsWith("reply:")) {
+            const commentId = mentionTarget.slice(6);
+            const currentValue = replyDrafts[commentId] ?? "";
+            const { nextValue, nextCursor } = replaceMentionAtCursor(currentValue, mentionCursor, item.username);
+            setReplyDrafts((prev) => ({ ...prev, [commentId]: nextValue }));
+            setMentionTarget(null);
+            setMentionQuery("");
+            setMentionResults([]);
+            window.requestAnimationFrame(() => {
+                const input = replyInputRefs.current[commentId];
+                input?.focus();
+                input?.setSelectionRange(nextCursor, nextCursor);
+            });
+        }
+    };
 
     const handleAdd = async (content: string, parentId?: string) => {
         if (!content.trim()) return;
@@ -289,13 +423,28 @@ export function PostComments({
                     }}
                     className="flex gap-2 mb-4"
                 >
-                    <input
-                        className="flex-1 border px-2 py-1 rounded text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
-                        placeholder="Add a comment..."
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        required
-                    />
+                    <div className="relative flex-1">
+                        <input
+                            ref={commentInputRef}
+                            className="w-full border px-2 py-1 rounded text-sm dark:bg-transparent dark:border-white/20 dark:text-gray-100"
+                            placeholder="Add a comment..."
+                            value={content}
+                            onChange={(e) => {
+                                setContent(e.target.value);
+                                updateMentionState("main", e.target.value, e.target.selectionStart ?? e.target.value.length);
+                            }}
+                            onClick={(e) => updateMentionState("main", e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                            onKeyUp={(e) => updateMentionState("main", e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                            onBlur={() => handleMentionBlur("main")}
+                            required
+                        />
+                        <MentionSuggestions
+                            open={mentionTarget === "main"}
+                            loading={mentionLoading}
+                            items={mentionResults}
+                            onSelect={insertMention}
+                        />
+                    </div>
                     <button
                         className="bg-green-600 text-white px-3 py-1 rounded text-sm dark:bg-green-600 dark:hover:bg-green-700"
                         type="submit"
@@ -338,6 +487,15 @@ export function PostComments({
                         }}
                         onEdit={(comment) => setEditingComment(comment)}
                         onDelete={(commentId) => setPendingDeleteCommentId(commentId)}
+                        mentionTarget={mentionTarget}
+                        mentionLoading={mentionLoading}
+                        mentionResults={mentionResults}
+                        onReplyMentionStateChange={(commentId, value, cursor) =>
+                            updateMentionState(`reply:${commentId}`, value, cursor)
+                        }
+                        onMentionSelect={insertMention}
+                        onMentionBlur={handleMentionBlur}
+                        replyInputRefs={replyInputRefs}
                     />
                 ))
             )}

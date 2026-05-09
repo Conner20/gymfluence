@@ -8,6 +8,7 @@ import { ArrowLeft, Heart, MessageCircle, Share2, X, Search } from "lucide-react
 import clsx from "clsx";
 import { PostComments } from "@/components/PostComments";
 import PostPoll from "@/components/PostPoll";
+import MentionText from "@/components/ui/mention-text";
 import type { PostPollData, PostTypeValue } from "@/lib/postPoll";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
@@ -438,9 +439,9 @@ export default function PostDetail({
                     <div className="flex flex-col gap-1 mb-2">
                         {post.title && (
                             isFlat ? (
-                                <span className={titleCls}>{post.title}</span>
+                                <span className={titleCls}><MentionText text={post.title} mentionClassName="font-extrabold hover:underline" /></span>
                             ) : (
-                                <h2 className={titleCls}>{post.title}</h2>
+                                <h2 className={titleCls}><MentionText text={post.title} mentionClassName="font-extrabold hover:underline" /></h2>
                             )
                         )}
                         <div className="flex flex-wrap items-center gap-2 md:hidden">
@@ -457,7 +458,7 @@ export default function PostDetail({
                         </div>
                     </div>
 
-                    {post.content && <div className={textCls}>{post.content}</div>}
+                    {post.content && <div className={textCls}><MentionText text={post.content} /></div>}
 
                     {post.type === "POLL" && post.poll ? (
                         <PostPoll

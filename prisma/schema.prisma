@@ -50,6 +50,8 @@ enum NotificationType {
   FOLLOW_REQUEST
   FOLLOWED_YOU
   REQUEST_ACCEPTED
+  TAGGED_IN_POST
+  TAGGED_IN_COMMENT
 }
 
 enum RatingStatus {
@@ -305,6 +307,7 @@ model Post {
   imageUrls   String[]     @default([])
   pollOptions PollOption[]
   pollVotes   PollVote[]
+  notifications Notification[] @relation("PostNotifications")
 
   // Inverse side of Message.sharedPost
   sharedInMessages Message[] @relation("SharedPost")
@@ -360,6 +363,7 @@ model Comment {
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   parentId String?
   replies  Comment[] @relation("CommentReplies")
+  notifications Notification[] @relation("CommentNotifications")
 }
 
 model Follow {
@@ -392,6 +396,12 @@ model Notification {
   // Optional link to a follow row (for follow requests, followed you, request accepted)
   follow   Follow? @relation("FollowNotifications", fields: [followId], references: [id], onDelete: Cascade)
   followId String?
+
+  post   Post?    @relation("PostNotifications", fields: [postId], references: [id], onDelete: Cascade)
+  postId String?
+
+  comment   Comment? @relation("CommentNotifications", fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String?
 
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())

@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { storeImageFile, deleteStoredFile } from "@/lib/storage";
 import { buildPollPayload } from "@/lib/postPoll";
 import { revalidateTag } from "next/cache";
+import { createPostMentionNotifications } from "@/lib/mentionNotifications";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -189,6 +190,13 @@ export async function POST(req: Request) {
                     },
                 },
             },
+        });
+
+        await createPostMentionNotifications({
+            actorId: user.id,
+            postId: newPost.id,
+            title,
+            content,
         });
 
         revalidateTag("posts");

@@ -31,6 +31,7 @@ import clsx from "clsx";
 import PostDetail from "@/components/PostDetail";
 import { PostComments } from "@/components/PostComments";
 import { EditPostDialog } from "@/components/ui/edit-content-dialog";
+import MentionText from "@/components/ui/mention-text";
 import PostPoll from "@/components/PostPoll";
 import type { PostPollData, PostTypeValue } from "@/lib/postPoll";
 import { formatRelativeTime } from "@/lib/utils";
@@ -1467,7 +1468,7 @@ function ScrollFeed({
                                 onClick={() => onOpen(p.id)}
                                 title="Open post"
                             >
-                                {p.title || p.poll?.question || "Post"}
+                                <MentionText text={p.title || p.poll?.question || "Post"} mentionClassName="font-extrabold hover:underline" />
                             </button>
 
                             <div className="flex flex-wrap items-center gap-2 md:hidden text-gray-600 dark:text-gray-400">
@@ -1486,7 +1487,7 @@ function ScrollFeed({
                         </div>
 
                         {p.content && (
-                            <div className="text-zinc-800 mt-3 whitespace-pre-wrap dark:text-gray-200">{p.content}</div>
+                            <div className="text-zinc-800 mt-3 whitespace-pre-wrap dark:text-gray-200"><MentionText text={p.content} /></div>
                         )}
 
                         {p.type === "POLL" && p.poll ? (

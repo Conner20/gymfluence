@@ -7,12 +7,17 @@ import { Check, X } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { useLiveRefresh } from "@/app/hooks/useLiveRefresh";
 
+const truncatePostTitle = (value: string, maxLength = 22) =>
+    value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+
 type Notification = {
     id: string;
     type:
         | "FOLLOW_REQUEST"
         | "FOLLOWED_YOU"
         | "REQUEST_ACCEPTED"
+        | "TAGGED_IN_POST"
+        | "TAGGED_IN_COMMENT"
         | "MESSAGE"
         | "LIKE"
         | "COMMENT"
@@ -253,8 +258,9 @@ export default function NotificationsModal({
                                                                     router.push(n.postHref!);
                                                                 }}
                                                                 className="font-semibold hover:underline"
+                                                                title={n.postTitle}
                                                             >
-                                                                {n.postTitle}
+                                                                {truncatePostTitle(n.postTitle)}
                                                             </button>
                                                         </>
                                                     )}

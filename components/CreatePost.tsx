@@ -5,6 +5,8 @@ import { useEffect, useState, useRef } from "react";
 import { genUploader } from "uploadthing/client";
 
 import type { UploadRouter } from "@/app/api/uploadthing/core";
+import MentionSuggestions from "@/components/ui/mention-suggestions";
+import { getActiveMentionQuery, replaceMentionAtCursor, type MentionSearchResult } from "@/lib/mentions";
 
 type SelectedImage = {
     id: string;
@@ -43,6 +45,14 @@ export default function CreatePost({
 
     const inputRef = useRef<HTMLInputElement | null>(null);
     const imagesRef = useRef<SelectedImage[]>([]);
+    const titleRef = useRef<HTMLInputElement | null>(null);
+    const contentRef = useRef<HTMLTextAreaElement | null>(null);
+    const pollQuestionRef = useRef<HTMLInputElement | null>(null);
+    const [mentionField, setMentionField] = useState<"title" | "content" | "pollQuestion" | null>(null);
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [mentionCursor, setMentionCursor] = useState(0);
+    const [mentionResults, setMentionResults] = useState<MentionSearchResult[]>([]);
+    const [mentionLoading, setMentionLoading] = useState(false);
 
     const onPickFile = () => inputRef.current?.click();
 
@@ -112,6 +122,84 @@ export default function CreatePost({
             imagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
         };
     }, []);
+
+    useEffect(() => {
+        if (!mentionField) {
+            setMentionResults([]);
+            setMentionLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeout = window.setTimeout(async () => {
+            try {
+                setMentionLoading(true);
+                const res = await fetch(`/api/user/mention-search?q=${encodeURIComponent(mentionQuery)}`, {
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                setMentionResults(Array.isArray(data?.items) ? data.items : []);
+            } catch {
+                if (!controller.signal.aborted) setMentionResults([]);
+            } finally {
+                if (!controller.signal.aborted) setMentionLoading(false);
+            }
+        }, 120);
+
+        return () => {
+            controller.abort();
+            window.clearTimeout(timeout);
+        };
+    }, [mentionField, mentionQuery]);
+
+    const updateMentionState = (field: "title" | "content" | "pollQuestion", value: string, cursor: number) => {
+        const activeMention = getActiveMentionQuery(value, cursor);
+        if (!activeMention) {
+            if (mentionField === field) {
+                setMentionField(null);
+                setMentionQuery("");
+                setMentionResults([]);
+            }
+            return;
+        }
+
+        setMentionField(field);
+        setMentionQuery(activeMention.query);
+        setMentionCursor(cursor);
+    };
+
+    const insertMention = (item: MentionSearchResult) => {
+        const ref =
+            mentionField === "title"
+                ? titleRef.current
+                : mentionField === "content"
+                  ? contentRef.current
+                  : pollQuestionRef.current;
+        if (!mentionField || !ref) return;
+
+        const currentValue =
+            mentionField === "title"
+                ? title
+                : mentionField === "content"
+                  ? content
+                  : pollQuestion;
+
+        const { nextValue, nextCursor } = replaceMentionAtCursor(currentValue, mentionCursor, item.username);
+        if (mentionField === "title") setTitle(nextValue);
+        if (mentionField === "content") setContent(nextValue);
+        if (mentionField === "pollQuestion") setPollQuestion(nextValue);
+
+        setMentionField(null);
+        setMentionQuery("");
+        setMentionResults([]);
+
+        window.requestAnimationFrame(() => {
+            ref.focus();
+            ref.setSelectionRange(nextCursor, nextCursor);
+        });
+    };
 
     useEffect(() => {
         if (
@@ -310,30 +398,50 @@ export default function CreatePost({
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     {mode === "standard" ? (
                         <>
-                            <input
-                                className={`border rounded-lg px-3 py-2 dark:bg-transparent dark:text-gray-100 ${
-                                    fieldErrors.title
-                                        ? "border-red-500 dark:border-red-400"
-                                        : "dark:border-white/20"
-                                }`}
-                                type="text"
-                                placeholder="Title"
-                                value={title}
-                                onChange={e => setTitle(e.target.value)}
-                                disabled={loading}
-                            />
+                            <div className="relative">
+                                <input
+                                    ref={titleRef}
+                                    className={`w-full border rounded-lg px-3 py-2 dark:bg-transparent dark:text-gray-100 ${
+                                        fieldErrors.title
+                                            ? "border-red-500 dark:border-red-400"
+                                            : "dark:border-white/20"
+                                    }`}
+                                    type="text"
+                                    placeholder="Title"
+                                    value={title}
+                                    onChange={e => {
+                                        setTitle(e.target.value);
+                                        updateMentionState("title", e.target.value, e.target.selectionStart ?? e.target.value.length);
+                                    }}
+                                    onClick={e => updateMentionState("title", e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                                    onKeyUp={e => updateMentionState("title", e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                                    onBlur={() => window.setTimeout(() => setMentionField((current) => (current === "title" ? null : current)), 100)}
+                                    disabled={loading}
+                                />
+                                <MentionSuggestions open={mentionField === "title"} loading={mentionLoading} items={mentionResults} onSelect={insertMention} />
+                            </div>
 
-                            <textarea
-                                className={`border rounded-lg px-3 py-2 resize-none min-h-[80px] dark:bg-transparent dark:text-gray-100 ${
-                                    fieldErrors.content
-                                        ? "border-red-500 dark:border-red-400"
-                                        : "dark:border-white/20"
-                                }`}
-                                placeholder="What's on your mind?"
-                                value={content}
-                                onChange={e => setContent(e.target.value)}
-                                disabled={loading}
-                            />
+                            <div className="relative">
+                                <textarea
+                                    ref={contentRef}
+                                    className={`w-full border rounded-lg px-3 py-2 resize-none min-h-[80px] dark:bg-transparent dark:text-gray-100 ${
+                                        fieldErrors.content
+                                            ? "border-red-500 dark:border-red-400"
+                                            : "dark:border-white/20"
+                                    }`}
+                                    placeholder="What's on your mind?"
+                                    value={content}
+                                    onChange={e => {
+                                        setContent(e.target.value);
+                                        updateMentionState("content", e.target.value, e.target.selectionStart ?? e.target.value.length);
+                                    }}
+                                    onClick={e => updateMentionState("content", e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                                    onKeyUp={e => updateMentionState("content", e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                                    onBlur={() => window.setTimeout(() => setMentionField((current) => (current === "content" ? null : current)), 100)}
+                                    disabled={loading}
+                                />
+                                <MentionSuggestions open={mentionField === "content"} loading={mentionLoading} items={mentionResults} onSelect={insertMention} />
+                            </div>
 
                             <div>
                                 <div className="flex items-center justify-between">
@@ -418,18 +526,28 @@ export default function CreatePost({
                             <div className="space-y-3">
                                 <div>
                                     <label className="mb-2 block text-sm font-medium">Poll question</label>
-                                    <input
-                                        className={`w-full rounded-lg border px-3 py-2 dark:bg-transparent dark:text-gray-100 ${
-                                            fieldErrors.pollQuestion
-                                                ? "border-red-500 dark:border-red-400"
-                                                : "dark:border-white/20"
-                                        }`}
-                                        type="text"
-                                        placeholder="What do you want feedback on?"
-                                        value={pollQuestion}
-                                        onChange={(event) => setPollQuestion(event.target.value)}
-                                        disabled={loading}
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            ref={pollQuestionRef}
+                                            className={`w-full rounded-lg border px-3 py-2 dark:bg-transparent dark:text-gray-100 ${
+                                                fieldErrors.pollQuestion
+                                                    ? "border-red-500 dark:border-red-400"
+                                                    : "dark:border-white/20"
+                                            }`}
+                                            type="text"
+                                            placeholder="What do you want feedback on?"
+                                            value={pollQuestion}
+                                            onChange={(event) => {
+                                                setPollQuestion(event.target.value);
+                                                updateMentionState("pollQuestion", event.target.value, event.target.selectionStart ?? event.target.value.length);
+                                            }}
+                                            onClick={(event) => updateMentionState("pollQuestion", event.currentTarget.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
+                                            onKeyUp={(event) => updateMentionState("pollQuestion", event.currentTarget.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
+                                            onBlur={() => window.setTimeout(() => setMentionField((current) => (current === "pollQuestion" ? null : current)), 100)}
+                                            disabled={loading}
+                                        />
+                                        <MentionSuggestions open={mentionField === "pollQuestion"} loading={mentionLoading} items={mentionResults} onSelect={insertMention} />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">

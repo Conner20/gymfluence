@@ -7,6 +7,7 @@ import { Heart, MessageCircle, Share2 } from "lucide-react";
 import clsx from "clsx";
 import Link from "next/link";
 import { PostComments } from "@/components/PostComments";
+import MentionText from "@/components/ui/mention-text";
 import { formatRelativeTime } from "@/lib/utils";
 import { getPostImageUrls } from "@/lib/postImages";
 import PostImageCarousel from "@/components/PostImageCarousel";
@@ -77,7 +78,7 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
             {posts.map((post) => (
                 <article key={post.id} className="bg-white rounded-2xl shadow px-6 py-5 mb-6">
                     <div className="flex flex-col gap-1 mb-2">
-                        <h2 className="font-bold text-xl text-gray-800">{post.title}</h2>
+                        <h2 className="font-bold text-xl text-gray-800"><MentionText text={post.title} mentionClassName="font-extrabold hover:underline" /></h2>
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs text-gray-500">
                                 by{" "}
@@ -139,7 +140,7 @@ export default function ProfileFeed({ authorId }: { authorId: string }) {
                     </div>
 
                     {post.content && (
-                        <div className="text-gray-700 mt-2 whitespace-pre-wrap">{post.content}</div>
+                        <div className="text-gray-700 mt-2 whitespace-pre-wrap"><MentionText text={post.content} /></div>
                     )}
 
                     {getPostImageUrls(post).length > 0 && (

@@ -17,6 +17,8 @@ type NotificationItem = {
         | "FOLLOW_REQUEST"
         | "FOLLOWED_YOU"
         | "REQUEST_ACCEPTED"
+        | "TAGGED_IN_POST"
+        | "TAGGED_IN_COMMENT"
         | "MESSAGE"
         | "LIKE"
         | "COMMENT"
@@ -67,6 +69,8 @@ export async function GET() {
             orderBy: { createdAt: "desc" },
             include: {
                 actor: { select: { id: true, username: true, name: true, image: true } },
+                post: { select: { id: true, title: true } },
+                comment: { select: { id: true } },
                 follow: {
                     select: {
                         id: true,
@@ -173,6 +177,36 @@ export async function GET() {
     ]);
 
     const followItems: NotificationItem[] = followNotifications.map((n) => {
+        if (n.type === "TAGGED_IN_POST") {
+            const postLabel = n.post?.title?.trim() || "Untitled post";
+            return {
+                id: n.id,
+                type: "TAGGED_IN_POST",
+                createdAt: n.createdAt.toISOString(),
+                actor: n.actor,
+                href: n.postId ? `/post/${n.postId}` : "/home",
+                body: "tagged you in their post",
+                postTitle: postLabel,
+                postHref: n.postId ? `/post/${n.postId}` : undefined,
+                isRead: n.isRead,
+            };
+        }
+
+        if (n.type === "TAGGED_IN_COMMENT") {
+            const postLabel = n.post?.title?.trim() || "Untitled post";
+            return {
+                id: n.id,
+                type: "TAGGED_IN_COMMENT",
+                createdAt: n.createdAt.toISOString(),
+                actor: n.actor,
+                href: n.postId ? `/post/${n.postId}` : "/home",
+                body: "tagged you in their comment on",
+                postTitle: postLabel,
+                postHref: n.postId ? `/post/${n.postId}` : undefined,
+                isRead: n.isRead,
+            };
+        }
+
         const followStillExists =
             n.follow &&
             ((n.type === "FOLLOW_REQUEST" &&

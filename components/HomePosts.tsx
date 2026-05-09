@@ -11,6 +11,7 @@ import { PostComments } from "@/components/PostComments";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EditPostDialog } from "@/components/ui/edit-content-dialog";
 import PostPoll from "@/components/PostPoll";
+import MentionText from "@/components/ui/mention-text";
 import type { PostPollData, PostTypeValue } from "@/lib/postPoll";
 import { formatRelativeTime } from "@/lib/utils";
 import { getPostImageUrls } from "@/lib/postImages";
@@ -559,7 +560,7 @@ export default function HomePosts({
                             <div className="flex flex-col gap-1 mb-2">
                                 {post.title && (
                                     <span className="font-bold text-lg text-gray-800 dark:text-white">
-                                        {post.title}
+                                        <MentionText text={post.title} mentionClassName="font-extrabold hover:underline" />
                                     </span>
                                 )}
                                 {(() => {
@@ -618,7 +619,7 @@ export default function HomePosts({
                             {/* Text content */}
                             {post.content && (
                                 <div className="text-gray-700 mt-2 whitespace-pre-wrap dark:text-gray-200">
-                                    {post.content}
+                                    <MentionText text={post.content} />
                                 </div>
                             )}
 
