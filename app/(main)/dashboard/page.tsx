@@ -213,40 +213,38 @@ function LiftsChart({
     const bottom = 28;
     const w = width - left - right;
     const h = height - top - bottom;
-
-    if (!labels.length) {
-        return (
-            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-200 text-sm text-zinc-500 dark:border-white/10 dark:text-white/70">
-                Log sets to view trends.
-            </div>
-        );
-    }
+    const hasData = dayEntries.some((entries) => entries.length > 0);
 
     const weightSuffix = weightUnit === 'kg' ? ' kg' : ' lbs';
-    const series = [
+    const baseSeries = [
         { key: 'weight', label: 'Weight', color: '#16a34a', suffix: weightSuffix, values: weight },
         { key: 'reps', label: 'Reps', color: isDark ? '#93c5fd' : '#111827', suffix: ' reps', values: reps },
     ] as const;
 
-    const maxValue = Math.max(
-        1,
-        ...weight.map((value) => (Number.isFinite(value) ? value : 0)),
-        ...reps.map((value) => (Number.isFinite(value) ? value : 0)),
-    );
-
     const xPositions = labels.map((_, idx) =>
         labels.length > 1 ? left + (idx / (labels.length - 1)) * w : left + w / 2,
     );
-    const yScale = (value: number) => top + h - (Math.max(0, value) / maxValue) * h;
+    const series = baseSeries.map((line) => {
+        const maxValue = Math.max(
+            1,
+            ...line.values.map((value) => (Number.isFinite(value) ? value : 0)),
+        );
 
-    const mkPath = (values: number[]) => {
+        return {
+            ...line,
+            maxValue,
+            yScale: (value: number) => top + h - (Math.max(0, value) / maxValue) * h,
+        };
+    });
+
+    const mkPath = (line: (typeof series)[number]) => {
         let started = false;
         let d = '';
-        values.forEach((val, idx) => {
+        line.values.forEach((val, idx) => {
             if (!Number.isFinite(val) || val <= 0) return;
             const cmd = started ? 'L' : 'M';
             started = true;
-            d += `${cmd} ${xPositions[idx] ?? left} ${yScale(val)} `;
+            d += `${cmd} ${xPositions[idx] ?? left} ${line.yScale(val)} `;
         });
         return d.trim();
     };
@@ -271,8 +269,13 @@ function LiftsChart({
                 closestIdx = idx;
             }
         });
-        const anchorValues = series.map((line) => line.values[closestIdx] ?? 0);
-        const anchorY = Math.min(...anchorValues.map((val) => yScale(val || 0)));
+        const anchorYs = series
+            .map((line) => {
+                const value = line.values[closestIdx] ?? 0;
+                return value > 0 && Number.isFinite(value) ? line.yScale(value) : null;
+            })
+            .filter((value): value is number => value !== null);
+        const anchorY = anchorYs.length ? Math.min(...anchorYs) : top;
         setHover({ index: closestIdx, svgX: xPositions[closestIdx] ?? left, svgY: anchorY });
     };
 
@@ -322,6 +325,14 @@ function LiftsChart({
         return () => window.removeEventListener('pointerdown', handleGlobalPointerDown);
     }, []);
 
+    if (!labels.length || !hasData) {
+        return (
+            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-200 text-sm text-zinc-500 dark:border-white/10 dark:text-white/70">
+                Log sets to view trends.
+            </div>
+        );
+    }
+
     const gridSteps = 4;
     const horizontalLines = Array.from({ length: gridSteps + 1 }, (_, i) => top + (i / gridSteps) * h);
 
@@ -330,7 +341,10 @@ function LiftsChart({
     const tooltipStyles = hover
         ? {
               left: Math.min(Math.max(hover.svgX - tooltipWidth / 2, 12), width - tooltipWidth - 12),
-              top: Math.max(hover.svgY - tooltipHeight - 12, 8),
+              top:
+                  hover.svgY <= height / 2
+                      ? Math.max(height / 2 + 8, Math.min(hover.svgY + 16, height - tooltipHeight - 8))
+                      : Math.min(height / 2 - tooltipHeight - 8, Math.max(hover.svgY - tooltipHeight - 16, 8)),
           }
         : null;
 
@@ -403,7 +417,7 @@ function LiftsChart({
                 {series.map((line) => (
                     <path
                         key={line.key}
-                        d={mkPath(line.values)}
+                        d={mkPath(line)}
                         fill="none"
                         stroke={line.color}
                         strokeWidth={2.5}
@@ -418,7 +432,7 @@ function LiftsChart({
                             <circle
                                 key={`${line.key}-point-${idx}`}
                                 cx={xPositions[idx]}
-                                cy={yScale(val)}
+                                cy={line.yScale(val)}
                                 r={3}
                                 fill={line.color}
                                 opacity={0.8}
@@ -446,7 +460,7 @@ function LiftsChart({
                             <circle
                                 key={`${line.key}-dot`}
                                 cx={hover.svgX}
-                                cy={yScale(value)}
+                                cy={line.yScale(value)}
                                 r={5}
                                 fill={line.color}
                                 stroke={isDark ? '#030712' : '#ffffff'}
@@ -1816,41 +1830,39 @@ function CardioChart({
     const bottom = 28;
     const w = width - left - right;
     const h = height - top - bottom;
-    if (!labels.length) {
-        return (
-            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-200 text-sm text-zinc-500 dark:border-white/10 dark:text-white/70">
-                Log cardio to see trends here.
-            </div>
-        );
-    }
+    const hasData = data.sessionIdsPerPoint.some((ids) => ids.length > 0);
 
     const distanceSuffix = distanceUnit === 'km' ? ' km' : ' mi';
-    const lines = [
+    const baseLines = [
         { key: 'distance', values: distance, color: '#16a34a', label: 'Distance', suffix: distanceSuffix },
         { key: 'time', values: time, color: isDark ? '#93c5fd' : '#2563eb', label: 'Time', suffix: ' min' },
         { key: 'calories', values: calories, color: '#f97316', label: 'Calories', suffix: ' kcal' },
     ] as const;
 
-    const maxValue = Math.max(
-        1,
-        ...distance.map((v) => (Number.isFinite(v) ? v : 0)),
-        ...time.map((v) => (Number.isFinite(v) ? v : 0)),
-        ...calories.map((v) => (Number.isFinite(v) ? v : 0)),
-    );
-
     const xPositions = labels.map((_, idx) =>
         labels.length > 1 ? left + (idx / (labels.length - 1)) * w : left + w / 2,
     );
-    const yScale = (value: number) => top + h - (Math.max(0, value) / maxValue) * h;
+    const lines = baseLines.map((line) => {
+        const maxValue = Math.max(
+            1,
+            ...line.values.map((value) => (Number.isFinite(value) ? value : 0)),
+        );
 
-    const mkPath = (values: number[]) => {
+        return {
+            ...line,
+            maxValue,
+            yScale: (value: number) => top + h - (Math.max(0, value) / maxValue) * h,
+        };
+    });
+
+    const mkPath = (line: (typeof lines)[number]) => {
         let started = false;
         let d = '';
-        values.forEach((val, idx) => {
+        line.values.forEach((val, idx) => {
             if (val <= 0 || !Number.isFinite(val)) return;
             const cmd = started ? 'L' : 'M';
             started = true;
-            d += `${cmd} ${xPositions[idx] ?? left} ${yScale(val)} `;
+            d += `${cmd} ${xPositions[idx] ?? left} ${line.yScale(val)} `;
         });
         return d.trim();
     };
@@ -1875,8 +1887,13 @@ function CardioChart({
                 closestIdx = idx;
             }
         });
-        const anchorValues = lines.map((line) => line.values[closestIdx] ?? 0);
-        const anchorY = Math.min(...anchorValues.map((val) => yScale(val || 0)));
+        const anchorYs = lines
+            .map((line) => {
+                const value = line.values[closestIdx] ?? 0;
+                return value > 0 && Number.isFinite(value) ? line.yScale(value) : null;
+            })
+            .filter((value): value is number => value !== null);
+        const anchorY = anchorYs.length ? Math.min(...anchorYs) : top;
         setHover({ index: closestIdx, svgX: xPositions[closestIdx] ?? left, svgY: anchorY });
     };
 
@@ -1926,6 +1943,14 @@ function CardioChart({
         return () => window.removeEventListener('pointerdown', handleGlobalPointerDown);
     }, []);
 
+    if (!labels.length || !hasData) {
+        return (
+            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zinc-200 text-sm text-zinc-500 dark:border-white/10 dark:text-white/70">
+                Log sets to view trends.
+            </div>
+        );
+    }
+
     const gridSteps = 4;
     const horizontalLines = Array.from({ length: gridSteps + 1 }, (_, i) => top + (i / gridSteps) * h);
 
@@ -1934,7 +1959,10 @@ function CardioChart({
     const tooltipStyles = hover
         ? {
               left: Math.min(Math.max(hover.svgX - tooltipWidth / 2, 12), width - tooltipWidth - 12),
-              top: Math.max(hover.svgY - tooltipHeight - 12, 8),
+              top:
+                  hover.svgY <= height / 2
+                      ? Math.max(height / 2 + 8, Math.min(hover.svgY + 16, height - tooltipHeight - 8))
+                      : Math.min(height / 2 - tooltipHeight - 8, Math.max(hover.svgY - tooltipHeight - 16, 8)),
           }
         : null;
 
@@ -2006,7 +2034,7 @@ function CardioChart({
                 {lines.map((line) => (
                     <path
                         key={line.key}
-                        d={mkPath(line.values)}
+                        d={mkPath(line)}
                         fill="none"
                         stroke={line.color}
                         strokeWidth={2.5}
@@ -2032,25 +2060,10 @@ function CardioChart({
                             <circle
                                 key={`${line.key}-point-${idx}`}
                                 cx={xPositions[idx]}
-                                cy={yScale(val)}
+                                cy={line.yScale(val)}
                                 r={3}
                                 fill={line.color}
                                 opacity={0.8}
-                            />
-                        ) : null,
-                    ),
-                )}
-
-                {lines.map((line) =>
-                    line.values.map((val, idx) =>
-                        val > 0 ? (
-                            <circle
-                                key={`${line.key}-point-${idx}`}
-                                cx={xPositions[idx]}
-                                cy={yScale(val)}
-                                r={3}
-                                fill={line.color}
-                                opacity={0.85}
                             />
                         ) : null,
                     ),
@@ -2064,7 +2077,7 @@ function CardioChart({
                             <circle
                                 key={`${line.key}-pt`}
                                 cx={hover.svgX}
-                                cy={yScale(value)}
+                                cy={line.yScale(value)}
                                 r={5}
                                 fill={line.color}
                                 stroke={isDark ? '#030712' : '#ffffff'}
