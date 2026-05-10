@@ -1830,7 +1830,7 @@ function CardioChart({
     const bottom = 28;
     const w = width - left - right;
     const h = height - top - bottom;
-    const hasData = data.sessionIdsPerPoint.some((ids) => ids.length > 0);
+    const hasData = sessionIdsPerPoint.some((ids) => ids.length > 0);
 
     const distanceSuffix = distanceUnit === 'km' ? ' km' : ' mi';
     const baseLines = [
