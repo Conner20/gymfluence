@@ -333,10 +333,10 @@ function UserOnboardingContent() {
                                     <span className="text-xl font-semibold">{label}</span>
                                     <span className="text-sm text-zinc-500">
                                         {label === 'Trainee'
-                                            ? 'Track progress and stay accountable.'
+                                            ? 'Discover gyms, trainers, and a community that fits your goals.'
                                             : label === 'Trainer'
-                                                ? 'Manage clients and programming.'
-                                                : 'Grow and showcase your facility.'}
+                                                ? 'Grow your brand, attract clients, and find new opportunities.'
+                                                : 'Showcase your facility, attract members, and connect with trainers.'}
                                     </span>
                                 </button>
                             );
