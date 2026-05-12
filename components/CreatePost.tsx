@@ -124,6 +124,19 @@ export default function CreatePost({
     }, []);
 
     useEffect(() => {
+        const previousBodyOverflow = document.body.style.overflow;
+        const previousHtmlOverflow = document.documentElement.style.overflow;
+
+        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousBodyOverflow;
+            document.documentElement.style.overflow = previousHtmlOverflow;
+        };
+    }, []);
+
+    useEffect(() => {
         if (!mentionField) {
             setMentionResults([]);
             setMentionLoading(false);
@@ -275,7 +288,7 @@ export default function CreatePost({
 
         setLoading(true);
         try {
-            const uploadedFiles = mode === "standard" && images.length
+            const uploadedFiles = images.length
                 ? await uploadFiles("postMedia", {
                     files: images.map((image) => image.file),
                 })
@@ -355,8 +368,8 @@ export default function CreatePost({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-xl shadow-lg w-96 relative dark:bg-neutral-900 dark:border dark:border-white/10 dark:text-gray-100">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-lg dark:border dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100">
                 <button
                     onClick={onClose}
                     className="absolute right-4 top-4 p-1 hover:bg-zinc-100 rounded-full transition dark:hover:bg-white/5"
@@ -442,84 +455,6 @@ export default function CreatePost({
                                 />
                                 <MentionSuggestions open={mentionField === "content"} loading={mentionLoading} items={mentionResults} onSelect={insertMention} />
                             </div>
-
-                            <div>
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm font-medium">Attach up to 3 photos (optional)</label>
-                                    {images.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={clearImages}
-                                            className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
-                                            title="Remove all images"
-                                            disabled={loading}
-                                        >
-                                            <Trash2 size={14} />
-                                            Clear all
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="mt-2">
-                                    {images.length === 0 ? (
-                                        <button
-                                            type="button"
-                                            onClick={onPickFile}
-                                            className="w-full border border-dashed rounded-lg py-6 flex flex-col items-center justify-center hover:bg-zinc-50 transition dark:border-white/20 dark:hover:bg-white/5"
-                                            disabled={loading}
-                                        >
-                                            <ImageIcon size={22} className="mb-1" />
-                                            <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 3 images</span>
-                                            <span className="text-[11px] text-zinc-400 mt-1 dark:text-gray-400">
-                                                PNG, JPG, WEBP, GIF · up to 16MB each
-                                            </span>
-                                        </button>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {images.map((image) => (
-                                                    <div key={image.id} className="relative rounded-lg border p-1 dark:border-white/20">
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img
-                                                            src={image.previewUrl}
-                                                            alt="Preview"
-                                                            className="h-36 w-full rounded-md object-cover"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeImage(image.id)}
-                                                            className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white"
-                                                            aria-label="Remove image"
-                                                        >
-                                                            <X size={14} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {images.length < MAX_POST_IMAGES && (
-                                                <button
-                                                    type="button"
-                                                    onClick={onPickFile}
-                                                    className="w-full rounded-lg border border-dashed px-3 py-3 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5"
-                                                    disabled={loading}
-                                                >
-                                                    Add another image ({images.length}/{MAX_POST_IMAGES})
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <input
-                                    ref={inputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    multiple
-                                    onChange={onFileChange}
-                                    disabled={loading}
-                                />
-                            </div>
                         </>
                     ) : (
                         <>
@@ -599,6 +534,84 @@ export default function CreatePost({
                             </div>
                         </>
                     )}
+
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium">Attach up to 3 photos (optional)</label>
+                            {images.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={clearImages}
+                                    className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
+                                    title="Remove all images"
+                                    disabled={loading}
+                                >
+                                    <Trash2 size={14} />
+                                    Clear all
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="mt-2">
+                            {images.length === 0 ? (
+                                <button
+                                    type="button"
+                                    onClick={onPickFile}
+                                    className="w-full border border-dashed rounded-lg py-6 flex flex-col items-center justify-center hover:bg-zinc-50 transition dark:border-white/20 dark:hover:bg-white/5"
+                                    disabled={loading}
+                                >
+                                    <ImageIcon size={22} className="mb-1" />
+                                    <span className="text-sm text-zinc-600 dark:text-gray-200">Click to choose up to 3 images</span>
+                                    <span className="text-[11px] text-zinc-400 mt-1 dark:text-gray-400">
+                                        PNG, JPG, WEBP, GIF · up to 16MB each
+                                    </span>
+                                </button>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {images.map((image) => (
+                                            <div key={image.id} className="relative rounded-lg border p-1 dark:border-white/20">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={image.previewUrl}
+                                                    alt="Preview"
+                                                    className="h-36 w-full rounded-md object-cover"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeImage(image.id)}
+                                                    className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white"
+                                                    aria-label="Remove image"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {images.length < MAX_POST_IMAGES && (
+                                        <button
+                                            type="button"
+                                            onClick={onPickFile}
+                                            className="w-full rounded-lg border border-dashed px-3 py-3 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5"
+                                            disabled={loading}
+                                        >
+                                            Add another image ({images.length}/{MAX_POST_IMAGES})
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <input
+                            ref={inputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            multiple
+                            onChange={onFileChange}
+                            disabled={loading}
+                        />
+                    </div>
 
                     {error && <div className="text-red-500 text-sm">{error}</div>}
 

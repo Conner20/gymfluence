@@ -1016,6 +1016,8 @@ function ScrollFeed({
                             <PostPoll
                                 postId={p.id}
                                 poll={p.poll}
+                                imageUrls={getPostImageUrls(p)}
+                                imageAlt={p.title || p.poll?.question || "Poll image"}
                                 isOwner={canDelete}
                                 onPollChange={(poll) => onPollChange(p.id, poll)}
                             />

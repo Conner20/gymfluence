@@ -57,6 +57,7 @@ export default function NotificationsModal({
     const [items, setItems] = useState<Notification[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [actingId, setActingId] = useState<string | null>(null);
+    const [clearingAll, setClearingAll] = useState(false);
 
     const load = async (silent = false) => {
         if (!open) return;
@@ -80,6 +81,21 @@ export default function NotificationsModal({
     }, [open]);
 
     useLiveRefresh(() => load(true), { enabled: open, interval: 5000 });
+
+    useEffect(() => {
+        if (!open) return;
+
+        const previousBodyOverflow = document.body.style.overflow;
+        const previousHtmlOverflow = document.documentElement.style.overflow;
+
+        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousBodyOverflow;
+            document.documentElement.style.overflow = previousHtmlOverflow;
+        };
+    }, [open]);
 
     const respond = async (notificationId: string, action: "accept" | "decline") => {
         try {
@@ -150,9 +166,28 @@ export default function NotificationsModal({
         )
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+    const clearAllNotifications = async () => {
+        const allNotificationIds = Array.from(
+            new Set(
+                displayItems.flatMap((item) =>
+                    item.groupedNotificationIds?.length ? item.groupedNotificationIds : [item.id],
+                ),
+            ),
+        );
+
+        if (!allNotificationIds.length) return;
+
+        try {
+            setClearingAll(true);
+            await dismissNotification(allNotificationIds);
+        } finally {
+            setClearingAll(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 dark:bg-black/70">
-            <div className="max-h-[80vh] w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100">
+            <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-neutral-900 dark:text-gray-100">
                 <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Notifications</h3>
                     <button className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-white/10" onClick={onClose} aria-label="Close">
@@ -161,14 +196,27 @@ export default function NotificationsModal({
                 </div>
 
                 <div className="mb-3 flex items-center justify-between">
-                    <button
-                        onClick={() => load()}
-                        className="rounded-full border bg-white px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-transparent dark:text-gray-100 dark:hover:bg-white/10"
-                        disabled={loading}
-                    >
-                        Refresh
-                    </button>
-                    {loading && <span className="text-xs text-gray-500 dark:text-gray-400">Loading…</span>}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => load()}
+                            className="rounded-full border bg-white px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-transparent dark:text-gray-100 dark:hover:bg-white/10"
+                            disabled={loading || clearingAll}
+                        >
+                            Refresh
+                        </button>
+                        <button
+                            onClick={() => void clearAllNotifications()}
+                            className="rounded-full border bg-white px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50 dark:border-white/20 dark:bg-transparent dark:text-gray-100 dark:hover:bg-white/10"
+                            disabled={loading || clearingAll || displayItems.length === 0}
+                        >
+                            {clearingAll ? "Clearing..." : "Clear all"}
+                        </button>
+                    </div>
+                    {(loading || clearingAll) && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {clearingAll ? "Clearing…" : "Loading…"}
+                        </span>
+                    )}
                 </div>
 
                 {error && <div className="mb-3 text-sm text-red-500">{error}</div>}
@@ -176,7 +224,7 @@ export default function NotificationsModal({
                 {displayItems.length === 0 ? (
                     <div className="text-sm text-gray-500 dark:text-gray-400">No notifications.</div>
                 ) : (
-                    <ul className="scrollbar-slim max-h-[62vh] divide-y overflow-y-auto pr-1 dark:divide-white/10">
+                    <ul className="scrollbar-slim min-h-0 flex-1 divide-y overflow-y-auto pr-1 dark:divide-white/10">
                         {displayItems.map((n) => {
                             const actorName = n.actor?.username || n.actor?.name || "User";
                             const disabled = actingId === n.id;

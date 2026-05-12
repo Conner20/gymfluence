@@ -4,16 +4,21 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
 
+import PostImageCarousel from "@/components/PostImageCarousel";
 import type { PostPollData } from "@/lib/postPoll";
 
 export default function PostPoll({
     postId,
     poll,
+    imageUrls = [],
+    imageAlt = "Poll image",
     isOwner = false,
     onPollChange,
 }: {
     postId: string;
     poll: PostPollData;
+    imageUrls?: string[];
+    imageAlt?: string;
     isOwner?: boolean;
     onPollChange?: (poll: PostPollData) => void;
 }) {
@@ -58,6 +63,15 @@ export default function PostPoll({
 
     return (
         <div className="mt-3">
+            {imageUrls.length > 0 && (
+                <div className="mb-3">
+                    <PostImageCarousel
+                        imageUrls={imageUrls}
+                        alt={imageAlt}
+                        imageClassName="h-full w-full object-contain"
+                    />
+                </div>
+            )}
             <div className="space-y-2.5">
                 {currentPoll.options.map((option) => (
                     <button

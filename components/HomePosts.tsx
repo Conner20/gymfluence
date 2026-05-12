@@ -628,6 +628,8 @@ export default function HomePosts({
                                 <PostPoll
                                     postId={post.id}
                                     poll={post.poll}
+                                    imageUrls={getPostImageUrls(post)}
+                                    imageAlt={post.title || "Poll image"}
                                     isOwner={post.author?.username === username}
                                     onPollChange={(poll) => updatePollForPost(post.id, poll)}
                                 />

@@ -464,6 +464,8 @@ export default function PostDetail({
                         <PostPoll
                             postId={post.id}
                             poll={post.poll}
+                            imageUrls={getPostImageUrls(post)}
+                            imageAlt={post.title || "Poll image"}
                             isOwner={post.author?.id === session?.user?.id}
                             onPollChange={(poll) => setPost((prev) => (prev ? { ...prev, poll } : prev))}
                         />

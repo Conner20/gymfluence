@@ -56,51 +56,47 @@ export async function POST(req: Request) {
                 files.push(legacyFile);
             }
 
-            if (type === "STANDARD" && files.length > MAX_POST_IMAGES) {
+            if (files.length > MAX_POST_IMAGES) {
                 return NextResponse.json(
                     { message: "You can upload up to 3 images per post." },
                     { status: 400 }
                 );
             }
 
-            if (type === "STANDARD") {
-                for (const file of files) {
-                    const maxBytes = 8 * 1024 * 1024; // 8MB
-                    if (file.size > maxBytes) {
-                        return NextResponse.json(
-                            { message: "Image too large (max 8MB)." },
-                            { status: 400 }
-                        );
-                    }
-                    const mime = file.type || "application/octet-stream";
-                    if (!mime.startsWith("image/")) {
-                        return NextResponse.json(
-                            { message: "Only image uploads are allowed." },
-                            { status: 400 }
-                        );
-                    }
+            for (const file of files) {
+                const maxBytes = 8 * 1024 * 1024; // 8MB
+                if (file.size > maxBytes) {
+                    return NextResponse.json(
+                        { message: "Image too large (max 8MB)." },
+                        { status: 400 }
+                    );
+                }
+                const mime = file.type || "application/octet-stream";
+                if (!mime.startsWith("image/")) {
+                    return NextResponse.json(
+                        { message: "Only image uploads are allowed." },
+                        { status: 400 }
+                    );
                 }
             }
 
-            if (type === "STANDARD") {
-                try {
-                    for (const file of files) {
-                        const uploaded = await storeImageFile(file, {
-                            folder: "posts",
-                            prefix: `post-${user.id}`,
-                        });
-                        imageUrls.push(uploaded.url);
-                    }
-                } catch (err: any) {
-                    const msg =
-                        typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
-                            ? err.message
-                            : "Failed to upload image";
-                    return NextResponse.json(
-                        { message: msg },
-                        { status: 503 }
-                    );
+            try {
+                for (const file of files) {
+                    const uploaded = await storeImageFile(file, {
+                        folder: "posts",
+                        prefix: `post-${user.id}`,
+                    });
+                    imageUrls.push(uploaded.url);
                 }
+            } catch (err: any) {
+                const msg =
+                    typeof err?.message === "string" && err.message.includes("Local uploads are not supported")
+                        ? err.message
+                        : "Failed to upload image";
+                return NextResponse.json(
+                    { message: msg },
+                    { status: 503 }
+                );
             }
         } else {
             const body = await req.json();
@@ -111,13 +107,10 @@ export async function POST(req: Request) {
             pollOptions = Array.isArray(body.pollOptions)
                 ? body.pollOptions.map((value: unknown) => String(value).trim()).filter(Boolean).slice(0, 5)
                 : [];
-            imageUrls =
-                type === "STANDARD"
-                    ? Array.isArray(body.imageUrls)
-                        ? body.imageUrls.map(String).filter(Boolean).slice(0, MAX_POST_IMAGES)
-                        : body.imageUrl
-                            ? [String(body.imageUrl)]
-                            : []
+            imageUrls = Array.isArray(body.imageUrls)
+                ? body.imageUrls.map(String).filter(Boolean).slice(0, MAX_POST_IMAGES)
+                : body.imageUrl
+                    ? [String(body.imageUrl)]
                     : [];
         }
 
