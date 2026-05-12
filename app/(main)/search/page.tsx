@@ -325,8 +325,22 @@ export default function SearchPage() {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     className="flex-1 outline-none text-sm bg-transparent dark:text-white"
-                    placeholder="Search by name or @username…"
+                    placeholder="Search by name, @username, or gym"
                 />
+                <button
+                    type="button"
+                    onClick={() => setQ('')}
+                    aria-label="Clear search"
+                    tabIndex={q ? 0 : -1}
+                    className={clsx(
+                        "shrink-0 rounded-full p-1 text-gray-500 transition dark:text-gray-400",
+                        q
+                            ? "hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+                            : "pointer-events-none opacity-0"
+                    )}
+                >
+                    <X size={16} />
+                </button>
             </div>
             <div className={clsx('grid gap-1.5', role === 'TRAINER' ? 'grid-cols-5' : role === 'TRAINEE' ? 'grid-cols-3' : 'grid-cols-4')}>
                 {role === 'GYM' ? (
@@ -992,8 +1006,22 @@ export default function SearchPage() {
                                 value={q}
                                 onChange={(e) => setQ(e.target.value)}
                                 className="flex-1 outline-none text-sm bg-transparent dark:text-white"
-                                placeholder="Search by name or @username…"
+                                placeholder="Search by name, @username, or gym"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setQ('')}
+                                aria-label="Clear search"
+                                tabIndex={q ? 0 : -1}
+                                className={clsx(
+                                    "shrink-0 rounded-full p-1 text-gray-500 transition dark:text-gray-400",
+                                    q
+                                        ? "hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+                                        : "pointer-events-none opacity-0"
+                                )}
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
 
                         <div className="ml-auto flex items-center gap-3">

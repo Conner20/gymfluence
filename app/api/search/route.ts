@@ -146,6 +146,9 @@ export async function GET(req: Request) {
             OR: [
                 { username: { contains: q, mode: "insensitive" } },
                 { name: { contains: q, mode: "insensitive" } },
+                { traineeProfile: { gymName: { contains: q, mode: "insensitive" } } },
+                { trainerProfile: { gymName: { contains: q, mode: "insensitive" } } },
+                { gymProfile: { name: { contains: q, mode: "insensitive" } } },
             ],
         });
     }
