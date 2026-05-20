@@ -38,7 +38,7 @@ export async function POST(
         // Only remove the like for the current user
         await db.like.delete({ where: { id: existing.id } });
         const likeCount = await db.like.count({ where: { postId } });
-        revalidateTag("posts");
+        revalidateTag("posts", "max");
         return NextResponse.json({ liked: false, likeCount });
     } else {
         await db.like.create({
@@ -48,7 +48,7 @@ export async function POST(
             },
         });
         const likeCount = await db.like.count({ where: { postId } });
-        revalidateTag("posts");
+        revalidateTag("posts", "max");
         return NextResponse.json({ liked: true, likeCount });
     }
 }
