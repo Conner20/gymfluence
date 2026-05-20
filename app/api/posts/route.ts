@@ -192,7 +192,7 @@ export async function POST(req: Request) {
             content,
         });
 
-        revalidateTag("posts", "max");
+        revalidateTag("posts");
 
         return NextResponse.json(
             { post: newPost, message: "Post created!" },
@@ -485,7 +485,7 @@ export async function DELETE(req: Request) {
         await deleteStoredFile(url);
     }
 
-    revalidateTag("posts", "max");
+    revalidateTag("posts");
 
     return NextResponse.json({ message: "Post deleted." }, { status: 200 });
 }

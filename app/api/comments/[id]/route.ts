@@ -58,7 +58,7 @@ export async function PATCH(
         },
     });
 
-    revalidateTag("posts", "max");
+    revalidateTag("posts");
     return NextResponse.json({ comment: updated }, { status: 200 });
 }
 
@@ -111,7 +111,7 @@ export async function DELETE(
     const commentCount = comment.postId
         ? await db.comment.count({ where: { postId: comment.postId } })
         : undefined;
-    revalidateTag("posts", "max");
+    revalidateTag("posts");
 
     return NextResponse.json(
         { message: "Comment deleted.", commentCount },

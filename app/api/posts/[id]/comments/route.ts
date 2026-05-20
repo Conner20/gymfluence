@@ -68,7 +68,7 @@ export async function POST(
     });
 
     const commentCount = await db.comment.count({ where: { postId } });
-    revalidateTag("posts", "max");
+    revalidateTag("posts");
 
     return NextResponse.json({ comment, commentCount }, { status: 201 });
 }
@@ -119,7 +119,7 @@ export async function DELETE(
     // Assuming cascading is handled in DB for replies; otherwise you'd delete children here too
     await db.comment.delete({ where: { id: commentId } });
     const commentCount = await db.comment.count({ where: { postId } });
-    revalidateTag("posts", "max");
+    revalidateTag("posts");
 
     return NextResponse.json({ message: "Comment deleted", commentCount }, { status: 200 });
 }

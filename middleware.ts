@@ -18,10 +18,9 @@ const PUBLIC_PATHS = [
 const startsWithAny = (pathname: string, prefixes: string[]) =>
     prefixes.some((prefix) => pathname.startsWith(prefix));
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
     const { pathname } = req.nextUrl;
 
-    // Always allow Next.js internals, static assets, and APIs
     if (
         pathname.startsWith("/_next") ||
         pathname.startsWith("/api") ||
