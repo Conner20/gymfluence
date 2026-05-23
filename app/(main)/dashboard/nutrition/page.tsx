@@ -24,6 +24,7 @@ import {
     type BodyweightDTO,
     type CustomFoodDTO,
 } from '@/components/nutritionActions';
+import { useCurrentUserRole } from '@/app/hooks/useCurrentUserRole';
 
 /** ---------- shared helpers ---------- */
 function fmtDate(d: Date) {
@@ -793,6 +794,24 @@ function NutritionContent() {
 }
 
 export default function Nutrition() {
+    const router = useRouter();
+    const { role, loading: roleLoading } = useCurrentUserRole();
+
+    useEffect(() => {
+        if (roleLoading) return;
+        if (role === 'GYM') {
+            router.replace('/home');
+        }
+    }, [role, roleLoading, router]);
+
+    if (roleLoading || role === 'GYM') {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-black dark:bg-neutral-950 dark:text-white">
+                <span className="h-12 w-12 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80" />
+            </div>
+        );
+    }
+
     return (
         <Suspense
             fallback={

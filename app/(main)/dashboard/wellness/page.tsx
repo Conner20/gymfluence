@@ -18,6 +18,7 @@ import {
     type SleepDTO,
     type WaterDTO,
 } from '@/components/wellnessActions';
+import { useCurrentUserRole } from '@/app/hooks/useCurrentUserRole';
 
 /* utils */
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -1569,6 +1570,24 @@ function ResponsiveHeatmap({
 
 /* ------------------------------- Export ------------------------------- */
 function WellnessPage() {
+    const router = useRouter();
+    const { role, loading: roleLoading } = useCurrentUserRole();
+
+    useEffect(() => {
+        if (roleLoading) return;
+        if (role === 'GYM') {
+            router.replace('/home');
+        }
+    }, [role, roleLoading, router]);
+
+    if (roleLoading || role === 'GYM') {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-black dark:bg-neutral-950 dark:text-white">
+                <span className="h-12 w-12 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80" />
+            </div>
+        );
+    }
+
     return (
         <Suspense
             fallback={

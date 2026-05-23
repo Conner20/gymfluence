@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import CreatePost from "./CreatePost";
+import { useCurrentUserRole } from "@/app/hooks/useCurrentUserRole";
 
 const navItems = [
     {
@@ -98,10 +99,13 @@ type NavbarProps = {
 export default function Sidebar({ mobileOpen = true }: NavbarProps) {
     const pathname = usePathname();
     const [showModal, setShowModal] = useState(false);
+    const { role, loading: roleLoading } = useCurrentUserRole();
 
     const navContent = useMemo(
         () =>
-            navItems.map((item, idx) => {
+            navItems
+            .filter((item) => !(item.href === "/dashboard" && (roleLoading || role === "GYM")))
+            .map((item, idx) => {
                 const isActive = pathname === item.href;
                 if (item.type === "modal") {
                     return (
@@ -131,7 +135,7 @@ export default function Sidebar({ mobileOpen = true }: NavbarProps) {
                     </Link>
                 );
             }),
-        [pathname]
+        [pathname, role, roleLoading]
     );
 
     return (
@@ -151,7 +155,9 @@ export default function Sidebar({ mobileOpen = true }: NavbarProps) {
                     className="flex items-center justify-around pt-2 pb-4"
                     style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
                 >
-                    {navItems.map((item, idx) => {
+                    {navItems
+                    .filter((item) => !(item.href === "/dashboard" && (roleLoading || role === "GYM")))
+                    .map((item, idx) => {
                         const isActive = pathname === item.href;
                         if (item.type === "modal") {
                             return (

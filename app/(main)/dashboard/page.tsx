@@ -24,6 +24,7 @@ import {
 } from '@/components/workoutActions';
 import { DEFAULT_CARDIO_ACTIVITIES } from '@/lib/workoutDefaults';
 import { HEATMAP_COLORS_DARK, HEATMAP_COLORS_LIGHT } from '@/lib/heatmapColors';
+import { useCurrentUserRole } from '@/app/hooks/useCurrentUserRole';
 
 type RangeKey = '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type WeightUnit = 'lbs' | 'kg';
@@ -1462,6 +1463,24 @@ function DashboardContent() {
 }
 
 export default function Dashboard() {
+    const router = useRouter();
+    const { role, loading: roleLoading } = useCurrentUserRole();
+
+    useEffect(() => {
+        if (roleLoading) return;
+        if (role === 'GYM') {
+            router.replace('/home');
+        }
+    }, [role, roleLoading, router]);
+
+    if (roleLoading || role === 'GYM') {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-gray-50 text-black dark:bg-neutral-950 dark:text-white">
+                <span className="h-12 w-12 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80" />
+            </div>
+        );
+    }
+
     return (
         <Suspense
             fallback={
