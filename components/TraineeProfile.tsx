@@ -19,6 +19,8 @@ import {
     Trash2,
     MapPin,
     Search,
+    Share,
+    SquarePlus,
 } from "lucide-react";
 import { useFollow } from "@/app/hooks/useFollow";
 import FollowListModal from "@/components/FollowListModal";
@@ -73,10 +75,12 @@ export function TraineeProfile({
     user,
     posts,
     totalPostCount = 0,
+    isMobilePrompt = false,
 }: {
     user: any;
     posts?: BasicPost[];
     totalPostCount?: number;
+    isMobilePrompt?: boolean;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -685,11 +689,12 @@ export function TraineeProfile({
                         )}
 
                         {viewMode === "grid" ? (
-                            <MediaGrid posts={gridPosts} onOpen={(id) => setFocusPostId(id)} />
+                            <MediaGrid posts={gridPosts} onOpen={(id) => setFocusPostId(id)} isOwnProfile={isOwnProfile} isMobilePrompt={isMobilePrompt} />
                         ) : (
                             <ScrollFeed
                                 posts={fullPosts ?? []}
                                 canDelete={isOwnProfile}
+                                isMobilePrompt={isMobilePrompt}
                                 onEdit={(post) => setEditingPost(post)}
                                 onDelete={handleDeletePost}
                                 onPollChange={handlePollChange}
@@ -812,7 +817,49 @@ function ProfileStat({ label, value }: { label: string; value: React.ReactNode }
     );
 }
 
-function MediaGrid({ posts, onOpen }: { posts: BasicPost[]; onOpen: (id: string) => void }) {
+function EmptyPostsHint({ isMobilePrompt }: { isMobilePrompt: boolean }) {
+    return (
+        <div className="flex min-h-[18rem] items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 px-6 py-12 text-center text-zinc-400 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-500">
+            <div className="max-w-sm space-y-3">
+                <h3 className="text-base font-medium text-zinc-500 dark:text-gray-400">Save Fitting In for next time</h3>
+                {isMobilePrompt ? (
+                    <div className="space-y-2 text-sm">
+                        <p>Add Fitting In to your home screen</p>
+                        <div className="space-y-1">
+                            <p className="flex items-center justify-center gap-1">
+                                <span>1. Tap the share button</span>
+                                <Share className="h-4 w-4" />
+                            </p>
+                            <p className="flex items-center justify-center gap-1">
+                                <span>2. Choose <strong>Add to Home Screen</strong></span>
+                                <SquarePlus className="h-4 w-4" />
+                            </p>
+                            <p>3. Select <strong>Add</strong></p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-2 text-sm">
+                        <p>Bookmark it so it&apos;s always ready when you are</p>
+                        <div className="space-y-1">
+                            <p>Mac: <strong>⌘ Cmd + D</strong></p>
+                            <p>Windows: <strong>Ctrl + D</strong></p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function MediaGrid({ posts, onOpen, isOwnProfile, isMobilePrompt }: { posts: BasicPost[]; onOpen: (id: string) => void; isOwnProfile: boolean; isMobilePrompt: boolean }) {
+    if (!posts || posts.length === 0) {
+        return isOwnProfile ? (
+            <EmptyPostsHint isMobilePrompt={isMobilePrompt} />
+        ) : (
+            <div className="text-gray-400 text-center py-12 dark:text-gray-500">No posts yet.</div>
+        );
+    }
+
     return (
         <div className="grid grid-cols-3 gap-3">
             {posts.map((post) => (
@@ -846,6 +893,7 @@ function ScrollFeed({
     onOpen,
     onLike,
     canDelete,
+    isMobilePrompt,
     onEdit,
     onDelete,
     onPollChange,
@@ -854,6 +902,7 @@ function ScrollFeed({
     onOpen: (id: string) => void;
     onLike: (id: string) => void | Promise<void>;
     canDelete: boolean;
+    isMobilePrompt: boolean;
     onEdit: (post: FullPost) => void;
     onDelete: (id: string) => void | Promise<void>;
     onPollChange: (postId: string, poll: PostPollData) => void;
@@ -883,7 +932,11 @@ function ScrollFeed({
     };
 
     if (!posts || posts.length === 0) {
-        return <div className="text-gray-400 text-center py-12 dark:text-gray-500">No posts yet.</div>;
+        return canDelete ? (
+            <EmptyPostsHint isMobilePrompt={isMobilePrompt} />
+        ) : (
+            <div className="text-gray-400 text-center py-12 dark:text-gray-500">No posts yet.</div>
+        );
     }
 
     return (

@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -19,6 +19,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 function VerifyEmailContent() {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams?.get("token");
     const [status, setStatus] = useState<"idle" | "verifying" | "success" | "error">(
@@ -45,7 +46,7 @@ function VerifyEmailContent() {
                             ? data.callbackUrl
                             : "/user-onboarding";
                     setCallbackUrl(dest);
-                    setStatus("success");
+                    router.replace(dest);
                 }
             } catch {
                 if (mounted) {
@@ -58,7 +59,7 @@ function VerifyEmailContent() {
         return () => {
             mounted = false;
         };
-    }, [token]);
+    }, [router, token]);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),

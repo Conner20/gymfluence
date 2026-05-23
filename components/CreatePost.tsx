@@ -295,7 +295,7 @@ export default function CreatePost({
                 : [];
 
             const imageUrls = uploadedFiles
-                .map((file) => file.serverData?.url || file.ufsUrl || file.url)
+                .map((file) => file.serverData?.url || file.ufsUrl)
                 .filter(Boolean);
 
             const res = await fetch("/api/posts", {

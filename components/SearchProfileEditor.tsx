@@ -23,7 +23,6 @@ export default function SearchProfileEditor({
     const [goals, setGoals] = useState<string[]>([]);
     const [services, setServices] = useState<string[]>([]);
     const [hourlyRate, setHourlyRate] = useState<string>("");
-    const [gymFee, setGymFee] = useState<string>("");
     const [amenitiesText, setAmenitiesText] = useState<string>(""); // NEW: free-form amenities
 
     // gallery
@@ -78,7 +77,6 @@ export default function SearchProfileEditor({
                         prof.hourlyRate == null ? "" : String(prof.hourlyRate)
                     );
                 } else if (prof.role === "GYM") {
-                    setGymFee(prof.gymFee == null ? "" : String(prof.gymFee));
                     setAmenitiesText(prof.amenitiesText ?? ""); // NEW
                 }
 
@@ -124,7 +122,6 @@ export default function SearchProfileEditor({
                     payload.hourlyRate = hourlyRate === "" ? null : Number(hourlyRate);
                 }
                 if (role === "GYM") {
-                    payload.gymFee = gymFee === "" ? null : Number(gymFee);
                     payload.amenitiesText = amenitiesText; // NEW
                 }
 
@@ -144,7 +141,7 @@ export default function SearchProfileEditor({
                 }
             }
         },
-        [about, role, goals, services, hourlyRate, gymFee, amenitiesText],
+        [about, role, goals, services, hourlyRate, amenitiesText],
     );
 
     const onUpload = async (files: File[]) => {
@@ -281,19 +278,6 @@ export default function SearchProfileEditor({
 
                     {role === "GYM" && (
                         <>
-                            <div className="mb-6 max-w-xs">
-                                <label className="block text-sm font-medium mb-1">Monthly fee ($/mo)</label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    step="1"
-                                    className="w-full border rounded-md px-3 py-2 text-sm"
-                                    placeholder="e.g., 30"
-                                    value={gymFee}
-                                    onChange={(e) => setGymFee(e.target.value)}
-                                />
-                            </div>
-
                             <div className="mb-6">
                                 <label className="block text-sm font-medium mb-1">Amenities (description)</label>
                                 <textarea

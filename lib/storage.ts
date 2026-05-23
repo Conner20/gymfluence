@@ -69,14 +69,17 @@ export async function storeImageFile(
             contentDisposition: "inline",
         });
         const result = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+        const uploadedData = result?.data;
+        const uploadedUrl = uploadedData?.ufsUrl;
+        const uploadedKey = uploadedData?.key;
 
-        if (!result || result.error || !result.data) {
+        if (!result || result.error || !uploadedUrl || !uploadedKey) {
             throw new Error(result?.error?.message || "Upload failed");
         }
 
         return {
-            url: result.data.ufsUrl || result.data.url,
-            storageKey: result.data.key,
+            url: uploadedUrl,
+            storageKey: uploadedKey,
             provider: "uploadthing",
         };
     }

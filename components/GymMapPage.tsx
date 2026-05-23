@@ -466,13 +466,17 @@ export function GymDiscoveryPanel({
                 const googleApi = await loadGoogleMaps(resolvedApiKey);
                 if (cancelled || !mapRef.current) return;
 
+                const gymsToDisplayOnMap = selectedGym
+                    ? [selectedGym]
+                    : gymsByDistance.map(({ gym }) => gym);
+
                 const center = selectedGym
                     ? { lat: selectedGym.gymProfile.lat, lng: selectedGym.gymProfile.lng }
-                    : { lat: gymsByDistance[0]!.gym.gymProfile.lat, lng: gymsByDistance[0]!.gym.gymProfile.lng };
+                    : { lat: gymsToDisplayOnMap[0]!.gymProfile.lat, lng: gymsToDisplayOnMap[0]!.gymProfile.lng };
 
                 const map = new googleApi.maps.Map(mapRef.current, {
                     center,
-                    zoom: gymsByDistance.length === 1 ? 13 : 10,
+                    zoom: gymsToDisplayOnMap.length === 1 ? 13 : 10,
                     mapTypeControl: false,
                     streetViewControl: false,
                     fullscreenControl: false,
@@ -485,7 +489,7 @@ export function GymDiscoveryPanel({
 
                 const bounds = new googleApi.maps.LatLngBounds();
 
-                markersRef.current = gymsByDistance.map(({ gym }) => {
+                markersRef.current = gymsToDisplayOnMap.map((gym) => {
                     const position = { lat: gym.gymProfile.lat, lng: gym.gymProfile.lng };
                     const marker = new googleApi.maps.Marker({
                         position,
@@ -521,7 +525,7 @@ export function GymDiscoveryPanel({
                     });
                 }
 
-                if (gymsByDistance.length > 1 || userLocation) {
+                if (gymsToDisplayOnMap.length > 1 || userLocation) {
                     map.fitBounds(bounds, 80);
                 }
 

@@ -9,6 +9,9 @@ import SearchProfileEditor from "@/components/SearchProfileEditor";
 import { useRouter } from "next/navigation";
 import { PasswordInput } from "@/components/ui/password-input";
 import { ChevronDown } from "lucide-react";
+import { genUploader } from "uploadthing/client";
+
+import type { UploadRouter } from "@/app/api/uploadthing/core";
 
 type LocationSuggestion = {
     id: string;
@@ -26,11 +29,47 @@ type GymSuggestion = {
     address?: string | null;
 };
 
+type AddressSuggestion = {
+    id: string;
+    label: string;
+};
+
 type TrainerSuggestion = {
     id: string;
     username: string | null;
     name: string | null;
 };
+
+const { uploadFiles } = genUploader<UploadRouter>();
+
+function formatPhoneNumber(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+
+    if (digits.length === 0) return "";
+    if (digits.length < 4) return `(${digits}`;
+    if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function formatCurrencyInput(value: string) {
+    const normalized = value.replace(/[^0-9.]/g, "");
+    const [whole = "", ...decimalParts] = normalized.split(".");
+    const decimal = decimalParts.join("").slice(0, 2);
+
+    if (normalized.startsWith(".")) {
+        return decimal ? `0.${decimal}` : "0.";
+    }
+
+    if (decimalParts.length === 0) {
+        return whole;
+    }
+
+    return `${whole}.${decimal}`;
+}
+
+function formatCurrencyValue(value: number) {
+    return value.toFixed(2);
+}
 
 export default function SettingsPage() {
     const { data: session } = useSession();
@@ -45,6 +84,10 @@ export default function SettingsPage() {
     const [showWebsiteButton, setShowWebsiteButton] = useState(false);
     const [website, setWebsite] = useState("");
     const [hiringTrainers, setHiringTrainers] = useState(false);
+    const [gymProfileName, setGymProfileName] = useState("");
+    const [gymProfileAddress, setGymProfileAddress] = useState("");
+    const [gymProfilePhone, setGymProfilePhone] = useState("");
+    const [gymProfileFee, setGymProfileFee] = useState("");
     const [traineeTrainerStatus, setTraineeTrainerStatus] = useState<"" | "LOOKING" | "TRAINING_WITH">("");
     const [traineeGymStatus, setTraineeGymStatus] = useState<"" | "LOOKING" | "MEMBER">("");
     const [trainerGymStatus, setTrainerGymStatus] = useState<"" | "LOOKING" | "TRAINER">("");
@@ -144,6 +187,14 @@ export default function SettingsPage() {
                 setShowWebsiteButton(Boolean(me.showWebsiteButton));
                 setWebsite(me.website || "");
                 setHiringTrainers(Boolean(me.hiringTrainers));
+                setGymProfileName(me.gymProfileName || "");
+                setGymProfileAddress(me.gymProfileAddress || "");
+                setGymProfilePhone(me.gymProfilePhone || "");
+                setGymProfileFee(
+                    typeof me.gymProfileFee === "number" && !Number.isNaN(me.gymProfileFee)
+                        ? formatCurrencyValue(me.gymProfileFee)
+                        : ""
+                );
                 setTraineeTrainerStatus(me.traineeTrainerStatus || "");
                 setTraineeGymStatus(me.traineeGymStatus || "");
                 setTrainerGymStatus(me.trainerGymStatus || "");
@@ -217,22 +268,27 @@ export default function SettingsPage() {
     const saveProfile = async () => {
         try {
             const form = new FormData();
-            form.append("name", name);
-            form.append("location", location);
             form.append("bio", bio);
 
-            // NEW: include structured fields for geocoding
-            form.append("city", city);
-            form.append("state", stateRegion);
-            form.append("country", country);
-            if (lat != null) form.append("lat", String(lat));
-            if (lng != null) form.append("lng", String(lng));
+            if (role !== "GYM") {
+                form.append("name", name);
+                form.append("location", location);
+                form.append("city", city);
+                form.append("state", stateRegion);
+                form.append("country", country);
+                if (lat != null) form.append("lat", String(lat));
+                if (lng != null) form.append("lng", String(lng));
+            }
             if (role === "GYM" || role === "TRAINER") {
                 form.append("website", website);
                 form.append("showWebsiteButton", String(showWebsiteButton));
             }
             if (role === "GYM") {
                 form.append("hiringTrainers", String(hiringTrainers));
+                form.append("gymProfileName", gymProfileName);
+                form.append("gymProfileAddress", gymProfileAddress);
+                form.append("gymProfilePhone", gymProfilePhone);
+                form.append("gymProfileFee", gymProfileFee);
             }
             if (role === "TRAINEE") {
                 form.append("traineeTrainerStatus", traineeTrainerStatus);
@@ -247,7 +303,20 @@ export default function SettingsPage() {
                 form.append("associatedGymPlaceId", trainerGymStatus === "TRAINER" ? associatedGym?.id ?? "" : "");
             }
 
-            if (file) form.append("image", file);
+            if (file) {
+                const uploadedFiles = await uploadFiles("postMedia", {
+                    files: [file],
+                });
+                const imageUrl = uploadedFiles
+                    .map((uploadedFile) => uploadedFile.serverData?.url || uploadedFile.ufsUrl)
+                    .find(Boolean);
+
+                if (!imageUrl) {
+                    throw new Error("Image upload failed");
+                }
+
+                form.append("imageUrl", imageUrl);
+            }
 
             const res = await fetch("/api/user/profile", { method: "PATCH", body: form });
             if (!res.ok) throw new Error();
@@ -280,6 +349,14 @@ export default function SettingsPage() {
             );
             setWebsite(me.website || "");
             setHiringTrainers(Boolean(me.hiringTrainers));
+            setGymProfileName(me.gymProfileName || "");
+            setGymProfileAddress(me.gymProfileAddress || "");
+            setGymProfilePhone(me.gymProfilePhone || "");
+            setGymProfileFee(
+                typeof me.gymProfileFee === "number" && !Number.isNaN(me.gymProfileFee)
+                    ? formatCurrencyValue(me.gymProfileFee)
+                    : ""
+            );
             if (previousPreviewRef.current) {
                 URL.revokeObjectURL(previousPreviewRef.current);
                 previousPreviewRef.current = null;
@@ -495,33 +572,97 @@ export default function SettingsPage() {
 
                             {/* Fields */}
                             <div className="w-full space-y-4">
-                                <div>
-                                    <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Name</label>
-                                    <input
-                                        className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                    />
-                                </div>
+                                {role !== "GYM" ? (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Name</label>
+                                            <input
+                                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                            />
+                                        </div>
 
-                                <div>
-                                    <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Location</label>
-                                    <LocationAutocomplete
-                                        label={location}
-                                        onChangeLabel={setLocation}
-                                        onChangeStructured={(loc) => {
-                                            setLocation(loc.label);
-                                            setCity(loc.city || "");
-                                            setStateRegion(loc.state || "");
-                                            setCountry(loc.country || "");
-                                            setLat(loc.lat);
-                                            setLng(loc.lng);
-                                        }}
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Start typing a city (e.g. “Cincinnati, OH”) and choose a suggestion.
-                                    </p>
-                                </div>
+                                        <div>
+                                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Location</label>
+                                            <LocationAutocomplete
+                                                label={location}
+                                                onChangeLabel={setLocation}
+                                                onChangeStructured={(loc) => {
+                                                    setLocation(loc.label);
+                                                    setCity(loc.city || "");
+                                                    setStateRegion(loc.state || "");
+                                                    setCountry(loc.country || "");
+                                                    setLat(loc.lat);
+                                                    setLng(loc.lng);
+                                                }}
+                                            />
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Start typing a city (e.g. “Cincinnati, OH”) and choose a suggestion.
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Name</label>
+                                            <input
+                                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                value={gymProfileName}
+                                                onChange={(e) => setGymProfileName(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Address</label>
+                                            <AddressAutocomplete
+                                                label={gymProfileAddress}
+                                                onChangeLabel={setGymProfileAddress}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Phone number</label>
+                                            <input
+                                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                value={gymProfilePhone}
+                                                onChange={(e) => setGymProfilePhone(formatPhoneNumber(e.target.value))}
+                                                placeholder="(123) 456-7890"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Monthly membership fee</label>
+                                            <div className="relative">
+                                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                                                    $
+                                                </span>
+                                                <input
+                                                    inputMode="decimal"
+                                                    className="w-full border rounded py-2 pl-8 pr-3 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                    value={gymProfileFee}
+                                                    onChange={(e) => setGymProfileFee(formatCurrencyInput(e.target.value))}
+                                                    onFocus={() => {
+                                                        if (gymProfileFee === "0.00") {
+                                                            setGymProfileFee("");
+                                                        }
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (!gymProfileFee) {
+                                                            setGymProfileFee("0.00");
+                                                            return;
+                                                        }
+                                                        const parsed = Number(gymProfileFee);
+                                                        if (Number.isFinite(parsed)) {
+                                                            setGymProfileFee(parsed.toFixed(2));
+                                                        }
+                                                    }}
+                                                    placeholder="99.99"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Bio</label>
@@ -986,6 +1127,111 @@ function LocationAutocomplete({
                             <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {[s.city, s.state, s.country].filter(Boolean).join(", ")}
                             </div>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function AddressAutocomplete({
+    label,
+    onChangeLabel,
+}: {
+    label: string;
+    onChangeLabel: (value: string) => void;
+}) {
+    const [input, setInput] = useState(label || "");
+    const [open, setOpen] = useState(false);
+    const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [selectedLabel, setSelectedLabel] = useState(label || "");
+
+    useEffect(() => {
+        setInput(label || "");
+        setSelectedLabel(label || "");
+    }, [label]);
+
+    useEffect(() => {
+        if (selectedLabel && input === selectedLabel) {
+            setSuggestions([]);
+            setOpen(false);
+            setLoading(false);
+            return;
+        }
+
+        if (!input || input.length < 3) {
+            setSuggestions([]);
+            setOpen(false);
+            return;
+        }
+
+        const handle = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/address-search?q=${encodeURIComponent(input)}`);
+                if (!res.ok) throw new Error();
+                const json = await res.json();
+                const results = json.results || [];
+                setSuggestions(results);
+                setOpen(results.length > 0);
+            } catch {
+                setSuggestions([]);
+                setOpen(false);
+            } finally {
+                setLoading(false);
+            }
+        }, 250);
+
+        return () => clearTimeout(handle);
+    }, [input]);
+
+    const handleSelect = (suggestion: AddressSuggestion) => {
+        setInput(suggestion.label);
+        setSelectedLabel(suggestion.label);
+        onChangeLabel(suggestion.label);
+        setSuggestions([]);
+        setOpen(false);
+    };
+
+    return (
+        <div className="relative">
+            <input
+                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                value={input}
+                onChange={(e) => {
+                    const next = e.target.value;
+                    setInput(next);
+                    if (selectedLabel && next !== selectedLabel) {
+                        setSelectedLabel("");
+                    }
+                    onChangeLabel(next);
+                }}
+                onFocus={() => {
+                    if (suggestions.length) setOpen(true);
+                }}
+                onBlur={() => {
+                    window.setTimeout(() => setOpen(false), 150);
+                }}
+                placeholder="Start typing an address…"
+            />
+            {loading && (
+                <div className="absolute right-3 top-2.5 text-xs text-gray-400 dark:text-gray-500">
+                    …
+                </div>
+            )}
+
+            {open && suggestions.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border bg-white shadow max-h-60 overflow-y-auto dark:bg-neutral-900 dark:border-white/10 dark:text-gray-100">
+                    {suggestions.map((suggestion) => (
+                        <button
+                            key={suggestion.id}
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/10"
+                            onClick={() => handleSelect(suggestion)}
+                        >
+                            {suggestion.label}
                         </button>
                     ))}
                 </div>

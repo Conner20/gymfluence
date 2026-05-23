@@ -1,14 +1,27 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 
 type Role = 'TRAINEE' | 'TRAINER' | 'GYM' | null;
 
 export function useCurrentUserRole() {
+    const { data: session, status } = useSession();
     const [role, setRole] = useState<Role>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const sessionRole = (session?.user as { role?: Role } | undefined)?.role ?? null;
+        if (sessionRole) {
+            setRole(sessionRole);
+            setLoading(false);
+            return;
+        }
+
+        if (status === 'loading') {
+            return;
+        }
+
         let cancelled = false;
 
         (async () => {
@@ -37,7 +50,7 @@ export function useCurrentUserRole() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [session, status]);
 
     return { role, loading };
 }

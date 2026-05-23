@@ -53,7 +53,7 @@ export async function POST(req: Request) {
         // find current user (by email from session)
         const current = await db.user.findFirst({
             where: { email: { equals: identifier, mode: "insensitive" } },
-            select: { id: true, location: true },
+            select: { id: true, location: true, name: true, username: true },
         });
         if (!current) {
             return NextResponse.json({ message: "User not found" }, { status: 404 });
@@ -136,61 +136,71 @@ export async function POST(req: Request) {
         }
 
         if (role === "GYM") {
-            if (!gymForm) {
-                return NextResponse.json({ message: "Missing gym form" }, { status: 400 });
-            }
+            if (gymForm) {
+                const feeNum = Number(gymForm.fee);
+                if (Number.isNaN(feeNum)) {
+                    return NextResponse.json({ message: "Fee must be a number" }, { status: 400 });
+                }
 
-            // Ensure fee is a number (schema uses Float)
-            const feeNum = Number(gymForm.fee);
-            if (Number.isNaN(feeNum)) {
-                return NextResponse.json({ message: "Fee must be a number" }, { status: 400 });
-            }
+                let geocoded = null;
+                try {
+                    geocoded = await geocodeAddress(gymForm.address);
+                } catch (error) {
+                    console.error("gym onboarding geocode failed:", error);
+                }
 
-            let geocoded = null;
-            try {
-                geocoded = await geocodeAddress(gymForm.address);
-            } catch (error) {
-                console.error("gym onboarding geocode failed:", error);
-            }
+                data.name = gymForm.name;
 
-            data.name = gymForm.name;
-
-            data.gymProfile = {
-                upsert: {
-                    update: {
-                        name: gymForm.name,
-                        address: gymForm.address,
-                        phone: gymForm.phone,
-                        website: gymForm.website,
-                        fee: feeNum,
-                        ...(geocoded
-                            ? {
-                                  city: geocoded.city,
-                                  state: geocoded.state,
-                                  country: geocoded.country,
-                                  lat: geocoded.lat,
-                                  lng: geocoded.lng,
-                              }
-                            : {}),
+                data.gymProfile = {
+                    upsert: {
+                        update: {
+                            name: gymForm.name,
+                            address: gymForm.address,
+                            phone: gymForm.phone,
+                            website: gymForm.website,
+                            fee: feeNum,
+                            ...(geocoded
+                                ? {
+                                      city: geocoded.city,
+                                      state: geocoded.state,
+                                      country: geocoded.country,
+                                      lat: geocoded.lat,
+                                      lng: geocoded.lng,
+                                  }
+                                : {}),
+                        },
+                        create: {
+                            name: gymForm.name,
+                            address: gymForm.address,
+                            phone: gymForm.phone,
+                            website: gymForm.website,
+                            fee: feeNum,
+                            ...(geocoded
+                                ? {
+                                      city: geocoded.city,
+                                      state: geocoded.state,
+                                      country: geocoded.country,
+                                      lat: geocoded.lat,
+                                      lng: geocoded.lng,
+                                  }
+                                : {}),
+                        },
                     },
-                    create: {
-                        name: gymForm.name,
-                        address: gymForm.address,
-                        phone: gymForm.phone,
-                        website: gymForm.website,
-                        fee: feeNum,
-                        ...(geocoded
-                            ? {
-                                  city: geocoded.city,
-                                  state: geocoded.state,
-                                  country: geocoded.country,
-                                  lat: geocoded.lat,
-                                  lng: geocoded.lng,
-                              }
-                            : {}),
+                };
+            } else {
+                data.gymProfile = {
+                    upsert: {
+                        update: {},
+                        create: {
+                            name: "",
+                            address: "",
+                            phone: "",
+                            website: "",
+                            fee: 0,
+                        },
                     },
-                },
-            };
+                };
+            }
         }
 
         const user = await db.user.update({
@@ -219,6 +229,7 @@ export async function POST(req: Request) {
                 name: user.name ?? user.username ?? user.email ?? undefined,
                 picture: user.image ?? undefined,
                 username: user.username,
+                role,
             },
             secret: env.NEXTAUTH_SECRET,
             maxAge: sessionMaxAge,

@@ -54,20 +54,33 @@ export const authOptions: NextAuthOptions = {
                 return {
                     id: `${existingUser.id}`,
                     username: existingUser.username,
-                    email: existingUser.email
+                    email: existingUser.email,
+                    role: existingUser.role,
                 }
             }
         })
     ],
     callbacks: {
         async jwt({ token, user }) {
+            if (!user && typeof token.email === "string" && !token.role) {
+                const existingUser = await db.user.findUnique({
+                    where: { email: token.email },
+                    select: { role: true },
+                });
+                if (existingUser?.role) {
+                    token.role = existingUser.role;
+                }
+            }
+
             if(user) {
+                const sessionUser = user as { id?: string; email?: string | null; name?: string | null; role?: string | null; username?: string | null };
                 return {
                     ...token,
-                    sub: user.id ?? token.sub,
-                    email: user.email ?? token.email,
-                    name: user.name ?? token.name,
-                    username: user.username
+                    sub: sessionUser.id ?? token.sub,
+                    email: sessionUser.email ?? token.email,
+                    name: sessionUser.name ?? token.name,
+                    username: sessionUser.username,
+                    role: sessionUser.role ?? token.role,
                 }
             }
             return token
@@ -80,7 +93,8 @@ export const authOptions: NextAuthOptions = {
                     id: typeof token.sub === "string" ? token.sub : undefined,
                     email: typeof token.email === "string" ? token.email : session.user?.email,
                     name: typeof token.name === "string" ? token.name : session.user?.name,
-                    username: token.username
+                    username: token.username,
+                    role: typeof token.role === "string" ? token.role : undefined,
                 }
             }
         }

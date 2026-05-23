@@ -115,7 +115,7 @@ const SignUpForm = () => {
                 <h1 className="text-3xl font-semibold text-black">Verify your email</h1>
                 <p className="text-sm text-gray-600">
                     We sent a verification link to <span className="font-medium">{pendingEmail}</span>. Click the link in that email to
-                    continue to onboarding.
+                    continue to onboarding. Check your spam folder just in case.
                 </p>
                 <div className="space-y-2">
                     <Button
