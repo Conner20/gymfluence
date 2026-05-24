@@ -212,9 +212,9 @@ export default function NotificationsModal({
                             {clearingAll ? "Clearing..." : "Clear all"}
                         </button>
                     </div>
-                    {(loading || clearingAll) && (
+                    {loading && !clearingAll && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {clearingAll ? "Clearing…" : "Loading…"}
+                            Loading…
                         </span>
                     )}
                 </div>

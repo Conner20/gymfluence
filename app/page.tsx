@@ -61,7 +61,7 @@ export default function LandingPage() {
             title="Gyms"
             icon={<Building2 className="h-5 w-5" />}
             bullets={[
-              "Attract more clients",
+              "Attract members",
               "Recruit trainers",
               "Grow your business",
             ]}

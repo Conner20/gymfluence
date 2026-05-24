@@ -142,7 +142,7 @@ export default async function AdminMetricsPage() {
     const userActivityViews = productionViewsInWindow.filter(
         (view) => Boolean(view.userId) && isUserActivityPath(view.path),
     );
-    const recentActiveViews = nonAdminPageViews.filter(
+    const recentActiveViews = pageViews.filter(
         (view) => Boolean(view.userId) && isUserActivityPath(view.path) && view.createdAt >= weekAgo,
     );
     const totalUsers = users.length;
@@ -188,7 +188,7 @@ export default async function AdminMetricsPage() {
         activeWindowStart.setDate(activeWindowStart.getDate() - (ACTIVE_WINDOW_DAYS - 1));
 
         const activeOnDay = getDistinctCount(
-            nonAdminPageViews
+            pageViews
                 .filter(
                     (view) =>
                         Boolean(view.userId) &&
