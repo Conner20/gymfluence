@@ -847,19 +847,30 @@ function DashboardContent() {
             >
                 <button
                     onClick={() => setShareModalOpen(true)}
-                    className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 text-zinc-700 transition hover:bg-zinc-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+                    className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition hover:bg-zinc-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
                     aria-label="Share workouts dashboard"
                 >
                     <Share2 size={18} />
                 </button>
-                <div className={clsx('flex items-center gap-2', variant === 'mobile' ? 'flex-1 min-w-[200px]' : 'w-[240px]')}>
+                <div
+                    className={clsx(
+                        'flex items-center gap-2',
+                        variant === 'mobile'
+                            ? selectedViewUser
+                                ? 'min-w-[200px] flex-1'
+                                : 'w-[170px]'
+                            : selectedViewUser
+                                ? 'w-[240px]'
+                                : 'w-[170px]',
+                    )}
+                >
                     <div className="relative flex-1">
                         <select
                             value={selectedViewUser ?? ''}
                             onChange={(e) => handleViewChange(e.target.value || null)}
-                            className="w-full h-10 appearance-none rounded-full border border-zinc-200 bg-white px-3 pr-10 text-sm leading-tight focus:outline-none focus:ring-0 focus:border-zinc-400 hover:border-zinc-400 dark:border-white/15 dark:bg-white/5 dark:text-white dark:focus:border-white/40 dark:hover:border-white/30"
+                            className="h-10 w-full appearance-none rounded-lg border border-zinc-200 bg-transparent px-3 pr-10 text-sm font-medium leading-tight text-zinc-700 transition hover:bg-zinc-100 focus:border-zinc-300 focus:outline-none focus:ring-0 dark:border-white/20 dark:text-white dark:hover:bg-white/10 dark:focus:border-white/30"
                         >
-                            <option value="">My stats</option>
+                            <option value="">My dashboard</option>
                             {availableIncoming.map((entry) => (
                                 <option key={entry.owner.id} value={entry.owner.id}>
                                     {shareDisplayName(entry.owner)}
@@ -872,7 +883,7 @@ function DashboardContent() {
                         <button
                             onClick={() => removeIncomingShare(selectedViewUser)}
                             disabled={shareSaving === selectedViewUser}
-                            className="rounded-full border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10"
+                            className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10"
                         >
                             Remove
                         </button>
@@ -1175,33 +1186,73 @@ function DashboardContent() {
 
     const mobileTabs = (
         <div className="px-4 pb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
-                {renderShareControls('mobile')}
-                <div className="flex flex-1 gap-2 text-sm">
-                    <Link
-                        href="/dashboard"
-                        className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:border-white dark:bg-white/10"
-                    >
-                        workouts
-                    </Link>
-                    <Link
-                        href="/dashboard/wellness"
-                        className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
-                    >
-                        wellness
-                    </Link>
-                    <Link
-                        href="/dashboard/nutrition"
-                        className="flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-2 text-center font-medium text-zinc-600 transition hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30"
-                    >
-                        nutrition
-                    </Link>
-                </div>
+            <div className="flex gap-2 text-sm">
+                <Link
+                    href="/dashboard"
+                    className="flex-1 rounded-lg bg-zinc-900 px-4 py-2 text-center font-medium text-white dark:bg-white dark:text-black"
+                >
+                    workouts
+                </Link>
+                <Link
+                    href="/dashboard/wellness"
+                    className="flex-1 rounded-lg px-4 py-2 text-center font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+                >
+                    wellness
+                </Link>
+                <Link
+                    href="/dashboard/nutrition"
+                    className="flex-1 rounded-lg px-4 py-2 text-center font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+                >
+                    nutrition
+                </Link>
             </div>
+            {selectedViewUser && (
+                <div className="mt-3 flex items-center justify-between gap-2">
+                    {viewingUser ? (
+                        <p className="min-w-0 text-xs text-zinc-500 dark:text-zinc-400">
+                            Viewing {shareDisplayName(viewingUser)}
+                        </p>
+                    ) : <div />}
+                    <button
+                        onClick={() => removeIncomingShare(selectedViewUser)}
+                        disabled={shareSaving === selectedViewUser}
+                        className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-400/10"
+                    >
+                        Remove
+                    </button>
+                </div>
+            )}
             {shareError && (
                 <p className="mt-2 text-xs text-red-500">{shareError}</p>
             )}
         </div>
+    );
+
+    const mobileHeaderControls = (
+        <>
+            <button
+                onClick={() => setShareModalOpen(true)}
+                className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition hover:bg-zinc-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+                aria-label="Share workouts dashboard"
+            >
+                <Share2 size={18} />
+            </button>
+            <div className="relative w-[158px] shrink-0">
+                <select
+                    value={selectedViewUser ?? ''}
+                    onChange={(e) => handleViewChange(e.target.value || null)}
+                    className="h-10 w-full appearance-none rounded-lg border border-zinc-200 bg-transparent px-3 pr-8 text-sm font-medium leading-tight text-zinc-700 transition hover:bg-zinc-100 focus:border-zinc-300 focus:outline-none focus:ring-0 dark:border-white/20 dark:text-white dark:hover:bg-white/10 dark:focus:border-white/30"
+                >
+                    <option value="">My dashboard</option>
+                    {availableIncoming.map((entry) => (
+                        <option key={entry.owner.id} value={entry.owner.id}>
+                            {shareDisplayName(entry.owner)}
+                        </option>
+                    ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/80" />
+            </div>
+        </>
     );
 
 
@@ -1209,7 +1260,7 @@ function DashboardContent() {
     return (
         <>
         <div className="flex min-h-screen flex-col bg-[#f8f8f8] text-black dark:bg-[#050505] dark:text-white lg:h-screen lg:overflow-hidden">
-            <MobileHeader title="workouts log" href="/dashboard" subContent={mobileTabs} />
+            <MobileHeader title="workouts" href="/dashboard" subContent={mobileTabs} rightAccessory={mobileHeaderControls} titleAlign="left" />
 
             {/* Header (fixed height) */}
             <header className="hidden lg:flex w-full flex-none items-center justify-between bg-white px-[40px] py-5 dark:bg-neutral-900 dark:border-b dark:border-white/10">
@@ -1217,18 +1268,18 @@ function DashboardContent() {
                 <div className="flex flex-1 flex-wrap items-center justify-end gap-4">
                     {renderShareControls('desktop')}
                     <nav className="flex flex-wrap gap-2 text-sm">
-                        <Link href="/dashboard" className="rounded-full bg-black border border-zinc-200 px-6 py-2 font-medium text-white transition dark:bg-white/10 dark:border-white-b/60 dark:text-gray-200">
+                        <Link href="/dashboard" className="rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white transition dark:bg-white dark:text-black">
                             workouts
                         </Link>
                         <Link
                             href="/dashboard/wellness"
-                            className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                            className="rounded-lg px-4 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                         >
                             wellness
                         </Link>
                         <Link
                             href="/dashboard/nutrition"
-                            className="rounded-full border border-zinc-200 px-6 py-2 font-medium text-zinc-600 transition hover:border-zinc-400 dark:bg-white/5 dark:border-white/20 dark:text-gray-200 dark:hover:border-white/40"
+                            className="rounded-lg px-4 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                         >
                             nutrition
                         </Link>

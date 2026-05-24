@@ -11,9 +11,17 @@ type MobileHeaderProps = {
     subContent?: React.ReactNode;
     leftAccessory?: React.ReactNode;
     rightAccessory?: React.ReactNode;
+    titleAlign?: "center" | "left";
 };
 
-export default function MobileHeader({ title, href = "/", subContent, leftAccessory, rightAccessory }: MobileHeaderProps) {
+export default function MobileHeader({
+    title,
+    href = "/",
+    subContent,
+    leftAccessory,
+    rightAccessory,
+    titleAlign = "center",
+}: MobileHeaderProps) {
     const [mobileNavOpen, setMobileNavOpen] = useState(true);
 
     useEffect(() => {
@@ -43,7 +51,7 @@ export default function MobileHeader({ title, href = "/", subContent, leftAccess
 
     return (
         <>
-            <header className="lg:hidden w-full bg-white py-5 px-4 sm:px-6 relative flex items-center justify-center z-20 dark:bg-neutral-900">
+            <header className="lg:hidden w-full bg-white py-5 px-4 sm:px-6 relative flex items-center z-20 dark:bg-neutral-900">
                 <div
                     className="absolute inset-x-0 top-0 bg-white dark:bg-neutral-900 lg:hidden"
                     style={{ height: 'env(safe-area-inset-top, 0px)' }}
@@ -53,20 +61,43 @@ export default function MobileHeader({ title, href = "/", subContent, leftAccess
                         {leftAccessory}
                     </div>
                 )}
-                <h1 className="font-roboto text-3xl tracking-tight select-none text-center text-green-700 dark:text-green-400">
-                    <Link href={href} className="cursor-pointer">
-                        {title.toLowerCase() === "fitting" ? (
-                            <span className="font-semibold">
-                                fitt<span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>g
-                            </span>
-                        ) : (
-                            <span>{title}</span>
-                        )}
-                    </Link>
-                </h1>
-                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
-                    {rightAccessory}
-                </div>
+                {titleAlign === "left" ? (
+                    <div className="flex min-w-0 flex-1 items-center">
+                        <h1 className="min-w-0 flex-1 text-center font-roboto text-3xl tracking-tight select-none text-green-700 dark:text-green-400">
+                            <Link href={href} className="cursor-pointer">
+                                {title.toLowerCase() === "fitting" ? (
+                                    <span className="font-semibold">
+                                        fitt<span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>g
+                                    </span>
+                                ) : (
+                                    <span>{title}</span>
+                                )}
+                            </Link>
+                        </h1>
+                        <div className="ml-2 flex shrink-0 items-center gap-2">
+                            {rightAccessory}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <h1
+                            className="w-full text-center font-roboto text-3xl tracking-tight select-none text-green-700 dark:text-green-400"
+                        >
+                            <Link href={href} className="cursor-pointer">
+                                {title.toLowerCase() === "fitting" ? (
+                                    <span className="font-semibold">
+                                        fitt<span className="underline decoration-2 decoration-green-600 underline-offset-[2px] dark:decoration-green-400">in</span>g
+                                    </span>
+                                ) : (
+                                    <span>{title}</span>
+                                )}
+                            </Link>
+                        </h1>
+                        <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                            {rightAccessory}
+                        </div>
+                    </>
+                )}
             </header>
 
             {subContent && (

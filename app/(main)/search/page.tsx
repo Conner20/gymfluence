@@ -83,6 +83,23 @@ function formatDistanceMiles(distanceKm: number) {
     return `${Math.round(miles)} mi`;
 }
 
+function filterMenuOptionClass(active: boolean, layout: 'button' | 'checkbox' = 'button') {
+    return clsx(
+        'inline-flex min-h-[36px] min-w-[96px] self-start whitespace-nowrap rounded-md px-3 py-2 text-sm leading-none transition',
+        layout === 'checkbox' ? 'items-center gap-2 capitalize' : 'items-center text-left capitalize',
+        active
+            ? 'bg-zinc-900 text-white dark:bg-white dark:text-black'
+            : 'text-zinc-700 hover:bg-zinc-50 dark:text-gray-200 dark:hover:bg-white/10'
+    );
+}
+
+const filterMenuListClass = 'flex w-fit min-w-max max-w-[calc(100vw-32px)] flex-col gap-1 p-2 text-sm';
+const filterMenuRangeClass = 'space-y-2 p-3 text-sm';
+const filterMenuNumberInputClass =
+    'flex-1 min-w-[92px] rounded-md border border-zinc-200 bg-transparent px-3 py-2 text-sm focus:border-zinc-300 focus:outline-none dark:border-white/20 dark:text-gray-100 dark:focus:border-white/30';
+const filterMenuClearButtonClass =
+    'rounded-md px-2 py-1 text-xs text-gray-500 transition hover:bg-zinc-50 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white';
+
 export default function SearchPage() {
     const router = useRouter();
 
@@ -319,7 +336,7 @@ export default function SearchPage() {
 
     const mobileFilters = (
         <div className="px-4 py-4 space-y-2 bg-white dark:bg-neutral-900">
-            <div className="flex items-center gap-2 rounded-full border px-3 py-2 dark:border-white/15">
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-2 dark:border-white/15 dark:bg-white/5">
                 <SearchIcon size={18} className="text-gray-500 dark:text-gray-400" />
                 <input
                     value={q}
@@ -333,7 +350,7 @@ export default function SearchPage() {
                     aria-label="Clear search"
                     tabIndex={q ? 0 : -1}
                     className={clsx(
-                        "shrink-0 rounded-full p-1 text-gray-500 transition dark:text-gray-400",
+                        "shrink-0 rounded-md p-1 text-gray-500 transition dark:text-gray-400",
                         q
                             ? "hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
                             : "pointer-events-none opacity-0"
@@ -350,19 +367,14 @@ export default function SearchPage() {
                         label="Role"
                         value="gym"
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                     const activeOpt = role === r;
                                     return (
                                         <button
                                             key={r}
                                             onClick={() => setRole(r)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                         </button>
@@ -392,7 +404,7 @@ export default function SearchPage() {
                         label="Price"
                         value={`${minBudget || 0}–${maxBudget || '∞'}`}
                         menu={
-                            <div className="space-y-2.5 p-3 text-sm">
+                            <div className={filterMenuRangeClass}>
                                 <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                     gyms monthly
                                 </div>
@@ -400,7 +412,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className={filterMenuNumberInputClass}
                                         placeholder="Min"
                                         value={minBudget}
                                         onChange={(e) => setMinBudget(e.target.value)}
@@ -409,7 +421,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className={filterMenuNumberInputClass}
                                         placeholder="Max"
                                         value={maxBudget}
                                         onChange={(e) => setMaxBudget(e.target.value)}
@@ -421,7 +433,7 @@ export default function SearchPage() {
                                             setMinBudget('');
                                             setMaxBudget('');
                                         }}
-                                        className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                        className={filterMenuClearButtonClass}
                                     >
                                         Clear
                                     </button>
@@ -456,19 +468,14 @@ export default function SearchPage() {
                         label="Role"
                         value="trainer"
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                     const activeOpt = role === r;
                                     return (
                                         <button
                                             key={r}
                                             onClick={() => setRole(r)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                         </button>
@@ -491,7 +498,7 @@ export default function SearchPage() {
                         label="Price"
                         value={`${minBudget || 0}–${maxBudget || '∞'}`}
                         menu={
-                            <div className="space-y-2.5 p-3 text-sm">
+                            <div className={filterMenuRangeClass}>
                                 <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                     trainers hourly
                                 </div>
@@ -499,7 +506,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className={filterMenuNumberInputClass}
                                         placeholder="Min"
                                         value={minBudget}
                                         onChange={(e) => setMinBudget(e.target.value)}
@@ -508,7 +515,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className={filterMenuNumberInputClass}
                                         placeholder="Max"
                                         value={maxBudget}
                                         onChange={(e) => setMaxBudget(e.target.value)}
@@ -520,7 +527,7 @@ export default function SearchPage() {
                                             setMinBudget('');
                                             setMaxBudget('');
                                         }}
-                                        className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                        className={filterMenuClearButtonClass}
                                     >
                                         Clear
                                     </button>
@@ -554,18 +561,13 @@ export default function SearchPage() {
                         label="Service"
                         value={goals.length ? `${goals.length} selected` : 'Any'}
                         menu={
-                            <div className="flex flex-col gap-1 p-3 text-sm">
+                            <div className={filterMenuListClass}>
                                 {allGoals.map((g) => {
                                     const checked = goals.includes(g);
                                     return (
                                         <label
                                             key={g}
-                                            className={clsx(
-                                                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
-                                                checked
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(checked, 'checkbox')}
                                         >
                                             <input
                                                 type="checkbox"
@@ -579,7 +581,7 @@ export default function SearchPage() {
                                 })}
                                 <button
                                     onClick={() => setGoals([])}
-                                    className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                    className={clsx(filterMenuClearButtonClass, 'mt-1 self-end')}
                                 >
                                     Clear services
                                 </button>
@@ -600,19 +602,14 @@ export default function SearchPage() {
                         label="Status"
                         value={getStatusLabel(role, statusFilter)}
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {trainerStatusOptions.map(([value, label]) => {
                                     const activeOpt = statusFilter === value;
                                     return (
                                         <button
                                             key={value}
                                             onClick={() => setStatusFilter(value)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-left text-sm transition',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {label}
                                         </button>
@@ -638,19 +635,14 @@ export default function SearchPage() {
                         label="Role"
                         value="trainee"
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                     const activeOpt = role === r;
                                     return (
                                         <button
                                             key={r}
                                             onClick={() => setRole(r)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                         </button>
@@ -671,19 +663,14 @@ export default function SearchPage() {
                         label="Status"
                         value={getStatusLabel(role, statusFilter)}
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {traineeStatusOptions.map(([value, label]) => {
                                     const activeOpt = statusFilter === value;
                                     return (
                                         <button
                                             key={value}
                                             onClick={() => setStatusFilter(value)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-left text-sm transition',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {label}
                                         </button>
@@ -704,18 +691,13 @@ export default function SearchPage() {
                         label="Goal"
                         value={goals.length ? `${goals.length} selected` : 'Any'}
                         menu={
-                            <div className="flex flex-col gap-1 p-3 text-sm">
+                            <div className={filterMenuListClass}>
                                 {allGoals.map((g) => {
                                     const checked = goals.includes(g);
                                     return (
                                         <label
                                             key={g}
-                                            className={clsx(
-                                                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
-                                                checked
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(checked, 'checkbox')}
                                         >
                                             <input
                                                 type="checkbox"
@@ -729,7 +711,7 @@ export default function SearchPage() {
                                 })}
                                 <button
                                     onClick={() => setGoals([])}
-                                    className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                    className={clsx(filterMenuClearButtonClass, 'mt-1 self-end')}
                                 >
                                     Clear goals
                                 </button>
@@ -751,19 +733,14 @@ export default function SearchPage() {
                         label="Role"
                         value="All"
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                     const activeOpt = role === r;
                                     return (
                                         <button
                                             key={r}
                                             onClick={() => setRole(r)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                         </button>
@@ -784,19 +761,14 @@ export default function SearchPage() {
                         label="Status"
                         value={getStatusLabel(role, statusFilter)}
                         menu={
-                            <div className="flex flex-col gap-1 p-3">
+                            <div className={filterMenuListClass}>
                                 {generalStatusOptions.map(([value, label]) => {
                                     const activeOpt = statusFilter === value;
                                     return (
                                         <button
                                             key={value}
                                             onClick={() => setStatusFilter(value)}
-                                            className={clsx(
-                                                'rounded-2xl border px-3 py-2 text-left text-sm transition',
-                                                activeOpt
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(activeOpt)}
                                         >
                                             {label}
                                         </button>
@@ -817,7 +789,7 @@ export default function SearchPage() {
                         label="Price"
                         value={`${minBudget || 0}–${maxBudget || '∞'}`}
                             menu={
-                                <div className="space-y-2.5 p-3 text-sm">
+                            <div className={filterMenuRangeClass}>
                                 <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                     trainers hourly · gyms monthly
                                 </div>
@@ -825,7 +797,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className={filterMenuNumberInputClass}
                                         placeholder="Min"
                                         value={minBudget}
                                         onChange={(e) => setMinBudget(e.target.value)}
@@ -834,7 +806,7 @@ export default function SearchPage() {
                                     <input
                                         type="number"
                                         min={0}
-                                        className="w-20 flex-1 rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                        className={filterMenuNumberInputClass}
                                         placeholder="Max"
                                         value={maxBudget}
                                         onChange={(e) => setMaxBudget(e.target.value)}
@@ -846,7 +818,7 @@ export default function SearchPage() {
                                             setMinBudget('');
                                             setMaxBudget('');
                                         }}
-                                        className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                        className={filterMenuClearButtonClass}
                                     >
                                         Clear
                                     </button>
@@ -869,18 +841,13 @@ export default function SearchPage() {
                         label="Goal"
                         value={goals.length ? `${goals.length} selected` : 'Any'}
                         menu={
-                            <div className="flex flex-col gap-1 p-3 text-sm">
+                            <div className={filterMenuListClass}>
                                 {allGoals.map((g) => {
                                     const checked = goals.includes(g);
                                     return (
                                         <label
                                             key={g}
-                                            className={clsx(
-                                                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
-                                                checked
-                                                    ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                    : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                            )}
+                                            className={filterMenuOptionClass(checked, 'checkbox')}
                                         >
                                             <input
                                                 type="checkbox"
@@ -892,12 +859,12 @@ export default function SearchPage() {
                                         </label>
                                     );
                                 })}
-                                    <button
-                                        onClick={() => setGoals([])}
-                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
-                                    >
-                                        Clear goals
-                                    </button>
+                                <button
+                                    onClick={() => setGoals([])}
+                                    className={clsx(filterMenuClearButtonClass, 'mt-1 self-end')}
+                                >
+                                    Clear goals
+                                </button>
                             </div>
                         }
                         size="compact"
@@ -1000,7 +967,7 @@ export default function SearchPage() {
                     </h1>
 
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <div className="flex min-w-[220px] max-w-[520px] flex-1 items-center gap-2 rounded-full border px-3 py-2 dark:border-white/15">
+                        <div className="flex min-w-[220px] max-w-[520px] flex-1 items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-2 dark:border-white/15 dark:bg-white/5">
                             <SearchIcon size={18} className="text-gray-500 dark:text-gray-400" />
                             <input
                                 value={q}
@@ -1014,7 +981,7 @@ export default function SearchPage() {
                                 aria-label="Clear search"
                                 tabIndex={q ? 0 : -1}
                                 className={clsx(
-                                    "shrink-0 rounded-full p-1 text-gray-500 transition dark:text-gray-400",
+                                    "shrink-0 rounded-md p-1 text-gray-500 transition dark:text-gray-400",
                                     q
                                         ? "hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
                                         : "pointer-events-none opacity-0"
@@ -1032,7 +999,7 @@ export default function SearchPage() {
                                     value="gym"
                                     active
                                     menu={
-                                        <div className="flex flex-col gap-1 p-2.5 w-52">
+                                        <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                             {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                                 const activeOpt = role === r;
                                                 return (
@@ -1040,10 +1007,10 @@ export default function SearchPage() {
                                                         key={r}
                                                         onClick={() => setRole(r)}
                                                         className={clsx(
-                                                            'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
+                                                            'rounded-md border px-3 py-2 text-sm text-left transition capitalize',
                                                             activeOpt
-                                                                ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                                : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+                                                                ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black'
+                                                                : 'border-transparent bg-transparent text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/10'
                                                         )}
                                                     >
                                                         {r === 'ALL' ? 'any role' : r.toLowerCase()}
@@ -1065,7 +1032,7 @@ export default function SearchPage() {
                                     value={`${minBudget || 0}–${maxBudget || '∞'}`}
                                     active={Boolean(minBudget || maxBudget)}
                                     menu={
-                                        <div className="space-y-2.5 p-3 w-[19rem] max-w-[calc(100vw-88px)] text-sm">
+                                        <div className={clsx(filterMenuRangeClass, 'w-[16rem] max-w-[calc(100vw-88px)]')}>
                                             <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                                 gyms monthly
                                             </div>
@@ -1073,7 +1040,7 @@ export default function SearchPage() {
                                                 <input
                                                     type="number"
                                                     min={0}
-                                                    className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                                    className={filterMenuNumberInputClass}
                                                     placeholder="Min"
                                                     value={minBudget}
                                                     onChange={(e) => setMinBudget(e.target.value)}
@@ -1082,7 +1049,7 @@ export default function SearchPage() {
                                                 <input
                                                     type="number"
                                                     min={0}
-                                                    className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                                    className={filterMenuNumberInputClass}
                                                     placeholder="Max"
                                                     value={maxBudget}
                                                     onChange={(e) => setMaxBudget(e.target.value)}
@@ -1094,7 +1061,7 @@ export default function SearchPage() {
                                                         setMinBudget('');
                                                         setMaxBudget('');
                                                     }}
-                                                    className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                                    className={filterMenuClearButtonClass}
                                                 >
                                                     Clear
                                                 </button>
@@ -1119,19 +1086,14 @@ export default function SearchPage() {
                             value="trainer"
                             active
                             menu={
-                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                     {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                         const activeOpt = role === r;
                                         return (
                                             <button
                                                 key={r}
                                                 onClick={() => setRole(r)}
-                                                className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                    activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(activeOpt)}
                                             >
                                                 {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                             </button>
@@ -1146,7 +1108,7 @@ export default function SearchPage() {
                             value={`${minBudget || 0}–${maxBudget || '∞'}`}
                             active={Boolean(minBudget || maxBudget)}
                             menu={
-                                <div className="space-y-2.5 p-3 w-[19rem] max-w-[calc(100vw-88px)] text-sm">
+                                <div className={clsx(filterMenuRangeClass, 'w-[16rem] max-w-[calc(100vw-88px)]')}>
                                     <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                         trainers hourly
                                     </div>
@@ -1154,7 +1116,7 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            className={filterMenuNumberInputClass}
                                             placeholder="Min"
                                             value={minBudget}
                                             onChange={(e) => setMinBudget(e.target.value)}
@@ -1163,7 +1125,7 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            className={filterMenuNumberInputClass}
                                             placeholder="Max"
                                             value={maxBudget}
                                             onChange={(e) => setMaxBudget(e.target.value)}
@@ -1175,7 +1137,7 @@ export default function SearchPage() {
                                                 setMinBudget('');
                                                 setMaxBudget('');
                                             }}
-                                            className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                            className={filterMenuClearButtonClass}
                                         >
                                             Clear
                                         </button>
@@ -1198,18 +1160,13 @@ export default function SearchPage() {
                             value={goals.length ? `${goals.length} selected` : 'Any'}
                             active={goals.length > 0}
                             menu={
-                                <div className="flex w-56 flex-col gap-1 p-2.5 text-sm">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[11rem]')}>
                                     {allGoals.map((g) => {
                                         const checked = goals.includes(g);
                                         return (
                                             <label
                                                 key={g}
-                                                className={clsx(
-                                                    'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
-                                                    checked
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(checked, 'checkbox')}
                                             >
                                                 <input
                                                     type="checkbox"
@@ -1223,7 +1180,7 @@ export default function SearchPage() {
                                     })}
                                     <button
                                         onClick={() => setGoals([])}
-                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                        className="mt-2 text-left text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                                     >
                                         Clear services
                                     </button>
@@ -1236,19 +1193,14 @@ export default function SearchPage() {
                             value={getStatusLabel(role, statusFilter)}
                             active={statusFilter !== 'ALL'}
                             menu={
-                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                     {trainerStatusOptions.map(([value, label]) => {
                                         const activeOpt = statusFilter === value;
                                         return (
                                             <button
                                                 key={value}
                                                 onClick={() => setStatusFilter(value)}
-                                                className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-left text-sm transition',
-                                                    activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(activeOpt)}
                                             >
                                                 {label}
                                             </button>
@@ -1265,19 +1217,14 @@ export default function SearchPage() {
                             value="trainee"
                             active
                             menu={
-                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                     {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                         const activeOpt = role === r;
                                         return (
                                             <button
                                                 key={r}
                                                 onClick={() => setRole(r)}
-                                                className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                    activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(activeOpt)}
                                             >
                                                 {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                             </button>
@@ -1292,19 +1239,14 @@ export default function SearchPage() {
                             value={getStatusLabel(role, statusFilter)}
                             active={statusFilter !== 'ALL'}
                             menu={
-                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                     {traineeStatusOptions.map(([value, label]) => {
                                         const activeOpt = statusFilter === value;
                                         return (
                                             <button
                                                 key={value}
                                                 onClick={() => setStatusFilter(value)}
-                                                className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-left text-sm transition',
-                                                    activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(activeOpt)}
                                             >
                                                 {label}
                                             </button>
@@ -1319,18 +1261,13 @@ export default function SearchPage() {
                             value={goals.length ? `${goals.length} selected` : 'Any'}
                             active={goals.length > 0}
                             menu={
-                                <div className="flex w-56 flex-col gap-1 p-2.5 text-sm">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[11rem]')}>
                                     {allGoals.map((g) => {
                                         const checked = goals.includes(g);
                                         return (
                                             <label
                                                 key={g}
-                                                className={clsx(
-                                                    'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
-                                                    checked
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(checked, 'checkbox')}
                                             >
                                                 <input
                                                     type="checkbox"
@@ -1344,7 +1281,7 @@ export default function SearchPage() {
                                     })}
                                     <button
                                         onClick={() => setGoals([])}
-                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                        className="mt-2 text-left text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                                     >
                                         Clear goals
                                     </button>
@@ -1359,19 +1296,14 @@ export default function SearchPage() {
                             value="All"
                             active={role !== 'ALL'}
                             menu={
-                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                     {(['ALL', 'TRAINEE', 'TRAINER', 'GYM'] as const).map((r) => {
                                         const activeOpt = role === r;
                                         return (
                                             <button
                                                 key={r}
                                                 onClick={() => setRole(r)}
-                                                className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-sm text-left transition capitalize',
-                                                    activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(activeOpt)}
                                             >
                                                 {r === 'ALL' ? 'any role' : r.toLowerCase()}
                                             </button>
@@ -1386,19 +1318,14 @@ export default function SearchPage() {
                             value={getStatusLabel(role, statusFilter)}
                             active={statusFilter !== 'ALL'}
                             menu={
-                                <div className="flex flex-col gap-1 p-2.5 w-52">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[9rem]')}>
                                     {generalStatusOptions.map(([value, label]) => {
                                         const activeOpt = statusFilter === value;
                                         return (
                                             <button
                                                 key={value}
                                                 onClick={() => setStatusFilter(value)}
-                                                className={clsx(
-                                                    'rounded-2xl border px-3 py-2 text-left text-sm transition',
-                                                    activeOpt
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(activeOpt)}
                                             >
                                                 {label}
                                             </button>
@@ -1414,7 +1341,7 @@ export default function SearchPage() {
                             value={`${minBudget || 0}–${maxBudget || '∞'}`}
                             active={Boolean(minBudget || maxBudget)}
                             menu={
-                                <div className="space-y-2.5 p-3 w-[19rem] max-w-[calc(100vw-88px)] text-sm">
+                                <div className={clsx(filterMenuRangeClass, 'w-[16rem] max-w-[calc(100vw-88px)]')}>
                                     <div className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-400">
                                         trainers hourly · gyms monthly
                                     </div>
@@ -1422,7 +1349,7 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            className={filterMenuNumberInputClass}
                                             placeholder="Min"
                                             value={minBudget}
                                             onChange={(e) => setMinBudget(e.target.value)}
@@ -1431,7 +1358,7 @@ export default function SearchPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            className="flex-1 min-w-[92px] rounded-2xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none dark:border-white/20 dark:bg-transparent dark:text-gray-100"
+                                            className={filterMenuNumberInputClass}
                                             placeholder="Max"
                                             value={maxBudget}
                                             onChange={(e) => setMaxBudget(e.target.value)}
@@ -1443,7 +1370,7 @@ export default function SearchPage() {
                                                 setMinBudget('');
                                                 setMaxBudget('');
                                             }}
-                                            className="rounded-full px-2 py-1 transition hover:text-gray-800 dark:hover:text-white"
+                                            className={filterMenuClearButtonClass}
                                         >
                                             Clear
                                         </button>
@@ -1460,18 +1387,13 @@ export default function SearchPage() {
                             value={goals.length ? `${goals.length} selected` : 'Any'}
                             active={goals.length > 0}
                             menu={
-                                <div className="flex w-56 flex-col gap-1 p-2.5 text-sm">
+                                <div className={clsx(filterMenuListClass, 'w-fit min-w-[11rem]')}>
                                     {allGoals.map((g) => {
                                         const checked = goals.includes(g);
                                         return (
                                             <label
                                                 key={g}
-                                                className={clsx(
-                                                    'flex items-center gap-2 rounded-2xl border px-3 py-2 transition capitalize',
-                                                    checked
-                                                        ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white/10 dark:text-white'
-                                                        : 'border-gray-200 bg-white/80 text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-                                                )}
+                                                    className={filterMenuOptionClass(checked, 'checkbox')}
                                             >
                                                 <input
                                                     type="checkbox"
@@ -1485,7 +1407,7 @@ export default function SearchPage() {
                                     })}
                                     <button
                                         onClick={() => setGoals([])}
-                                        className="mt-2 text-right text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                                        className="mt-2 text-left text-xs text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                                     >
                                         Clear goals
                                     </button>
@@ -1497,7 +1419,7 @@ export default function SearchPage() {
 
                         <button
                             onClick={resetFilters}
-                            className="flex items-center rounded-xl border border-gray-200 bg-white/80 px-3 py-1.5 text-sm text-gray-700 uppercase tracking-wide transition hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10"
+                            className="flex items-center rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10"
                             title="Reset filters"
                         >
                             Reset
@@ -2040,18 +1962,41 @@ function Chip({
 }) {
     const compact = size === 'compact';
     const wrapperRef = useRef<HTMLDivElement | null>(null);
+    const menuRef = useRef<HTMLDivElement | null>(null);
     const [open, setOpen] = useState(false);
     const [menuTop, setMenuTop] = useState<number | null>(null);
+    const [menuLeft, setMenuLeft] = useState<number | null>(null);
     useEffect(() => {
         const handler = (e: CustomEvent<string>) => {
             if (e.detail !== label) {
                 setOpen(false);
                 setMenuTop(null);
+                setMenuLeft(null);
             }
         };
         window.addEventListener('close-filters', handler as EventListener);
         return () => window.removeEventListener('close-filters', handler as EventListener);
     }, [label]);
+    useEffect(() => {
+        if (!open || !menuFixed) return;
+        const updateMenuPosition = () => {
+            const triggerRect = wrapperRef.current?.getBoundingClientRect();
+            const menuRect = menuRef.current?.getBoundingClientRect();
+            if (!triggerRect) return;
+            const viewportWidth = window.innerWidth;
+            const menuWidth = menuRect?.width ?? 0;
+            const preferredLeft = triggerRect.left;
+            const maxLeft = Math.max(16, viewportWidth - menuWidth - 16);
+            setMenuTop(triggerRect.bottom + 8);
+            setMenuLeft(Math.min(Math.max(16, preferredLeft), maxLeft));
+        };
+        const frame = window.requestAnimationFrame(updateMenuPosition);
+        window.addEventListener('resize', updateMenuPosition);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.removeEventListener('resize', updateMenuPosition);
+        };
+    }, [open, menuFixed]);
     const spacingClass = compact ? 'gap-1.5' : 'gap-2';
     const justifyClass = showValue ? '' : 'justify-between';
 
@@ -2066,27 +2011,29 @@ function Chip({
                         if (menuFixed) {
                             const rect = wrapperRef.current?.getBoundingClientRect();
                             setMenuTop((rect?.bottom ?? 0) + 8);
+                            setMenuLeft(rect?.left ?? 16);
                         }
                     } else {
                         setMenuTop(null);
+                        setMenuLeft(null);
                     }
                 }}
                 className={clsx(
-                    'flex items-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
+                    'flex items-center rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 dark:focus-visible:ring-white/20',
                     fluid ? 'w-full' : 'max-w-[220px]',
-                    compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-1.5 text-sm',
+                    compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm',
                     spacingClass,
                     justifyClass,
                     active
-                        ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-400 dark:bg-green-500/10 dark:text-green-200'
-                        : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10'
+                        ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-800 dark:border-white dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-100 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
                 )}
             >
                 <span
                     className={clsx(
-                        'whitespace-nowrap uppercase tracking-wide',
-                        compact ? 'text-[10px]' : 'text-xs',
-                        active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400',
+                        'whitespace-nowrap',
+                        compact ? 'text-[11px] font-medium' : 'text-sm font-medium',
+                        active ? 'text-white dark:text-black' : 'text-gray-500 dark:text-gray-400',
                         !showValue && (centerLabel ? 'flex-1 text-center' : 'flex-1 text-left')
                     )}
                 >
@@ -2096,12 +2043,12 @@ function Chip({
                     <>
                         <span
                             className={clsx(
-                                active ? 'bg-green-200 dark:bg-green-500/40' : 'bg-gray-200 dark:bg-white/20',
+                                active ? 'bg-white/30 dark:bg-black/20' : 'bg-gray-200 dark:bg-white/20',
                                 compact ? 'h-3 w-px' : 'h-4 w-px'
                             )}
                             aria-hidden="true"
                         />
-                        <span className={clsx('truncate', fluid ? 'flex-1 text-right' : 'max-w-[120px]')}>
+                        <span className={clsx('truncate text-sm', fluid ? 'flex-1 text-right' : 'max-w-[120px]')}>
                             {value}
                         </span>
                     </>
@@ -2109,7 +2056,7 @@ function Chip({
                 {!hideChevron && (
                     <ChevronDown
                         size={compact ? 14 : 16}
-                        className={clsx('shrink-0', active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400')}
+                        className={clsx('shrink-0', active ? 'text-white dark:text-black' : 'text-gray-500 dark:text-gray-400')}
                     />
                 )}
             </button>
@@ -2121,20 +2068,25 @@ function Chip({
                             onClick={() => {
                                 setOpen(false);
                                 setMenuTop(null);
+                                setMenuLeft(null);
                             }}
                         />
                     )}
                     <div
+                        ref={menuRef}
                         className={clsx(
                             menuFixed
-                                ? 'fixed left-1/2 z-40 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur w-[calc(100vw-32px)] max-w-[20rem] dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100'
-                                : 'absolute z-20 mt-2 rounded-2xl border border-gray-200 bg-white/95 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100',
+                                ? 'fixed z-40 w-fit max-w-[calc(100vw-32px)] rounded-lg border border-gray-200 bg-white/95 shadow-md ring-1 ring-black/5 backdrop-blur dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100'
+                                : 'absolute z-20 mt-2 rounded-lg border border-gray-200 bg-white/95 shadow-md ring-1 ring-black/5 backdrop-blur dark:border-white/10 dark:bg-neutral-900/95 dark:text-gray-100',
                             menuFixed ? '' : menuPosition ?? 'right-0',
-                            menuClassName ?? (menuFixed ? '' : 'min-w-[220px]')
+                            menuClassName ?? (menuFixed ? '' : 'min-w-[10rem]')
                         )}
                         style={
                             menuFixed
-                                ? { top: menuTop ?? (wrapperRef.current?.getBoundingClientRect().bottom ?? 0) + 8 }
+                                ? {
+                                      top: menuTop ?? (wrapperRef.current?.getBoundingClientRect().bottom ?? 0) + 8,
+                                      left: menuLeft ?? Math.max(16, wrapperRef.current?.getBoundingClientRect().left ?? 16),
+                                  }
                                 : undefined
                         }
                     >
@@ -2144,7 +2096,7 @@ function Chip({
                                     setOpen(false);
                                     setMenuTop(null);
                                 }}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10"
                                 title="Close"
                             >
                                 <X size={16} />
@@ -2180,19 +2132,19 @@ function ToggleChip({
             type="button"
             onClick={onClick}
             className={clsx(
-                'flex items-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
+                'flex items-center rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 dark:focus-visible:ring-white/20',
                 fluid ? 'w-full justify-center' : '',
-                compact ? 'px-3 py-1.5 text-xs' : 'min-h-[34px] px-3 py-1.5 text-sm',
+                compact ? 'px-2.5 py-1.5 text-xs' : 'min-h-[34px] px-3 py-2 text-sm',
                 active
-                    ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-400 dark:bg-green-500/10 dark:text-green-200'
-                    : 'border-gray-200 bg-white/80 text-gray-700 hover:border-gray-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:border-white/30 dark:hover:bg-white/10'
+                    ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-800 dark:border-white dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                    : 'border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-100 dark:border-white/15 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
             )}
         >
             <span
                 className={clsx(
-                    'whitespace-nowrap uppercase tracking-wide',
-                    compact ? 'text-[10px]' : 'text-xs',
-                    active ? 'text-green-700 dark:text-green-200' : 'text-gray-500 dark:text-gray-400'
+                    'whitespace-nowrap',
+                    compact ? 'text-[11px] font-medium' : 'text-sm font-medium',
+                    active ? 'text-white dark:text-black' : 'text-gray-500 dark:text-gray-400'
                 )}
             >
                 {label}
