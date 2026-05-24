@@ -1352,7 +1352,7 @@ function MediaGrid({ posts, onOpen, isOwnProfile, isMobilePrompt }: { posts: Bas
             {posts.map((post) => (
                 <button
                     key={post.id}
-                    className="bg-white rounded-lg flex items-center justify-center w-full h-56 overflow-hidden relative border border-zinc-200 transition hover:border-black hover:shadow-lg hover:ring-4 hover:ring-black dark:bg-neutral-900 dark:border-white/10 dark:hover:border-white dark:hover:ring-white"
+                    className="bg-white rounded-lg flex items-center justify-center w-full h-56 overflow-hidden relative border border-zinc-200 transition hover:shadow-lg dark:bg-neutral-900 dark:border-white/10"
                     title={post.title || post.pollQuestion || "Post"}
                     onClick={() => onOpen(post.id)}
                 >

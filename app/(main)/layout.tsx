@@ -1,5 +1,5 @@
 import { FC, ReactNode } from "react";
-import Navbar from "@/components/Navbar";
+import PageIntroModal from "@/components/PageIntroModal";
 
 interface AuthLayoutProps {
     children: ReactNode;
@@ -11,6 +11,7 @@ const AuthLayout: FC<AuthLayoutProps> = ({ children }) => {
             <div className="flex-1 bg-[#f8f8f8] mr-0 lg:mr-20">
                 {children}
             </div>
+            <PageIntroModal />
         </div>
     );
 };

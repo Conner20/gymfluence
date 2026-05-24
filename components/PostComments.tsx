@@ -93,29 +93,31 @@ function CommentNode({
                 )}
 
                 <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                        {profileSlug ? (
-                            <Link
-                                href={`/u/${encodeURIComponent(profileSlug)}`}
-                                className="font-semibold text-sm text-gray-800 transition hover:underline decoration-2 underline-offset-2 dark:text-gray-100"
-                                title={`View ${displayName}'s profile`}
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            {profileSlug ? (
+                                <Link
+                                    href={`/u/${encodeURIComponent(profileSlug)}`}
+                                    className="font-semibold text-sm text-gray-800 transition hover:underline decoration-2 underline-offset-2 dark:text-gray-100"
+                                    title={`View ${displayName}'s profile`}
+                                >
+                                    {displayName}
+                                </Link>
+                            ) : (
+                                <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
+                                    {displayName}
+                                </span>
+                            )}
+                            <span
+                                className="whitespace-nowrap text-xs text-gray-400 dark:text-gray-400"
+                                title={new Date(comment.createdAt).toLocaleString()}
                             >
-                                {displayName}
-                            </Link>
-                        ) : (
-                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
-                                {displayName}
+                                {formatRelativeTime(comment.createdAt)}
                             </span>
-                        )}
-                        <span
-                            className="text-xs text-gray-400 dark:text-gray-400"
-                            title={new Date(comment.createdAt).toLocaleString()}
-                        >
-                            {formatRelativeTime(comment.createdAt)}
-                        </span>
+                        </div>
 
                         {isMine && (
-                            <div className="ml-2 flex items-center gap-2">
+                            <div className="flex shrink-0 items-center gap-2 pt-0.5">
                                 <button
                                     className="text-zinc-400 transition hover:text-zinc-700 dark:text-gray-500 dark:hover:text-gray-200"
                                     onClick={() => onEdit(comment)}
