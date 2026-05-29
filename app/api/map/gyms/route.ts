@@ -16,7 +16,6 @@ export async function GET() {
             role: "GYM",
             gymProfile: {
                 is: {
-                    address: { not: "" },
                     OR: [
                         { lat: null },
                         { lng: null },
@@ -26,6 +25,7 @@ export async function GET() {
         },
         select: {
             id: true,
+            location: true,
             gymProfile: {
                 select: {
                     address: true,
@@ -37,10 +37,12 @@ export async function GET() {
     await Promise.all(
         gymsNeedingCoords.map(async (gym) => {
             const address = gym.gymProfile?.address?.trim();
-            if (!address) return;
+            const fallbackLocation = gym.location?.trim();
+            const lookupText = address || fallbackLocation;
+            if (!lookupText) return;
 
             try {
-                const geocoded = await geocodeAddress(address);
+                const geocoded = await geocodeAddress(lookupText);
                 if (!geocoded) return;
 
                 await db.gymProfile.update({
@@ -94,6 +96,8 @@ export async function GET() {
                     rating: true,
                     clients: true,
                     hiringTrainers: true,
+                    website: true,
+                    showWebsiteButton: true,
                     bio: true,
                     isVerified: true,
                     amenities: true,
@@ -108,14 +112,21 @@ export async function GET() {
 
     const results = gyms
         .filter((gym) => gym.gymProfile?.lat != null && gym.gymProfile?.lng != null)
-        .map((gym) => ({
+        .map((gym) => {
+            const displayName =
+                gym.gymProfile?.name?.trim() ||
+                gym.name?.trim() ||
+                gym.username?.trim() ||
+                "Gym";
+
+            return {
             id: gym.id,
             username: gym.username,
-            name: gym.name,
+            name: displayName,
             image: gym.image,
             gymProfile: {
                 id: gym.gymProfile!.id,
-                name: gym.gymProfile!.name,
+                name: displayName,
                 address: gym.gymProfile!.address,
                 city: gym.gymProfile!.city,
                 state: gym.gymProfile!.state,
@@ -126,13 +137,16 @@ export async function GET() {
                 rating: gym.gymProfile!.rating,
                 clients: gym.gymProfile!.clients,
                 hiringTrainers: gym.gymProfile!.hiringTrainers,
+                website: gym.gymProfile!.website,
+                showWebsiteButton: gym.gymProfile!.showWebsiteButton,
                 bio: gym.gymProfile!.bio,
                 isVerified: gym.gymProfile!.isVerified,
                 amenities: gym.gymProfile!.amenities ?? [],
             },
             about: gym.bio ?? gym.gymProfile!.bio ?? null,
             gallery: gym.searchGalleryImages.map((image) => image.url),
-        }));
+        };
+        });
 
     return NextResponse.json({ gyms: results });
 }

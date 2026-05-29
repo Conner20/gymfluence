@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star } from 'lucide-react';
+import { Search as SearchIcon, ChevronDown, X, MessageSquare, Share2, Star, SquarePen, Link as LinkIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import MobileHeader from "@/components/MobileHeader";
 import { GymDiscoveryPanel } from "@/components/GymMapPage";
+import SearchProfileEditor from "@/components/SearchProfileEditor";
 
 type Role = 'TRAINEE' | 'TRAINER' | 'GYM';
 
@@ -34,6 +35,8 @@ type SearchUser = {
     rating: number | null;
     clients: number | null;
     hiringTrainers?: boolean;
+    website?: string | null;
+    showWebsiteButton?: boolean;
 
     about?: string | null;
     gallery?: string[];
@@ -119,7 +122,7 @@ export default function SearchPage() {
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<ApiResponse | null>(null);
     const [viewerCoords, setViewerCoords] = useState<ViewerCoords | null>(null);
-    const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
+    const [mobileView, setMobileView] = useState<'list' | 'details' | 'editor'>('list');
     const pageSize = 10;
     const [page, setPage] = useState(1);
     const listRef = useRef<HTMLDivElement | null>(null);
@@ -152,6 +155,24 @@ export default function SearchPage() {
         window.addEventListener('resize', updateViewport);
         return () => window.removeEventListener('resize', updateViewport);
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || isDesktopViewport) return;
+
+        const openEditorFromIntro = () => {
+            const keys = Object.keys(window.localStorage);
+            const matchingKey = keys.find((key) => key.startsWith('page-intro:open-search-editor:'));
+            if (!matchingKey) return;
+            window.localStorage.removeItem(matchingKey);
+            setMobileView('editor');
+        };
+
+        openEditorFromIntro();
+        window.addEventListener('search-profile-editor:open', openEditorFromIntro as EventListener);
+        return () => {
+            window.removeEventListener('search-profile-editor:open', openEditorFromIntro as EventListener);
+        };
+    }, [isDesktopViewport]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
@@ -212,9 +233,12 @@ export default function SearchPage() {
             });
             setPage(1);
 
-            setSelectedId((prev) =>
-                prev && filteredResults.some((r) => r.id === prev) ? prev : filteredResults[0]?.id ?? null
-            );
+            setSelectedId((prev) => {
+                if (isDesktopViewport && hasActiveSearchFilters) {
+                    return filteredResults[0]?.id ?? null;
+                }
+                return prev && filteredResults.some((r) => r.id === prev) ? prev : null;
+            });
         } catch {
             setError('Failed to load results.');
         } finally {
@@ -231,7 +255,7 @@ export default function SearchPage() {
         const t = setTimeout(fetchResults, 250);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [q, role, statusFilter, minBudget, maxBudget, goals, viewerCoords, hiringOnly, gymSortBy, trainerSortBy]);
+    }, [q, role, statusFilter, minBudget, maxBudget, goals, viewerCoords, hiringOnly, gymSortBy, trainerSortBy, isDesktopViewport]);
 
     const resetFilters = () => {
         setQ('');
@@ -244,6 +268,9 @@ export default function SearchPage() {
         setGymSortBy('DISTANCE');
         setTrainerSortBy('DISTANCE');
         setPage(1);
+        if (isDesktopViewport) {
+            setSelectedId(null);
+        }
     };
 
     const toggleGoal = (g: string) =>
@@ -257,6 +284,27 @@ export default function SearchPage() {
         'sport performance',
         'injury recovery',
     ];
+
+    const hasActiveSearchFilters =
+        q.trim().length > 0 ||
+        role !== 'ALL' ||
+        statusFilter !== 'ALL' ||
+        minBudget.trim().length > 0 ||
+        maxBudget.trim().length > 0 ||
+        goals.length > 0 ||
+        hiringOnly ||
+        gymSortBy !== 'DISTANCE' ||
+        trainerSortBy !== 'DISTANCE';
+
+    const hasActiveNonQueryFilters =
+        role !== 'ALL' ||
+        statusFilter !== 'ALL' ||
+        minBudget.trim().length > 0 ||
+        maxBudget.trim().length > 0 ||
+        goals.length > 0 ||
+        hiringOnly ||
+        gymSortBy !== 'DISTANCE' ||
+        trainerSortBy !== 'DISTANCE';
 
     useEffect(() => {
         if (role !== 'GYM') {
@@ -301,7 +349,7 @@ export default function SearchPage() {
             return;
         }
 
-        if (previousRoleRef.current !== role && mobileView === 'details') {
+        if (previousRoleRef.current !== role && mobileView !== 'list') {
             setMobileView('list');
         }
 
@@ -322,6 +370,13 @@ export default function SearchPage() {
         router.push(
             `/messages?shareType=profile&shareUrl=${encodeURIComponent(profileUrl)}&shareLabel=${encodeURIComponent(shareLabel)}&shareUserId=${encodeURIComponent(u.id)}`
         );
+    };
+
+    const handleClearSearch = () => {
+        setQ('');
+        if (isDesktopViewport && !hasActiveNonQueryFilters) {
+            setSelectedId(null);
+        }
     };
 
     // close lightbox on ESC
@@ -346,7 +401,7 @@ export default function SearchPage() {
                 />
                 <button
                     type="button"
-                    onClick={() => setQ('')}
+                    onClick={handleClearSearch}
                     aria-label="Clear search"
                     tabIndex={q ? 0 : -1}
                     className={clsx(
@@ -942,10 +997,29 @@ export default function SearchPage() {
     const totalPages = Math.max(1, Math.ceil(allResults.length / pageSize));
     const startIdx = (page - 1) * pageSize;
     const paginatedResults = allResults.slice(startIdx, startIdx + pageSize);
-    const gymDiscoveryMode = role === 'GYM';
     const minBudgetValue = minBudget.trim() === '' ? null : Number(minBudget);
     const maxBudgetValue = maxBudget.trim() === '' ? null : Number(maxBudget);
-    const selectedGymInAnyRole = role === 'ALL' && selected?.role === 'GYM' ? selected : null;
+    const selectedGym = selected?.role === 'GYM' ? selected : null;
+
+    const desktopSearchProfileEditor = (
+        <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)] dark:bg-neutral-900 dark:border-white/10 lg:flex lg:h-[calc(100vh-190px)] lg:flex-col lg:overflow-hidden">
+            <SearchProfileEditor className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 scrollbar-slim" />
+        </div>
+    );
+
+    const mobileSearchProfileEditor = (
+            <div className="px-4 py-4">
+                <button
+                    onClick={() => setMobileView('list')}
+                className="mb-3 inline-flex items-center gap-2 text-sm text-green-700 dark:text-green-400"
+            >
+                <span className="text-lg">&larr;</span> Back
+                </button>
+                <div className="bg-white border rounded-xl p-4 overflow-hidden dark:bg-neutral-900 dark:border-white/10">
+                    <SearchProfileEditor className="overflow-x-hidden" />
+                </div>
+            </div>
+    );
 
     useEffect(() => {
         if (isDesktopViewport) return;
@@ -955,9 +1029,27 @@ export default function SearchPage() {
         setMobileView('list');
     }, [isDesktopViewport, mobileView, role, selected]);
 
+    const mobileHeaderActions = (
+        <button
+            type="button"
+            onClick={() => setMobileView((current) => (current === 'editor' ? 'list' : 'editor'))}
+            className={clsx(
+                "inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition",
+                mobileView === 'editor'
+                    ? "border-green-700 bg-green-700 text-white dark:border-green-500 dark:bg-green-500 dark:text-black"
+                    : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+            )}
+            aria-label="Edit search profile"
+            title="Edit search profile"
+        >
+            <SquarePen size={16} />
+            <span>Edit Profile</span>
+        </button>
+    );
+
     return (
         <div className="min-h-screen bg-[#f8f8f8] flex flex-col overflow-x-hidden dark:bg-[#050505] dark:text-white">
-            <MobileHeader title="search" href="/search" subContent={mobileFilters} />
+            <MobileHeader title="search" href="/search" subContent={mobileFilters} rightAccessory={mobileHeaderActions} titleAlign="left" />
 
             {/* Desktop header */}
             <header className="hidden lg:block sticky top-0 z-20 w-full bg-white dark:bg-neutral-900 dark:border-b dark:border-white/10">
@@ -977,7 +1069,7 @@ export default function SearchPage() {
                             />
                             <button
                                 type="button"
-                                onClick={() => setQ('')}
+                                onClick={handleClearSearch}
                                 aria-label="Clear search"
                                 tabIndex={q ? 0 : -1}
                                 className={clsx(
@@ -1475,6 +1567,8 @@ export default function SearchPage() {
                         </div>
                     )}
 
+                    {mobileView === 'editor' && mobileSearchProfileEditor}
+
                     {mobileView === 'details' && (
                         <div className="px-4 py-4">
                             <button
@@ -1486,24 +1580,15 @@ export default function SearchPage() {
                             <div className="bg-white border rounded-xl p-4 overflow-hidden dark:bg-neutral-900 dark:border-white/10">
                                 {!selected ? (
                                     <div className="text-gray-500 text-sm dark:text-gray-400">Select a result to see details.</div>
-                                ) : gymDiscoveryMode ? (
+                                ) : selectedGym ? (
                                     <GymDiscoveryPanel
                                         embedded
                                         hideList
                                         selectedGymIdOverride={selected.id}
                                         autoSelectFirst={false}
                                         query={q}
-                                        hiringOnly={hiringOnly}
-                                        sortBy={gymSortBy}
-                                        minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
-                                        maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
-                                    />
-                                ) : selectedGymInAnyRole ? (
-                                    <GymDiscoveryPanel
-                                        embedded
-                                        hideList
-                                        selectedGymIdOverride={selectedGymInAnyRole.id}
-                                        query={q}
+                                        hiringOnly={role === 'GYM' ? hiringOnly : false}
+                                        sortBy={role === 'GYM' ? gymSortBy : 'DISTANCE'}
                                         minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
                                         maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
                                     />
@@ -1522,20 +1607,6 @@ export default function SearchPage() {
                 </div>
 
                 <div className="hidden lg:block">
-                    {gymDiscoveryMode ? (
-                        <div className="mx-auto max-w-[1400px] px-4 py-4">
-                            <GymDiscoveryPanel
-                                embedded
-                                hideListHeader
-                                autoSelectFirst
-                                query={q}
-                                hiringOnly={hiringOnly}
-                                sortBy={gymSortBy}
-                                minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
-                                maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
-                            />
-                        </div>
-                    ) : (
                     <div className="mx-auto max-w-[1400px] px-4 py-4">
                         <div className="flex gap-6">
                             <aside className="w-[380px] shrink-0">
@@ -1650,33 +1721,32 @@ export default function SearchPage() {
                             </aside>
 
                             <section className="flex-1 min-w-0">
-                                {selectedGymInAnyRole ? (
+                                {!selected ? (
+                                    desktopSearchProfileEditor
+                                ) : selectedGym ? (
                                     <GymDiscoveryPanel
                                         embedded
                                         hideList
-                                        selectedGymIdOverride={selectedGymInAnyRole.id}
+                                        selectedGymIdOverride={selectedGym.id}
                                         query={q}
+                                        hiringOnly={role === 'GYM' ? hiringOnly : false}
+                                        sortBy={role === 'GYM' ? gymSortBy : 'DISTANCE'}
                                         minBudget={Number.isFinite(minBudgetValue as number) ? minBudgetValue : null}
                                         maxBudget={Number.isFinite(maxBudgetValue as number) ? maxBudgetValue : null}
                                     />
                                 ) : (
                                     <div className="bg-white border rounded-xl p-6 min-h-[calc(100vh-190px)] dark:bg-neutral-900 dark:border-white/10">
-                                        {!selected ? (
-                                            <div className="text-gray-500 dark:text-gray-400">Select a result to see details.</div>
-                                        ) : (
-                                            <UserDetails
-                                                u={selected}
-                                                onMessage={handleMessage}
-                                                onShare={handleShareProfile}
-                                                onOpenImage={(url) => setLightboxUrl(url)}
-                                            />
-                                        )}
-                                                            </div>
+                                        <UserDetails
+                                            u={selected}
+                                            onMessage={handleMessage}
+                                            onShare={handleShareProfile}
+                                            onOpenImage={(url) => setLightboxUrl(url)}
+                                        />
+                                    </div>
                                 )}
                             </section>
                         </div>
                     </div>
-                    )}
                 </div>
                     </>
             </main>
@@ -1731,6 +1801,8 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
     const display = u.name || u.username || 'User';
     const isMobile = variant === 'mobile';
     const actionIconSize = isMobile ? 16 : 16;
+    const websiteUrl = typeof u.website === 'string' ? u.website.trim() : '';
+    const showWebsiteAction = Boolean((u.role === 'TRAINER' || u.role === 'GYM') && u.showWebsiteButton && websiteUrl);
     const mobileActionButtonClass = isMobile
         ? 'flex h-9 w-9 items-center justify-center rounded-full border bg-white p-0 leading-none hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10'
         : 'px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-50 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10';
@@ -1819,6 +1891,21 @@ function UserDetails({ u, onMessage, onShare, onOpenImage, variant = 'desktop' }
                                         {!isMobile && 'Rate'}
                                     </span>
                                 </Link>
+                            )}
+
+                            {showWebsiteAction && (
+                                <a
+                                    href={websiteUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={mobileActionButtonClass}
+                                    title="Visit website"
+                                >
+                                    <span className="inline-flex items-center gap-1">
+                                        <LinkIcon size={actionIconSize} />
+                                        {!isMobile && 'Website'}
+                                    </span>
+                                </a>
                             )}
                         </div>
                     </div>

@@ -20,8 +20,29 @@ export async function GET() {
                 bio: true,
                 username: true,
                 name: true,
-                traineeProfile: { select: { goals: true } },
-                trainerProfile: { select: { services: true, hourlyRate: true } },
+                traineeProfile: {
+                    select: {
+                        goals: true,
+                        trainerStatus: true,
+                        gymStatus: true,
+                        gymName: true,
+                        gymPlaceId: true,
+                        associatedTrainer: {
+                            select: { id: true, username: true, name: true },
+                        },
+                    },
+                },
+                trainerProfile: {
+                    select: {
+                        services: true,
+                        hourlyRate: true,
+                        website: true,
+                        showWebsiteButton: true,
+                        gymStatus: true,
+                        gymName: true,
+                        gymPlaceId: true,
+                    },
+                },
                 gymProfile: {
                     select: {
                         name: true,
@@ -30,6 +51,8 @@ export async function GET() {
                         address: true,
                         phone: true,
                         website: true,
+                        showWebsiteButton: true,
+                        hiringTrainers: true,
                     },
                 },
             },
@@ -44,9 +67,19 @@ export async function GET() {
 
         if (me.role === "TRAINEE") {
             payload.goals = me.traineeProfile?.goals ?? [];
+            payload.traineeTrainerStatus = me.traineeProfile?.trainerStatus ?? "";
+            payload.traineeGymStatus = me.traineeProfile?.gymStatus ?? "";
+            payload.traineeGymName = me.traineeProfile?.gymName ?? "";
+            payload.traineeGymPlaceId = me.traineeProfile?.gymPlaceId ?? "";
+            payload.associatedTrainer = me.traineeProfile?.associatedTrainer ?? null;
         } else if (me.role === "TRAINER") {
             payload.services = me.trainerProfile?.services ?? [];
             payload.hourlyRate = me.trainerProfile?.hourlyRate ?? null;
+            payload.website = me.trainerProfile?.website ?? "";
+            payload.showWebsiteButton = me.trainerProfile?.showWebsiteButton ?? false;
+            payload.trainerGymStatus = me.trainerProfile?.gymStatus ?? "";
+            payload.trainerGymName = me.trainerProfile?.gymName ?? "";
+            payload.trainerGymPlaceId = me.trainerProfile?.gymPlaceId ?? "";
         } else if (me.role === "GYM") {
             payload.gymFee = me.gymProfile?.fee ?? null;
             payload.amenitiesText = me.gymProfile?.amenities?.[0] ?? "";
@@ -54,6 +87,8 @@ export async function GET() {
             payload.gymAddress = me.gymProfile?.address ?? "";
             payload.gymPhone = me.gymProfile?.phone ?? "";
             payload.gymWebsite = me.gymProfile?.website ?? "";
+            payload.showWebsiteButton = me.gymProfile?.showWebsiteButton ?? false;
+            payload.hiringTrainers = me.gymProfile?.hiringTrainers ?? false;
         }
 
         return NextResponse.json(payload);
@@ -88,6 +123,8 @@ export async function PATCH(req: Request) {
                         address: true,
                         phone: true,
                         website: true,
+                        showWebsiteButton: true,
+                        hiringTrainers: true,
                     },
                 },
             },
@@ -108,6 +145,8 @@ export async function PATCH(req: Request) {
             gymAddress,
             gymPhone,
             gymWebsite,
+            showWebsiteButton,
+            hiringTrainers,
         }: {
             about?: string;
             goals?: string[];
@@ -119,6 +158,8 @@ export async function PATCH(req: Request) {
             gymAddress?: string;
             gymPhone?: string;
             gymWebsite?: string;
+            showWebsiteButton?: boolean;
+            hiringTrainers?: boolean;
         } = body ?? {};
 
         // Bio update is independent of role
@@ -182,6 +223,16 @@ export async function PATCH(req: Request) {
                 me.gymProfile?.website ||
                 "";
 
+            const showWebsiteButtonValue: boolean =
+                typeof showWebsiteButton === "boolean"
+                    ? showWebsiteButton
+                    : (me.gymProfile?.showWebsiteButton ?? false);
+
+            const hiringTrainersValue: boolean =
+                typeof hiringTrainers === "boolean"
+                    ? hiringTrainers
+                    : (me.gymProfile?.hiringTrainers ?? false);
+
             const feeValue: number =
                 typeof gymFee === "number"
                     ? gymFee
@@ -203,6 +254,8 @@ export async function PATCH(req: Request) {
                     website: websiteValue,
                     fee: feeValue,
                     amenities: amenitiesArray,
+                    showWebsiteButton: showWebsiteButtonValue,
+                    hiringTrainers: hiringTrainersValue,
                 },
                 update: {
                     ...(typeof gymName === "string" && gymName.trim() ? { name: gymName.trim() } : {}),
@@ -211,6 +264,8 @@ export async function PATCH(req: Request) {
                     ...(typeof gymWebsite === "string" ? { website: gymWebsite } : {}),
                     ...(typeof gymFee === "number" || gymFee === null ? { fee: feeValue } : {}),
                     ...(typeof amenitiesText === "string" ? { amenities: [amenitiesText] } : {}),
+                    ...(typeof showWebsiteButton === "boolean" ? { showWebsiteButton } : {}),
+                    ...(typeof hiringTrainers === "boolean" ? { hiringTrainers } : {}),
                 },
             });
         }

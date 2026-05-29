@@ -1,14 +1,12 @@
 // app/(main)/settings/page.tsx
 'use client';
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import PrivacyToggle from "./privacy-toggle";
 import MobileHeader from "@/components/MobileHeader";
-import SearchProfileEditor from "@/components/SearchProfileEditor";
 import { useRouter } from "next/navigation";
 import { PasswordInput } from "@/components/ui/password-input";
-import { ChevronDown } from "lucide-react";
 import { genUploader } from "uploadthing/client";
 
 import type { UploadRouter } from "@/app/api/uploadthing/core";
@@ -40,6 +38,33 @@ type TrainerSuggestion = {
     name: string | null;
 };
 
+type SettingsProfileSnapshot = {
+    role: string;
+    name: string;
+    location: string;
+    bio: string;
+    city: string;
+    stateRegion: string;
+    country: string;
+    lat: number | null;
+    lng: number | null;
+    showWebsiteButton: boolean;
+    website: string;
+    hiringTrainers: boolean;
+    gymProfileName: string;
+    gymProfileAddress: string;
+    gymProfilePhone: string;
+    gymProfileFee: string;
+    traineeTrainerStatus: "" | "LOOKING" | "TRAINING_WITH";
+    traineeGymStatus: "" | "LOOKING" | "MEMBER";
+    trainerGymStatus: "" | "LOOKING" | "TRAINER";
+    associatedTrainerId: string;
+    associatedGymId: string;
+    associatedGymName: string;
+    imageUrl: string | null;
+    hasPendingImage: boolean;
+};
+
 const { uploadFiles } = genUploader<UploadRouter>();
 
 function formatPhoneNumber(value: string) {
@@ -52,19 +77,11 @@ function formatPhoneNumber(value: string) {
 }
 
 function formatCurrencyInput(value: string) {
-    const normalized = value.replace(/[^0-9.]/g, "");
-    const [whole = "", ...decimalParts] = normalized.split(".");
-    const decimal = decimalParts.join("").slice(0, 2);
+    const digits = value.replace(/\D/g, "").slice(0, 9);
+    if (!digits) return "0.00";
 
-    if (normalized.startsWith(".")) {
-        return decimal ? `0.${decimal}` : "0.";
-    }
-
-    if (decimalParts.length === 0) {
-        return whole;
-    }
-
-    return `${whole}.${decimal}`;
+    const cents = Number(digits);
+    return (cents / 100).toFixed(2);
 }
 
 function formatCurrencyValue(value: number) {
@@ -78,7 +95,6 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
     const [profileError, setProfileError] = useState<string | null>(null);
-    const [websiteToggleSaving, setWebsiteToggleSaving] = useState(false);
     const [accountEmail, setAccountEmail] = useState("");
     const [role, setRole] = useState("");
     const [showWebsiteButton, setShowWebsiteButton] = useState(false);
@@ -115,14 +131,21 @@ export default function SettingsPage() {
     const [file, setFile] = useState<File | null>(null);
     const previousPreviewRef = useRef<string | null>(null);
 
-    // Trigger to tell SearchProfileEditor to save
-    const [searchSaveTrigger, setSearchSaveTrigger] = useState(0);
-
     // Delete account flow
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletePassword, setDeletePassword] = useState("");
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [initialProfileSnapshot, setInitialProfileSnapshot] = useState<SettingsProfileSnapshot | null>(null);
+
+    const primaryActionButtonClass =
+        "rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 bg-green-700 text-white hover:bg-green-800 dark:bg-green-500 dark:text-black dark:hover:bg-green-400";
+    const mutedActionButtonClass =
+        "rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/15";
+    const disabledActionButtonClass =
+        "rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 bg-gray-300 text-gray-600 dark:bg-white/10 dark:text-gray-400";
+    const dangerActionButtonClass =
+        "rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:text-white dark:hover:bg-red-400";
 
     // Password management
     const [hasPassword, setHasPassword] = useState(false);
@@ -132,6 +155,65 @@ export default function SettingsPage() {
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [passwordError, setPasswordError] = useState<string | null>(null);
     const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+    const currentProfileSnapshot = useMemo<SettingsProfileSnapshot>(
+        () => ({
+            role,
+            name,
+            location,
+            bio,
+            city,
+            stateRegion,
+            country,
+            lat,
+            lng,
+            showWebsiteButton,
+            website,
+            hiringTrainers,
+            gymProfileName,
+            gymProfileAddress,
+            gymProfilePhone,
+            gymProfileFee,
+            traineeTrainerStatus,
+            traineeGymStatus,
+            trainerGymStatus,
+            associatedTrainerId: associatedTrainer?.id ?? "",
+            associatedGymId: associatedGym?.id ?? "",
+            associatedGymName: associatedGym?.name ?? "",
+            imageUrl,
+            hasPendingImage: Boolean(file),
+        }),
+        [
+            role,
+            name,
+            location,
+            bio,
+            city,
+            stateRegion,
+            country,
+            lat,
+            lng,
+            showWebsiteButton,
+            website,
+            hiringTrainers,
+            gymProfileName,
+            gymProfileAddress,
+            gymProfilePhone,
+            gymProfileFee,
+            traineeTrainerStatus,
+            traineeGymStatus,
+            trainerGymStatus,
+            associatedTrainer,
+            associatedGym,
+            imageUrl,
+            file,
+        ]
+    );
+
+    const isProfileDirty = useMemo(() => {
+        if (!initialProfileSnapshot) return false;
+        return JSON.stringify(currentProfileSnapshot) !== JSON.stringify(initialProfileSnapshot);
+    }, [currentProfileSnapshot, initialProfileSnapshot]);
 
     useEffect(() => {
         let cancelled = false;
@@ -226,6 +308,41 @@ export default function SettingsPage() {
                     const label = [me.city, me.state, me.country].filter(Boolean).join(", ");
                     setLocation(label);
                 }
+
+                setInitialProfileSnapshot({
+                    role: me.role || "",
+                    name: me.name || "",
+                    location: me.location || "",
+                    bio: me.bio || "",
+                    city: me.city || "",
+                    stateRegion: me.state || "",
+                    country: me.country || "",
+                    lat: typeof me.lat === "number" ? me.lat : null,
+                    lng: typeof me.lng === "number" ? me.lng : null,
+                    showWebsiteButton: Boolean(me.showWebsiteButton),
+                    website: me.website || "",
+                    hiringTrainers: Boolean(me.hiringTrainers),
+                    gymProfileName: me.gymProfileName || "",
+                    gymProfileAddress: me.gymProfileAddress || "",
+                    gymProfilePhone: me.gymProfilePhone || "",
+                    gymProfileFee:
+                        typeof me.gymProfileFee === "number" && !Number.isNaN(me.gymProfileFee)
+                            ? formatCurrencyValue(me.gymProfileFee)
+                            : "",
+                    traineeTrainerStatus: me.traineeTrainerStatus || "",
+                    traineeGymStatus: me.traineeGymStatus || "",
+                    trainerGymStatus: me.trainerGymStatus || "",
+                    associatedTrainerId: me.associatedTrainer?.id || "",
+                    associatedGymId:
+                        me.traineeGymPlaceId ||
+                        me.trainerGymPlaceId ||
+                        me.traineeGymName ||
+                        me.trainerGymName ||
+                        "",
+                    associatedGymName: me.traineeGymName || me.trainerGymName || "",
+                    imageUrl: me.image || null,
+                    hasPendingImage: false,
+                });
             } catch (error) {
                 console.error(error);
             } finally {
@@ -363,6 +480,40 @@ export default function SettingsPage() {
             }
             setPreviewUrl(null);
             setFile(null);
+            setInitialProfileSnapshot({
+                role: me.role || role,
+                name: me.name || "",
+                location: me.location || "",
+                bio: me.bio || "",
+                city: me.city || "",
+                stateRegion: me.state || "",
+                country: me.country || "",
+                lat: typeof me.lat === "number" ? me.lat : null,
+                lng: typeof me.lng === "number" ? me.lng : null,
+                showWebsiteButton: Boolean(me.showWebsiteButton),
+                website: me.website || "",
+                hiringTrainers: Boolean(me.hiringTrainers),
+                gymProfileName: me.gymProfileName || "",
+                gymProfileAddress: me.gymProfileAddress || "",
+                gymProfilePhone: me.gymProfilePhone || "",
+                gymProfileFee:
+                    typeof me.gymProfileFee === "number" && !Number.isNaN(me.gymProfileFee)
+                        ? formatCurrencyValue(me.gymProfileFee)
+                        : "",
+                traineeTrainerStatus: me.traineeTrainerStatus || "",
+                traineeGymStatus: me.traineeGymStatus || "",
+                trainerGymStatus: me.trainerGymStatus || "",
+                associatedTrainerId: me.associatedTrainer?.id || "",
+                associatedGymId:
+                    me.traineeGymPlaceId ||
+                    me.trainerGymPlaceId ||
+                    me.traineeGymName ||
+                    me.trainerGymName ||
+                    "",
+                associatedGymName: me.traineeGymName || me.trainerGymName || "",
+                imageUrl: me.image || null,
+                hasPendingImage: false,
+            });
 
         } catch {
             setProfileError("Failed to save profile.");
@@ -370,8 +521,7 @@ export default function SettingsPage() {
         }
     };
 
-    // Save BOTH main profile and search profile
-    const saveBoth = async () => {
+    const saveSettings = async () => {
         if (profileSaveState === "saving") return;
         setProfileError(null);
 
@@ -396,38 +546,10 @@ export default function SettingsPage() {
         setProfileSaveState("saving");
         try {
             await saveProfile();
-            setSearchSaveTrigger((t) => t + 1);
             setProfileSaveState("saved");
             setTimeout(() => setProfileSaveState("idle"), 2000);
         } catch {
             setProfileSaveState("idle");
-        }
-    };
-
-    const handleWebsiteToggle = async () => {
-        if (websiteToggleSaving) return;
-
-        const nextValue = !showWebsiteButton;
-        setShowWebsiteButton(nextValue);
-        setWebsiteToggleSaving(true);
-        setProfileError(null);
-
-        try {
-            const res = await fetch("/api/user/profile", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ showWebsiteButton: nextValue }),
-            });
-
-            if (!res.ok) {
-                throw new Error("Failed to save website button setting.");
-            }
-        } catch (error) {
-            console.error(error);
-            setShowWebsiteButton(!nextValue);
-            setProfileError("Failed to save website button setting.");
-        } finally {
-            setWebsiteToggleSaving(false);
         }
     };
 
@@ -577,7 +699,7 @@ export default function SettingsPage() {
                                         <div>
                                             <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Name</label>
                                             <input
-                                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
                                             />
@@ -597,9 +719,6 @@ export default function SettingsPage() {
                                                     setLng(loc.lng);
                                                 }}
                                             />
-                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                Start typing a city (e.g. “Cincinnati, OH”) and choose a suggestion.
-                                            </p>
                                         </div>
                                     </>
                                 ) : (
@@ -607,7 +726,7 @@ export default function SettingsPage() {
                                         <div>
                                             <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Name</label>
                                             <input
-                                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                                 value={gymProfileName}
                                                 onChange={(e) => setGymProfileName(e.target.value)}
                                             />
@@ -624,7 +743,7 @@ export default function SettingsPage() {
                                         <div>
                                             <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Phone number</label>
                                             <input
-                                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                                 value={gymProfilePhone}
                                                 onChange={(e) => setGymProfilePhone(formatPhoneNumber(e.target.value))}
                                                 placeholder="(123) 456-7890"
@@ -637,16 +756,14 @@ export default function SettingsPage() {
                                                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
                                                     $
                                                 </span>
+                                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400">
+                                                    /month
+                                                </span>
                                                 <input
                                                     inputMode="decimal"
-                                                    className="w-full border rounded py-2 pl-8 pr-3 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                    className="w-full border rounded py-2 pl-8 pr-16 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                                     value={gymProfileFee}
                                                     onChange={(e) => setGymProfileFee(formatCurrencyInput(e.target.value))}
-                                                    onFocus={() => {
-                                                        if (gymProfileFee === "0.00") {
-                                                            setGymProfileFee("");
-                                                        }
-                                                    }}
                                                     onBlur={() => {
                                                         if (!gymProfileFee) {
                                                             setGymProfileFee("0.00");
@@ -667,7 +784,7 @@ export default function SettingsPage() {
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Bio</label>
                                     <textarea
-                                        className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                        className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                         rows={4}
                                         value={bio}
                                         onChange={(e) => setBio(e.target.value)}
@@ -678,25 +795,32 @@ export default function SettingsPage() {
                                     <div className="grid gap-4 md:grid-cols-2 md:items-start">
                                         <div className="space-y-2">
                                             <label className="block text-sm text-gray-600 dark:text-gray-300">Trainer status</label>
-                                            <div className="relative">
-                                                <select
-                                                    className="w-full appearance-none border rounded px-3 py-2 pr-12 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
-                                                    value={traineeTrainerStatus}
-                                                    onChange={(e) => {
-                                                        const next = e.target.value as "" | "LOOKING" | "TRAINING_WITH";
+                                        <div className="flex flex-nowrap gap-1.5 sm:flex-wrap sm:gap-2">
+                                            {[
+                                                { value: "LOOKING" as const, label: "I'm looking for a trainer" },
+                                                { value: "TRAINING_WITH" as const, label: "I have a trainer" },
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next = traineeTrainerStatus === option.value ? "" : option.value;
                                                         setTraineeTrainerStatus(next);
                                                         setTrainerFieldInvalid(false);
                                                         if (next !== "TRAINING_WITH") {
                                                             setAssociatedTrainer(null);
                                                         }
                                                     }}
+                                                    className={`rounded-full border px-3 py-2 text-xs font-medium leading-none transition-colors sm:px-3.5 sm:py-1.5 sm:text-[13px] ${
+                                                        traineeTrainerStatus === option.value
+                                                            ? "border-green-700 bg-green-700 text-white hover:bg-green-800 dark:border-green-500 dark:bg-green-500 dark:text-black dark:hover:border-green-400 dark:hover:bg-green-400"
+                                                            : "border-gray-200 bg-transparent text-gray-700 hover:bg-gray-100 dark:border-white/15 dark:text-gray-200 dark:hover:bg-white/10"
+                                                    }`}
                                                 >
-                                                    <option value=""></option>
-                                                    <option value="LOOKING">I'm looking for a trainer</option>
-                                                    <option value="TRAINING_WITH">I have a trainer</option>
-                                                </select>
-                                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
-                                            </div>
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                             {traineeTrainerStatus === "TRAINING_WITH" && (
                                                 <TrainerAutocomplete
                                                     value={associatedTrainer}
@@ -713,25 +837,32 @@ export default function SettingsPage() {
 
                                         <div className="space-y-2">
                                             <label className="block text-sm text-gray-600 dark:text-gray-300">Gym status</label>
-                                            <div className="relative">
-                                                <select
-                                                    className="w-full appearance-none border rounded px-3 py-2 pr-12 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
-                                                    value={traineeGymStatus}
-                                                    onChange={(e) => {
-                                                        const next = e.target.value as "" | "LOOKING" | "MEMBER";
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { value: "LOOKING" as const, label: "I'm looking for a gym" },
+                                                { value: "MEMBER" as const, label: "I'm a member at a gym" },
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next = traineeGymStatus === option.value ? "" : option.value;
                                                         setTraineeGymStatus(next);
                                                         setGymFieldInvalid(false);
                                                         if (next !== "MEMBER") {
                                                             setAssociatedGym(null);
                                                         }
                                                     }}
+                                                    className={`rounded-full border px-3 py-2 text-xs font-medium leading-none transition-colors sm:px-3.5 sm:py-1.5 sm:text-[13px] ${
+                                                        traineeGymStatus === option.value
+                                                            ? "border-green-700 bg-green-700 text-white hover:bg-green-800 dark:border-green-500 dark:bg-green-500 dark:text-black dark:hover:border-green-400 dark:hover:bg-green-400"
+                                                            : "border-gray-200 bg-transparent text-gray-700 hover:bg-gray-100 dark:border-white/15 dark:text-gray-200 dark:hover:bg-white/10"
+                                                    }`}
                                                 >
-                                                    <option value=""></option>
-                                                    <option value="LOOKING">I'm looking for a gym</option>
-                                                    <option value="MEMBER">I'm a member at a gym</option>
-                                                </select>
-                                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
-                                            </div>
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                             {traineeGymStatus === "MEMBER" && (
                                                 <GymAutocomplete
                                                     value={associatedGym}
@@ -751,24 +882,31 @@ export default function SettingsPage() {
                                 {role === "TRAINER" && (
                                     <div className="space-y-2">
                                         <label className="block text-sm text-gray-600 dark:text-gray-300">Gym status</label>
-                                        <div className="relative">
-                                            <select
-                                                className="w-full appearance-none border rounded px-3 py-2 pr-12 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
-                                                value={trainerGymStatus}
-                                                onChange={(e) => {
-                                                    const next = e.target.value as "" | "LOOKING" | "TRAINER";
-                                                    setTrainerGymStatus(next);
-                                                    setTrainerGymFieldInvalid(false);
-                                                    if (next !== "TRAINER") {
-                                                        setAssociatedGym(null);
-                                                    }
-                                                }}
-                                            >
-                                                <option value=""></option>
-                                                <option value="LOOKING">I'm looking for a gym</option>
-                                                <option value="TRAINER">I'm a trainer at a gym</option>
-                                            </select>
-                                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
+                                        <div className="flex flex-nowrap gap-2">
+                                            {[
+                                                { value: "LOOKING" as const, label: "I'm looking for a gym" },
+                                                { value: "TRAINER" as const, label: "I'm a trainer at a gym" },
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next = trainerGymStatus === option.value ? "" : option.value;
+                                                        setTrainerGymStatus(next);
+                                                        setTrainerGymFieldInvalid(false);
+                                                        if (next !== "TRAINER") {
+                                                            setAssociatedGym(null);
+                                                        }
+                                                    }}
+                                                    className={`min-w-0 flex-1 rounded-full border px-3 py-2 text-xs font-medium leading-none transition-colors sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-[13px] ${
+                                                        trainerGymStatus === option.value
+                                                            ? "border-green-700 bg-green-700 text-white hover:bg-green-800 dark:border-green-500 dark:bg-green-500 dark:text-black dark:hover:border-green-400 dark:hover:bg-green-400"
+                                                            : "border-gray-200 bg-transparent text-gray-700 hover:bg-gray-100 dark:border-white/15 dark:text-gray-200 dark:hover:bg-white/10"
+                                                    }`}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
                                         </div>
                                         {trainerGymStatus === "TRAINER" && (
                                             <GymAutocomplete
@@ -787,22 +925,18 @@ export default function SettingsPage() {
 
                                 {(role === "GYM" || role === "TRAINER") && (
                                     <div className="space-y-3 rounded-xl border border-gray-200 px-4 py-3 dark:border-white/10">
-                                        <div className="flex items-center justify-between">
-                                            <div className="pr-4">
-                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Show website button on profile</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Display a website link icon on your profile next to the profile actions.
-                                                </p>
+                                        <div className="flex flex-nowrap items-center justify-between gap-3">
+                                            <div className="min-w-0 flex-1 pr-2">
+                                                <p className="whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-100">Show website on profile</p>
                                             </div>
                                             <button
                                                 type="button"
                                                 role="switch"
                                                 aria-checked={showWebsiteButton}
-                                                onClick={handleWebsiteToggle}
-                                                disabled={websiteToggleSaving}
+                                                onClick={() => setShowWebsiteButton((current) => !current)}
                                                 className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                                                    showWebsiteButton ? "bg-green-600" : "bg-gray-300 dark:bg-neutral-700"
-                                                } ${websiteToggleSaving ? "cursor-not-allowed opacity-60" : ""}`}
+                                                    showWebsiteButton ? "bg-green-700 dark:bg-green-500" : "bg-gray-300 dark:bg-neutral-700"
+                                                }`}
                                             >
                                                 <span
                                                     className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
@@ -819,7 +953,7 @@ export default function SettingsPage() {
                                                 </label>
                                                 <input
                                                     type="url"
-                                                    className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                                    className="w-full rounded border px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:border-white/10 dark:bg-transparent dark:text-gray-100"
                                                     value={website}
                                                     onChange={(e) => setWebsite(e.target.value)}
                                                     placeholder="https://example.com"
@@ -829,42 +963,43 @@ export default function SettingsPage() {
                                                 />
                                             </div>
                                         )}
-                                    </div>
-                                )}
 
-                                {role === "GYM" && (
-                                    <div className="space-y-3 rounded-xl border border-gray-200 px-4 py-3 dark:border-white/10">
-                                        <div className="flex items-center justify-between">
-                                            <div className="pr-4">
-                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Hiring trainers?</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Display “Hiring trainers” on your profile.
-                                                </p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                role="switch"
-                                                aria-checked={hiringTrainers}
-                                                onClick={() => setHiringTrainers((current) => !current)}
+                                        {role === "GYM" && (
+                                            <div className="flex flex-nowrap items-center justify-between gap-3">
+                                                <div className="min-w-0 flex-1 pr-2">
+                                                    <p className="whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-100">Actively hiring trainers</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    role="switch"
+                                                    aria-checked={hiringTrainers}
+                                                    onClick={() => setHiringTrainers((current) => !current)}
                                                 className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                                                    hiringTrainers ? "bg-green-600" : "bg-gray-300 dark:bg-neutral-700"
-                                                }`}
-                                            >
-                                                <span
-                                                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                                                        hiringTrainers ? "translate-x-5" : "translate-x-1"
+                                                        hiringTrainers ? "bg-green-700 dark:bg-green-500" : "bg-gray-300 dark:bg-neutral-700"
                                                     }`}
-                                                />
-                                            </button>
-                                        </div>
+                                                >
+                                                    <span
+                                                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                                                            hiringTrainers ? "translate-x-5" : "translate-x-1"
+                                                        }`}
+                                                    />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                                     <button
-                                        onClick={saveBoth}
-                                        disabled={profileSaveState === "saving"}
-                                        className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50 hover:bg-green-700"
+                                        onClick={saveSettings}
+                                        disabled={profileSaveState === "saving" || (!isProfileDirty && profileSaveState === "idle")}
+                                        className={
+                                            `${profileSaveState === "saving"
+                                                ? disabledActionButtonClass
+                                                : profileSaveState === "saved" || isProfileDirty
+                                                    ? primaryActionButtonClass
+                                                    : mutedActionButtonClass} w-full sm:w-auto`
+                                        }
                                     >
                                         {profileSaveState === "saved"
                                             ? "Saved!"
@@ -886,11 +1021,6 @@ export default function SettingsPage() {
                     </section>
                 </div>
 
-                {/* Search Profile card */}
-                <div className="bg-white rounded-xl shadow p-4 space-y-6 sm:p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
-                    <SearchProfileEditor externalSaveTrigger={searchSaveTrigger} />
-                </div>
-
                 {/* Password management */}
                 <div className="bg-white rounded-xl shadow p-4 space-y-4 sm:p-6 dark:bg-neutral-900 dark:border dark:border-white/10 dark:shadow-none">
                     <h2 className="font-semibold">Password</h2>
@@ -903,7 +1033,7 @@ export default function SettingsPage() {
                         <div>
                             <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Current password</label>
                             <PasswordInput
-                                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
                                 disabled={passwordLoading}
@@ -914,7 +1044,7 @@ export default function SettingsPage() {
                     <div>
                         <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">New password</label>
                         <PasswordInput
-                            className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                            className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             disabled={passwordLoading}
@@ -924,14 +1054,14 @@ export default function SettingsPage() {
                     <div>
                         <label className="block text-sm text-gray-600 mb-1 dark:text-gray-300">Confirm new password</label>
                         <PasswordInput
-                            className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                            className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                             value={confirmNewPassword}
                             onChange={(e) => setConfirmNewPassword(e.target.value)}
                             disabled={passwordLoading}
                         />
                     </div>
                     {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-                    {passwordSuccess && <p className="text-sm text-green-600">{passwordSuccess}</p>}
+                    {passwordSuccess && <p className="text-sm text-green-700 dark:text-green-400">{passwordSuccess}</p>}
                     <button
                         type="button"
                         onClick={handlePasswordUpdate}
@@ -941,7 +1071,14 @@ export default function SettingsPage() {
                             confirmNewPassword.length === 0 ||
                             (hasPassword && currentPassword.length === 0)
                         }
-                        className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
+                        className={
+                            passwordLoading ||
+                            newPassword.length === 0 ||
+                            confirmNewPassword.length === 0 ||
+                            (hasPassword && currentPassword.length === 0)
+                                ? disabledActionButtonClass
+                                : primaryActionButtonClass
+                        }
                     >
                         {passwordLoading ? "Saving…" : hasPassword ? "Update Password" : "Create Password"}
                     </button>
@@ -958,7 +1095,7 @@ export default function SettingsPage() {
                         </p>
                     <button
                         onClick={() => signOut({ callbackUrl: "/" })}
-                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                        className={dangerActionButtonClass}
                         aria-label="Log out"
                     >
                         Log Out
@@ -976,7 +1113,7 @@ export default function SettingsPage() {
                                 </label>
                                 <PasswordInput
                                     id="delete-password"
-                                    className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                                    className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                                     value={deletePassword}
                                     onChange={(e) => setDeletePassword(e.target.value)}
                                     disabled={deleteLoading}
@@ -986,7 +1123,7 @@ export default function SettingsPage() {
                                     <button
                                         onClick={handleDeleteAccount}
                                         disabled={!deletePassword || deleteLoading}
-                                        className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                                        className={!deletePassword || deleteLoading ? disabledActionButtonClass : dangerActionButtonClass}
                                     >
                                         {deleteLoading ? "Deleting…" : "Delete my account"}
                                     </button>
@@ -997,7 +1134,7 @@ export default function SettingsPage() {
                                             setDeletePassword("");
                                             setDeleteError(null);
                                         }}
-                                        className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:border-white/10 dark:hover:bg-white/10"
+                                        className={mutedActionButtonClass}
                                         disabled={deleteLoading}
                                     >
                                         Cancel
@@ -1010,7 +1147,7 @@ export default function SettingsPage() {
                                     setShowDeleteConfirm(true);
                                     setDeleteError(null);
                                 }}
-                                    className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                                className={dangerActionButtonClass}
                             >
                                 Delete Account
                             </button>
@@ -1097,7 +1234,7 @@ function LocationAutocomplete({
     return (
         <div className="relative">
             <input
-                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                 value={input}
                 onChange={(e) => {
                     setInput(e.target.value);
@@ -1198,7 +1335,7 @@ function AddressAutocomplete({
     return (
         <div className="relative">
             <input
-                className="w-full border rounded px-3 py-2 dark:bg-transparent dark:border-white/10 dark:text-gray-100"
+                className="w-full border rounded px-3 py-2 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none dark:bg-transparent dark:border-white/10 dark:text-gray-100"
                 value={input}
                 onChange={(e) => {
                     const next = e.target.value;

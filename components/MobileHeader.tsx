@@ -62,8 +62,8 @@ export default function MobileHeader({
                     </div>
                 )}
                 {titleAlign === "left" ? (
-                    <div className="flex min-w-0 flex-1 items-center">
-                        <h1 className="min-w-0 flex-1 text-center font-roboto text-3xl tracking-tight select-none text-green-700 dark:text-green-400">
+                    <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                        <h1 className="min-w-0 flex-1 text-left font-roboto text-3xl tracking-tight select-none text-green-700 dark:text-green-400">
                             <Link href={href} className="cursor-pointer">
                                 {title.toLowerCase() === "fitting" ? (
                                     <span className="font-semibold">
@@ -74,7 +74,7 @@ export default function MobileHeader({
                                 )}
                             </Link>
                         </h1>
-                        <div className="ml-2 flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                             {rightAccessory}
                         </div>
                     </div>

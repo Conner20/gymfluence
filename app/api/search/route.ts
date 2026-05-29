@@ -261,6 +261,8 @@ export async function GET(req: Request) {
                     hourlyRate: true,
                     rating: true,
                     clients: true,
+                    website: true,
+                    showWebsiteButton: true,
                     city: true,
                     state: true,
                     country: true,
@@ -276,6 +278,8 @@ export async function GET(req: Request) {
                     rating: true,
                     hiringTrainers: true,
                     amenities: true,
+                    website: true,
+                    showWebsiteButton: true,
                     city: true,
                     state: true,
                     country: true,
@@ -345,10 +349,16 @@ export async function GET(req: Request) {
                         ? u.gymProfile?.fee ?? null
                         : null;
 
+            const gymDisplayName =
+                u.gymProfile?.name?.trim() ||
+                u.name?.trim() ||
+                u.username?.trim() ||
+                "Gym";
+
             return {
                 id: u.id,
                 username: u.username,
-                name: u.role === "GYM" ? u.gymProfile?.name ?? u.name : u.name,
+                name: u.role === "GYM" ? gymDisplayName : u.name,
                 image: u.image,
                 role: u.role,
                 isPrivate: u.isPrivate,
@@ -364,6 +374,8 @@ export async function GET(req: Request) {
                 amenities: u.gymProfile?.amenities ?? null,
                 amenitiesText: u.gymProfile?.amenities?.[0] ?? null,
                 hiringTrainers: u.gymProfile?.hiringTrainers ?? false,
+                website: u.role === "GYM" ? u.gymProfile?.website ?? null : u.trainerProfile?.website ?? null,
+                showWebsiteButton: u.role === "GYM" ? u.gymProfile?.showWebsiteButton ?? false : u.trainerProfile?.showWebsiteButton ?? false,
                 distanceKm: distance,
                 about: u.bio ?? null,
                 gallery:

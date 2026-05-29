@@ -155,6 +155,11 @@ export default function PageIntroModal() {
     const handleClose = () => {
         if (typeof window !== 'undefined' && pageKey && userKey) {
             window.localStorage.setItem(`page-intro:${userKey}:${pageKey}`, '1');
+            if (pageKey === 'search' && window.innerWidth < 1024) {
+                const openEditorKey = `page-intro:open-search-editor:${userKey}`;
+                window.localStorage.setItem(openEditorKey, '1');
+                window.dispatchEvent(new CustomEvent('search-profile-editor:open'));
+            }
         }
         setOpen(false);
     };

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ChevronDown, MapPin, MessageSquare, Navigation, Share2, Star, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Link as LinkIcon, MapPin, MessageSquare, Navigation, Share2, Star, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import MobileHeader from "@/components/MobileHeader";
@@ -26,6 +26,8 @@ type GymMapItem = {
         rating: number | null;
         clients: number;
         hiringTrainers: boolean;
+        website: string;
+        showWebsiteButton: boolean;
         bio: string | null;
         isVerified: boolean;
         amenities: string[];
@@ -276,7 +278,7 @@ export function GymDiscoveryPanel({
 
     const normalizedQuery = query.trim().toLowerCase();
     const filteredGyms = useMemo(() => {
-        return gyms.filter((gym) => {
+        const matches = gyms.filter((gym) => {
             const matchesQuery =
                 !normalizedQuery ||
                 gym.gymProfile.name.toLowerCase().includes(normalizedQuery) ||
@@ -291,7 +293,15 @@ export function GymDiscoveryPanel({
 
             return matchesQuery && matchesMin && matchesMax && matchesHiring;
         });
-    }, [gyms, hiringOnly, maxBudget, minBudget, normalizedQuery]);
+
+        if (!selectedGymIdOverride) return matches;
+
+        const selectedGym = gyms.find((gym) => gym.id === selectedGymIdOverride);
+        if (!selectedGym) return matches;
+        if (matches.some((gym) => gym.id === selectedGymIdOverride)) return matches;
+
+        return [selectedGym, ...matches];
+    }, [gyms, hiringOnly, maxBudget, minBudget, normalizedQuery, selectedGymIdOverride]);
 
     const gymsByDistance = useMemo(() => {
         const sorted = [...filteredGyms];
@@ -785,6 +795,18 @@ export function GymDiscoveryPanel({
                                                 <Star size={16} />
                                                 <span className="hidden sm:inline">Rate</span>
                                             </Link>
+                                            {selectedGym.gymProfile.showWebsiteButton && selectedGym.gymProfile.website.trim() && (
+                                                <a
+                                                    href={selectedGym.gymProfile.website}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white p-0 text-sm text-zinc-700 transition hover:bg-zinc-50 dark:border-white/15 dark:bg-transparent dark:text-gray-100 dark:hover:bg-white/10 sm:h-auto sm:w-auto sm:gap-1 sm:px-3 sm:py-1.5"
+                                                    title="Visit website"
+                                                >
+                                                    <LinkIcon size={16} />
+                                                    <span className="hidden sm:inline">Website</span>
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

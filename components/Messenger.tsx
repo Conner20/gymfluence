@@ -83,6 +83,9 @@ const displayName = (u?: LiteUser | null, fallback = 'User') =>
     (u?.username && u.username.trim()) ||
     fallback;
 
+const truncateLabel = (value: string, max = 20) =>
+    value.length > max ? `${value.slice(0, max - 3)}...` : value;
+
 type SharedPost = {
     id: string;
     title: string;
@@ -215,6 +218,7 @@ export default function Messenger() {
     const [addResults, setAddResults] = useState<LiteUser[]>([]);
     const [addLoading, setAddLoading] = useState(false);
     const [addSelectedIds, setAddSelectedIds] = useState<string[]>([]);
+    const [addSelectedUsers, setAddSelectedUsers] = useState<LiteUser[]>([]);
 
     // Shared post modal
     const [openPostId, setOpenPostId] = useState<string | null>(null);
@@ -225,6 +229,7 @@ export default function Messenger() {
     // guards
     const threadAbortRef = useRef<AbortController | null>(null);
     const threadReqIdRef = useRef(0);
+    const [manageViewportHeight, setManageViewportHeight] = useState<number | null>(null);
 
     const myUsername = (session?.user as any)?.username as string | undefined;
     const myId = (session?.user as any)?.id as string | undefined;
@@ -235,6 +240,32 @@ export default function Messenger() {
     );
 
     const formatTimestamp = useCallback((iso: string) => formatRelativeTime(iso), []);
+
+    useEffect(() => {
+        if (!showManage) return;
+
+        const prevBodyOverflow = document.body.style.overflow;
+        const prevHtmlOverflow = document.documentElement.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        const updateViewportHeight = () => {
+            const nextHeight = window.visualViewport?.height ?? window.innerHeight;
+            setManageViewportHeight(nextHeight);
+        };
+
+        updateViewportHeight();
+        window.visualViewport?.addEventListener('resize', updateViewportHeight);
+        window.visualViewport?.addEventListener('scroll', updateViewportHeight);
+
+        return () => {
+            document.body.style.overflow = prevBodyOverflow;
+            document.documentElement.style.overflow = prevHtmlOverflow;
+            window.visualViewport?.removeEventListener('resize', updateViewportHeight);
+            window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
+            setManageViewportHeight(null);
+        };
+    }, [showManage]);
 
     const goToProfile = (u: LiteUser | undefined | null) => {
         if (!u) return;
@@ -292,7 +323,10 @@ export default function Messenger() {
         if (!members || members.length === 0) return 'Group';
         const others = meId ? members.filter((m) => m.id !== meId) : members;
         const base = others.length > 0 ? others : members;
-        const label = base.map((u) => displayName(u)).join(', ');
+        const label = base
+            .map((u) => displayName(u, ''))
+            .filter(Boolean)
+            .join(', ');
         return label || 'Group';
     };
 
@@ -1131,11 +1165,11 @@ export default function Messenger() {
                                     searchFollowers.map((u) => (
                                         <div
                                             key={u.id}
-                                            className="p-2 text-sm hover:bg-gray-50 cursor-pointer flex items-center gap-2 dark:hover:bg-white/5"
+                                            className="flex cursor-pointer items-center gap-2 p-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5"
                                             onClick={() => startChatWithUser(u)}
                                         >
                                             <Avatar user={u} size={24} />
-                                            <div className="truncate">{displayName(u)}</div>
+                                            <div className="min-w-0 truncate">{displayName(u)}</div>
                                         </div>
                                     ))
                                 )}
@@ -1166,6 +1200,7 @@ export default function Messenger() {
                                             ? (c.groupName && c.groupName.trim()) ||
                                             groupTitleFromMembers(c.groupMembers, myId)
                                             : displayName(c.other, DELETED_USER_LABEL);
+                                        const mobileListTitle = truncateLabel(title, 35);
                                         const hasPhoto = (c.lastMessage?.imageUrls?.length ?? 0) > 0;
                                         const previewText = c.lastMessage
                                             ? c.lastMessage.content?.trim()
@@ -1183,12 +1218,12 @@ export default function Messenger() {
                                                         : `dm:${c.other?.id ?? c.id}`
                                                 }
                                                 className={clsx(
-                                                    'px-4 py-3 cursor-pointer hover:bg-gray-50 border-b dark:hover:bg-white/5 dark:border-white/5',
+                                                    'w-full max-w-full overflow-hidden px-4 py-3 cursor-pointer border-b hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5',
                                                     active && 'bg-gray-100 dark:bg-white/10'
                                                 )}
                                                 onClick={() => onPick(c)}
                                             >
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden">
                                                     {realGroup ? (
                                                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs uppercase dark:bg-neutral-700 dark:text-white">
                                                             G
@@ -1204,10 +1239,13 @@ export default function Messenger() {
                                                             fallbackChar={isDeletedDm ? 'D' : undefined}
                                                         />
                                                     )}
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="text-sm font-medium truncate">
+                                                    <div className="min-w-0 basis-0 flex-1 overflow-hidden">
+                                                        <div className="block w-full truncate text-sm font-medium">
                                                             {realGroup ? (
-                                                                title
+                                                                <>
+                                                                    <span className="lg:hidden">{mobileListTitle}</span>
+                                                                    <span className="hidden lg:inline">{title}</span>
+                                                                </>
                                                             ) : (
                                                                 isDeletedDm ? (
                                                                     <span className="text-gray-500 dark:text-gray-400">
@@ -1215,19 +1253,20 @@ export default function Messenger() {
                                                                     </span>
                                                                 ) : (
                                                                     <button
-                                                                        className="hover:underline"
+                                                                        className="block w-full max-w-full truncate text-left hover:underline"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             goToProfile(c.other);
                                                                         }}
                                                                         title={title}
                                                                     >
-                                                                        {title}
+                                                                        <span className="lg:hidden">{mobileListTitle}</span>
+                                                                        <span className="hidden lg:inline">{title}</span>
                                                                     </button>
                                                                 )
                                                             )}
                                                         </div>
-                                                        <div className="text-xs text-gray-500 truncate dark:text-gray-400">
+                                                        <div className="block w-full truncate text-xs text-gray-500 dark:text-gray-400">
                                                             {previewText}
                                                         </div>
                                                     </div>
@@ -1292,28 +1331,18 @@ export default function Messenger() {
                                         fallbackChar={activeDmIsDeleted ? 'D' : undefined}
                                     />
                                 )}
-                                <div className="font-medium truncate flex-1">
+                                <div className="min-w-0 flex-1 font-medium">
                                     {activeGroupMembers ? (
                                         activeGroupName ? (
-                                            <span className="truncate">{activeGroupName}</span>
+                                            <span className="block truncate" title={activeGroupName}>
+                                                {activeGroupName}
+                                            </span>
                                         ) : (
-                                            <span className="truncate">
-                                                {activeGroupMembers
-                                                    .filter((u) => !myId || u.id !== myId)
-                                                    .map((u, idx, arr) => {
-                                                        const label = displayName(u);
-                                                        return (
-                                                            <button
-                                                                key={u.id}
-                                                                className="hover:underline mr-1"
-                                                                onClick={() => goToProfile(u)}
-                                                                title={label}
-                                                            >
-                                                                {label}
-                                                                {idx < arr.length - 1 ? ',' : ''}
-                                                            </button>
-                                                        );
-                                                    })}
+                                            <span
+                                                className="block truncate"
+                                                title={groupTitleFromMembers(activeGroupMembers, myId)}
+                                            >
+                                                {groupTitleFromMembers(activeGroupMembers, myId)}
                                             </span>
                                         )
                                     ) : (
@@ -1323,7 +1352,7 @@ export default function Messenger() {
                                             </span>
                                         ) : (
                                             <button
-                                                className="hover:underline"
+                                                className="block max-w-full truncate text-left hover:underline"
                                                 onClick={() => activeOther && goToProfile(activeOther)}
                                             >
                                                 {displayName(activeOther)}
@@ -1339,6 +1368,7 @@ export default function Messenger() {
                                             setAddQuery('');
                                             setAddResults([]);
                                             setAddSelectedIds([]);
+                                            setAddSelectedUsers([]);
                                             setShowManage(true);
                                         }}
                                         className="text-xs px-3 py-1 rounded-full border hover:bg-gray-50 w-auto dark:border-white/10 dark:hover:bg-white/10"
@@ -1716,11 +1746,22 @@ export default function Messenger() {
                             {selectedUsers.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     {selectedUsers.map((u) => (
-                                    <span
-                                        key={u.id}
-                                        className="px-2 py-1 text-xs bg-gray-100 rounded-full dark:bg-white/10"
+                                        <span
+                                            key={u.id}
+                                            className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs dark:bg-white/10"
                                         >
                                             {displayName(u)}
+                                            <button
+                                                type="button"
+                                                aria-label={`Remove ${displayName(u)} from selected users`}
+                                                onClick={() => {
+                                                    setSelectedIds((prev) => prev.filter((id) => id !== u.id));
+                                                    setSelectedUsers((prev) => prev.filter((user) => user.id !== u.id));
+                                                }}
+                                                className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[13px] leading-none text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/15 dark:hover:text-white"
+                                            >
+                                                ×
+                                            </button>
                                         </span>
                                     ))}
                                 </div>
@@ -1782,35 +1823,253 @@ export default function Messenger() {
                 {/* ----------- MANAGE GROUP MODAL ----------- */}
                 {showManage && activeConvoId && activeGroupMembers && (
                     <div
-                        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+                        className="fixed inset-0 z-50 flex h-[100dvh] items-start justify-center overflow-hidden bg-black/40 p-3 sm:items-center sm:p-4"
+                        style={
+                            manageViewportHeight
+                                ? { height: `${manageViewportHeight}px` }
+                                : undefined
+                        }
                         onClick={() => setShowManage(false)}
                     >
                         <div
-                            className="bg-white p-5 rounded-xl shadow-lg w-[560px] max-w-[94vw] dark:bg-neutral-900 dark:text-gray-100"
+                            className="mt-4 flex w-[560px] max-w-[94vw] flex-col rounded-xl bg-white shadow-lg dark:bg-neutral-900 dark:text-gray-100 sm:mt-0"
+                            style={
+                                manageViewportHeight
+                                    ? { maxHeight: `${Math.max(320, manageViewportHeight - 32)}px` }
+                                    : undefined
+                            }
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center justify-between border-b px-5 py-4 dark:border-white/10">
                                 <div className="text-lg font-semibold">Manage Group</div>
                                 <button
-                                    className="text-sm text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none text-gray-500 hover:bg-gray-100 hover:text-black dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
                                     onClick={() => setShowManage(false)}
+                                    aria-label="Close"
                                 >
-                                    Close
+                                    ×
                                 </button>
                             </div>
 
-                            {/* Rename */}
-                            <div className="mb-5">
-                                <div className="text-sm font-medium mb-1">Group name</div>
-                                <div className="flex items-center gap-2">
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-5 py-4">
+                                {/* Rename */}
+                                <div className="mb-5">
+                                    <div className="text-sm font-medium mb-1">Group name</div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
+                                            placeholder="Optional group name"
+                                            value={groupNameInput}
+                                            onChange={(e) => setGroupNameInput(e.target.value)}
+                                        />
+                                        <button
+                                            className="text-sm px-3 py-2 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch(
+                                                        `/api/conversations/${encodeURIComponent(
+                                                            activeConvoId
+                                                        )}`,
+                                                        {
+                                                            method: 'PATCH',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({
+                                                                name: groupNameInput.trim() || null,
+                                                            }),
+                                                        }
+                                                    );
+                                                    if (!res.ok) throw new Error();
+                                                    const data = await res.json();
+                                                    setActiveGroupName(data.name ?? null);
+                                                    setShowManage(false);
+                                                    fetchConversations();
+                                                } catch {
+                                                    alert('Failed to rename group.');
+                                                }
+                                            }}
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Members list with remove */}
+                                <div className="mb-5">
+                                    <div className="text-sm font-medium mb-2">Members</div>
+                                    <div className="border rounded-md divide-y max-h-48 overflow-y-auto dark:border-white/10 dark:divide-white/10">
+                                        {activeGroupMembers.map((u) => (
+                                            <div key={u.id} className="p-2 flex items-center gap-2">
+                                                <Avatar user={u} size={28} />
+                                                <button
+                                                    className="text-sm hover:underline text-left truncate flex-1"
+                                                    onClick={() => goToProfile(u)}
+                                                    title={displayName(u)}
+                                                >
+                                                    {displayName(u)}
+                                                </button>
+                                                <button
+                                                    className="text-xs px-2 py-1 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                                                    onClick={async () => {
+                                                        try {
+                                                            const res = await fetch(
+                                                                `/api/conversations/${encodeURIComponent(
+                                                                    activeConvoId
+                                                                )}/members?userId=${encodeURIComponent(u.id)}`,
+                                                                { method: 'DELETE' }
+                                                            );
+                                                            if (!res.ok) throw new Error();
+                                                            setActiveGroupMembers((prev) =>
+                                                                prev ? prev.filter((m) => m.id !== u.id) : prev
+                                                            );
+                                                            fetchConversations();
+                                                        } catch {
+                                                            alert('Failed to remove user.');
+                                                        }
+                                                    }}
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Add people */}
+                                <div className="mb-5">
+                                    <div className="text-sm font-medium mb-1">Add people</div>
                                     <input
-                                        className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
-                                        placeholder="Optional group name"
-                                        value={groupNameInput}
-                                        onChange={(e) => setGroupNameInput(e.target.value)}
+                                        className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
+                                        placeholder="Search your followers…"
+                                        value={addQuery}
+                                        onChange={(e) => setAddQuery(e.target.value)}
                                     />
+                                    <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/10">
+                                        {addLoading ? (
+                                            <div className="p-2 text-sm text-gray-500 dark:text-gray-400">Searching…</div>
+                                        ) : addResults.length === 0 ? (
+                                            <div className="p-2 text-sm text-gray-400">No matches</div>
+                                        ) : (
+                                            addResults.map((u) => {
+                                                const alreadyIn = !!activeGroupMembers.find(
+                                                    (m) => m.id === u.id
+                                                );
+                                                const chosen = addSelectedIds.includes(u.id);
+                                                return (
+                                                    <label
+                                                        key={u.id}
+                                                        className={clsx(
+                                                            'p-2 text-sm flex items-center gap-2 cursor-pointer',
+                                                            alreadyIn ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/10'
+                                                        )}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            disabled={alreadyIn}
+                                                            checked={chosen}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setAddSelectedIds((prev) =>
+                                                                        prev.includes(u.id) ? prev : [...prev, u.id]
+                                                                    );
+                                                                    setAddSelectedUsers((prev) =>
+                                                                        prev.some((user) => user.id === u.id) ? prev : [...prev, u]
+                                                                    );
+                                                                } else {
+                                                                    setAddSelectedIds((prev) =>
+                                                                        prev.filter((id) => id !== u.id)
+                                                                    );
+                                                                    setAddSelectedUsers((prev) =>
+                                                                        prev.filter((user) => user.id !== u.id)
+                                                                    );
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Avatar user={u} size={24} />
+                                                        <div className="truncate">
+                                                            {displayName(u)}
+                                                        </div>
+                                                        {alreadyIn && (
+                                                            <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">
+                                                                In group
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    {addSelectedIds.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {addSelectedUsers
+                                                .map((u) => (
+                                                    <span
+                                                        key={u.id}
+                                                        className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs dark:bg-white/10"
+                                                    >
+                                                        {displayName(u)}
+                                                        <button
+                                                            type="button"
+                                                            aria-label={`Remove ${displayName(u)} from selected users`}
+                                                            onClick={() => {
+                                                                setAddSelectedIds((prev) => prev.filter((id) => id !== u.id));
+                                                                setAddSelectedUsers((prev) => prev.filter((user) => user.id !== u.id));
+                                                            }}
+                                                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[13px] leading-none text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/15 dark:hover:text-white"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                        </div>
+                                    )}
+
+                                    <div className="mt-2 flex justify-end">
+                                        <button
+                                            className={clsx(
+                                                'rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50',
+                                                addSelectedIds.length === 0
+                                                    ? 'bg-gray-200 text-gray-600 dark:bg-white/10 dark:text-gray-300'
+                                                    : 'bg-green-700 text-white hover:bg-green-800 dark:bg-green-500 dark:text-black dark:hover:bg-green-400'
+                                            )}
+                                            disabled={addSelectedIds.length === 0}
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch(
+                                                        `/api/conversations/${encodeURIComponent(
+                                                            activeConvoId
+                                                        )}/members`,
+                                                        {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ userIds: addSelectedIds }),
+                                                        }
+                                                    );
+                                                    if (!res.ok) throw new Error();
+                                                    const data: { added: LiteUser[] } = await res.json();
+                                                    setActiveGroupMembers((prev) => [
+                                                        ...(prev ?? []),
+                                                        ...data.added,
+                                                    ]);
+                                                    setAddSelectedIds([]);
+                                                    setAddSelectedUsers([]);
+                                                    setAddQuery('');
+                                                    setAddResults([]);
+                                                    fetchConversations();
+                                                } catch {
+                                                    alert('Failed to add users.');
+                                                }
+                                            }}
+                                        >
+                                            Add selected
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Danger zone */}
+                                <div className="flex items-center justify-start">
                                     <button
-                                        className="text-sm px-3 py-2 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                                        className="rounded-lg px-4 py-2 text-sm font-medium transition bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:text-white dark:hover:bg-red-400"
                                         onClick={async () => {
                                             try {
                                                 const res = await fetch(
@@ -1818,214 +2077,24 @@ export default function Messenger() {
                                                         activeConvoId
                                                     )}`,
                                                     {
-                                                        method: 'PATCH',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({
-                                                            name: groupNameInput.trim() || null,
-                                                        }),
+                                                        method: 'DELETE',
                                                     }
                                                 );
                                                 if (!res.ok) throw new Error();
-                                                const data = await res.json();
-                                                setActiveGroupName(data.name ?? null);
                                                 setShowManage(false);
+                                                router.replace(pathname);
+                                                setActiveConvoId(null);
+                                                setActiveGroupMembers(null);
+                                                setActiveGroupName(null);
+                                                setMessages([]);
                                                 fetchConversations();
                                             } catch {
-                                                alert('Failed to rename group.');
+                                                alert('Failed to leave/delete conversation.');
                                             }
                                         }}
                                     >
-                                        Save
+                                        Leave conversation
                                     </button>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">
-                                    Members will see a grey system line announcing the change.
-                                </div>
-                            </div>
-
-                            {/* Members list with remove */}
-                            <div className="mb-5">
-                                <div className="text-sm font-medium mb-2">Members</div>
-                                <div className="border rounded-md divide-y max-h-48 overflow-y-auto dark:border-white/10 dark:divide-white/10">
-                                    {activeGroupMembers.map((u) => (
-                                        <div key={u.id} className="p-2 flex items-center gap-2">
-                                            <Avatar user={u} size={28} />
-                                            <button
-                                                className="text-sm hover:underline text-left truncate flex-1"
-                                                onClick={() => goToProfile(u)}
-                                                title={displayName(u)}
-                                            >
-                                                {displayName(u)}
-                                            </button>
-                                            <button
-                                                className="text-xs px-2 py-1 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-                                                onClick={async () => {
-                                                    try {
-                                                        const res = await fetch(
-                                                            `/api/conversations/${encodeURIComponent(
-                                                                activeConvoId
-                                                            )}/members?userId=${encodeURIComponent(u.id)}`,
-                                                            { method: 'DELETE' }
-                                                        );
-                                                        if (!res.ok) throw new Error();
-                                                        setActiveGroupMembers((prev) =>
-                                                            prev ? prev.filter((m) => m.id !== u.id) : prev
-                                                        );
-                                                        fetchConversations();
-                                                    } catch {
-                                                        alert('Failed to remove user.');
-                                                    }
-                                                }}
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Add people */}
-                            <div className="mb-5">
-                                <div className="text-sm font-medium mb-1">Add people</div>
-                                <input
-                                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/30 bg-white dark:bg-neutral-800 dark:border-white/10 dark:text-gray-100"
-                                    placeholder="Search your followers…"
-                                    value={addQuery}
-                                    onChange={(e) => setAddQuery(e.target.value)}
-                                />
-                                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto divide-y dark:border-white/10 dark:divide-white/10">
-                                    {addLoading ? (
-                                        <div className="p-2 text-sm text-gray-500 dark:text-gray-400">Searching…</div>
-                                    ) : addResults.length === 0 ? (
-                                        <div className="p-2 text-sm text-gray-400">No matches</div>
-                                    ) : (
-                                        addResults.map((u) => {
-                                            const alreadyIn = !!activeGroupMembers.find(
-                                                (m) => m.id === u.id
-                                            );
-                                            const chosen = addSelectedIds.includes(u.id);
-                                            return (
-                                                <label
-                                                    key={u.id}
-                                                    className={clsx(
-                                                        'p-2 text-sm flex items-center gap-2 cursor-pointer',
-                                                        alreadyIn ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/10'
-                                                    )}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        disabled={alreadyIn}
-                                                        checked={chosen}
-                                                        onChange={(e) =>
-                                                            setAddSelectedIds((prev) =>
-                                                                e.target.checked
-                                                                    ? [...prev, u.id]
-                                                                    : prev.filter((id) => id !== u.id)
-                                                            )
-                                                        }
-                                                    />
-                                                    <Avatar user={u} size={24} />
-                                                    <div className="truncate">
-                                                        {displayName(u)}
-                                                    </div>
-                                                    {alreadyIn && (
-                                                        <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">
-                                                            In group
-                                                        </span>
-                                                    )}
-                                                </label>
-                                            );
-                                        })
-                                    )}
-                                </div>
-
-                                {addSelectedIds.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {addResults
-                                            .filter((u) => addSelectedIds.includes(u.id))
-                                            .map((u) => (
-                                                <span
-                                                    key={u.id}
-                                                    className="px-2 py-1 text-xs bg-gray-100 rounded-full dark:bg-white/10"
-                                                >
-                                                    {displayName(u)}
-                                                </span>
-                                            ))}
-                                    </div>
-                                )}
-
-                                <div className="mt-2 flex justify-end">
-                                    <button
-                                        className={clsx(
-                                            'text-sm px-3 py-2 rounded text-white',
-                                            addSelectedIds.length === 0
-                                                ? 'bg-gray-300 cursor-not-allowed dark:bg-neutral-700'
-                                                : 'bg-green-600 hover:bg-green-700'
-                                        )}
-                                        disabled={addSelectedIds.length === 0}
-                                        onClick={async () => {
-                                            try {
-                                                const res = await fetch(
-                                                    `/api/conversations/${encodeURIComponent(
-                                                        activeConvoId
-                                                    )}/members`,
-                                                    {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ userIds: addSelectedIds }),
-                                                    }
-                                                );
-                                                if (!res.ok) throw new Error();
-                                                const data: { added: LiteUser[] } = await res.json();
-                                                setActiveGroupMembers((prev) => [
-                                                    ...(prev ?? []),
-                                                    ...data.added,
-                                                ]);
-                                                setAddSelectedIds([]);
-                                                setAddQuery('');
-                                                setAddResults([]);
-                                                fetchConversations();
-                                            } catch {
-                                                alert('Failed to add users.');
-                                            }
-                                        }}
-                                    >
-                                        Add selected
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Danger zone */}
-                            <div className="flex items-center justify-between">
-                                <button
-                                    className="text-sm px-3 py-2 rounded border hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
-                                    onClick={async () => {
-                                        try {
-                                            const res = await fetch(
-                                                `/api/conversations/${encodeURIComponent(
-                                                    activeConvoId
-                                                )}`,
-                                                {
-                                                    method: 'DELETE',
-                                                }
-                                            );
-                                            if (!res.ok) throw new Error();
-                                            setShowManage(false);
-                                            router.replace(pathname);
-                                            setActiveConvoId(null);
-                                            setActiveGroupMembers(null);
-                                            setActiveGroupName(null);
-                                            setMessages([]);
-                                            fetchConversations();
-                                        } catch {
-                                            alert('Failed to leave/delete conversation.');
-                                        }
-                                    }}
-                                >
-                                    Leave conversation
-                                </button>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    If you are the last member, the conversation will be deleted.
                                 </div>
                             </div>
                         </div>
